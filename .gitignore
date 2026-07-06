@@ -6,12 +6,18 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.env
+.env.*
+!.env.example
 
 node_modules
 .vite
 dist
 dist-ssr
 *.local
+processed/
+__pycache__/
+*.py[cod]
 
 # Editor directories and files
 .vscode/*
