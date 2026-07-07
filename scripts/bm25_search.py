@@ -216,7 +216,15 @@ def fts_query(user_query: str) -> str:
     return " OR ".join(terms)
 
 
-def search_index(index_path: Path, query: str, top_k: int, institution: str | None) -> list[dict[str, Any]]:
+def search_index(
+    index_path: Path,
+    query: str,
+    top_k: int,
+    institution: str | None,
+    *,
+    preview_chars: int = 700,
+    include_text: bool = False,
+) -> list[dict[str, Any]]:
     if not index_path.exists():
         raise FileNotFoundError(f"Missing index DB: {index_path}")
 
@@ -224,9 +232,11 @@ def search_index(index_path: Path, query: str, top_k: int, institution: str | No
     if not match_query:
         return []
 
+    preview_chars = max(1, min(int(preview_chars), 5000))
+    select_full_text = ",\n          c.text AS text" if include_text else ""
     connection = sqlite3.connect(str(index_path))
     connection.row_factory = sqlite3.Row
-    params: list[Any] = [match_query]
+    params: list[Any] = [preview_chars, match_query]
     where = "chunk_fts MATCH ?"
     if institution:
         where += " AND c.institution = ?"
@@ -245,7 +255,8 @@ def search_index(index_path: Path, query: str, top_k: int, institution: str | No
           c.relative_path,
           c.char_count,
           bm25(chunk_fts) AS score,
-          substr(c.text, 1, 700) AS preview
+          substr(c.text, 1, ?) AS preview
+          {select_full_text}
         FROM chunk_fts
         JOIN chunks c ON c.chunk_id = chunk_fts.chunk_id
         WHERE {where}

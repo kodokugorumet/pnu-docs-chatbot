@@ -67,7 +67,15 @@ type ChatResponse = {
   results: SearchResult[]
 }
 
+function envNumber(value: unknown, fallback: number) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const RAG_API_TOKEN = import.meta.env.VITE_RAG_API_TOKEN ?? ''
+const MAX_QUESTION_CHARS = envNumber(import.meta.env.VITE_MAX_QUESTION_CHARS, 1000)
+const CHAT_TIMEOUT_MS = envNumber(import.meta.env.VITE_CHAT_TIMEOUT_MS, 45000)
 const sanjiniSrc = '/sanjini.webp'
 const allInstitutions = '전체 기관'
 const defaultInstitutions = [
@@ -128,6 +136,16 @@ const loadingSteps = [
 
 function makeId() {
   return crypto.randomUUID()
+}
+
+function chatHeaders() {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (RAG_API_TOKEN) {
+    headers['X-RAG-API-Key'] = RAG_API_TOKEN
+  }
+  return headers
 }
 
 function cleanPreview(value: string) {
@@ -277,6 +295,18 @@ function App() {
     if (!trimmed || isLoading) {
       return
     }
+    if (trimmed.length > MAX_QUESTION_CHARS) {
+      const answer: Message = {
+        id: makeId(),
+        role: 'assistant',
+        status: 'error',
+        content: `질문은 ${MAX_QUESTION_CHARS.toLocaleString()}자 이내로 입력해 주세요.`,
+        results: [],
+      }
+      setMessages((current) => [...current, answer])
+      setSelectedMessageId(answer.id)
+      return
+    }
 
     const userMessage: Message = {
       id: makeId(),
@@ -289,10 +319,14 @@ function App() {
     setLoadingStepIndex(0)
     setIsLoading(true)
 
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS)
+
     try {
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: chatHeaders(),
+        signal: controller.signal,
         body: JSON.stringify({
           question: trimmed,
           institution: institutionOverride,
@@ -316,19 +350,22 @@ function App() {
       setMessages((current) => [...current, answer])
       setSelectedMessageId(answer.id)
       setSourceTab(answer.claims?.length ? 'claims' : 'sources')
-    } catch {
+    } catch (error) {
+      const aborted = error instanceof DOMException && error.name === 'AbortError'
       const answer: Message = {
         id: makeId(),
         role: 'assistant',
         status: 'error',
-        content:
-          '검색 API에 연결하지 못했습니다. 로컬에서 `python scripts\\search_api.py`를 실행한 뒤 다시 질문해 주세요.',
+        content: aborted
+          ? '답변 생성 시간이 너무 길어 요청을 중단했습니다. 질문을 더 짧게 나누거나 기관 범위를 좁혀 다시 시도해 주세요.'
+          : '검색 API에 연결하지 못했습니다. 로컬에서 `python scripts\\search_api.py`를 실행한 뒤 다시 질문해 주세요.',
         results: [],
       }
       setMessages((current) => [...current, answer])
       setSelectedMessageId(answer.id)
       setSourceTab('sources')
     } finally {
+      window.clearTimeout(timeout)
       setIsLoading(false)
     }
   }
@@ -628,6 +665,7 @@ function App() {
           <div className="input-row">
             <textarea
               aria-label="질문 입력"
+              maxLength={MAX_QUESTION_CHARS}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {

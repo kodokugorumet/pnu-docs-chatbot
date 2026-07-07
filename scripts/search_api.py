@@ -12,10 +12,12 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import os
 import re
 import sqlite3
+import threading
 import urllib.error
 import urllib.request
 from http import HTTPStatus
@@ -29,6 +31,14 @@ from bm25_search import DEFAULT_INDEX, search_index, tokenize
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
+DEFAULT_TOP_K = 8
+DEFAULT_MAX_TOP_K = 20
+DEFAULT_MAX_REQUEST_BYTES = 32 * 1024
+DEFAULT_MAX_QUESTION_CHARS = 1000
+DEFAULT_PREVIEW_CHARS = 700
+DEFAULT_SOURCE_CHARS = 1800
+DEFAULT_MAX_CONCURRENT_GENERATIONS = 2
+DEFAULT_ALLOWED_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 MAX_CLAIMS = 5
 DEFAULT_ENV_FILE = Path(".env")
 DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
@@ -45,7 +55,15 @@ def json_bytes(payload: Any) -> bytes:
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
-def load_env_file(path: Path) -> None:
+class ApiError(Exception):
+    def __init__(self, status: HTTPStatus, error: str, message: str) -> None:
+        super().__init__(message)
+        self.status = status
+        self.error = error
+        self.message = message
+
+
+def load_env_file(path: Path, *, override: bool = False) -> None:
     if not path.exists():
         return
 
@@ -56,7 +74,7 @@ def load_env_file(path: Path) -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        if key:
+        if key and (override or key not in os.environ):
             os.environ[key] = value
 
 
@@ -72,6 +90,83 @@ def get_env_int(name: str, default: int) -> int:
         return int(os.environ.get(name, default))
     except ValueError:
         return default
+
+
+def env_list(name: str, default: tuple[str, ...]) -> list[str]:
+    value = os.environ.get(name, "")
+    if not value.strip():
+        return list(default)
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def allowed_origins() -> list[str]:
+    return env_list("RAG_ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS)
+
+
+def cors_origin_for(origin: str | None) -> str | None:
+    origins = allowed_origins()
+    if "*" in origins:
+        return "*"
+    if origin and origin in origins:
+        return origin
+    return None
+
+
+def api_token() -> str:
+    return os.environ.get("RAG_API_TOKEN", "").strip()
+
+
+def request_max_bytes() -> int:
+    return max(1024, get_env_int("RAG_MAX_REQUEST_BYTES", DEFAULT_MAX_REQUEST_BYTES))
+
+
+def question_max_chars() -> int:
+    return max(100, get_env_int("RAG_MAX_QUESTION_CHARS", DEFAULT_MAX_QUESTION_CHARS))
+
+
+def max_top_k() -> int:
+    return max(1, get_env_int("RAG_MAX_TOP_K", DEFAULT_MAX_TOP_K))
+
+
+def preview_chars() -> int:
+    return max(100, get_env_int("RAG_PREVIEW_CHARS", DEFAULT_PREVIEW_CHARS))
+
+
+def source_chars() -> int:
+    return max(300, get_env_int("RAG_SOURCE_CHARS", DEFAULT_SOURCE_CHARS))
+
+
+def parse_top_k(value: Any, default: int = DEFAULT_TOP_K) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return min(max(1, parsed), max_top_k())
+
+
+def validate_question(value: Any) -> str:
+    question = str(value or "").strip()
+    if not question:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "question_required", "질문을 입력해 주세요.")
+    if len(question) > question_max_chars():
+        raise ApiError(
+            HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+            "question_too_long",
+            f"질문은 {question_max_chars()}자 이내로 입력해 주세요.",
+        )
+    return question
+
+
+def is_authorized(headers: Any) -> bool:
+    token = api_token()
+    if not token:
+        return True
+
+    provided = headers.get("X-RAG-API-Key", "").strip()
+    authorization = headers.get("Authorization", "").strip()
+    if authorization.lower().startswith("bearer "):
+        provided = authorization[7:].strip()
+    return bool(provided) and hmac.compare_digest(provided, token)
 
 
 def gemini_api_key() -> str:
@@ -148,6 +243,9 @@ def index_stats(index_path: Path) -> dict[str, Any]:
         "gemini_configured": bool(gemini_api_key()),
         "gemini_model": gemini_model(),
         "gemini_model_candidates": gemini_model_candidates(),
+        "max_top_k": max_top_k(),
+        "max_question_chars": question_max_chars(),
+        "api_token_required": bool(api_token()),
     }
 
 
@@ -155,6 +253,18 @@ def normalize_text(value: str) -> str:
     value = re.sub(r"\s+", " ", value)
     value = re.sub(r"([\[\(]page \d+[\]\)])", "", value, flags=re.IGNORECASE)
     return value.strip()
+
+
+def result_source_text(result: dict[str, Any]) -> str:
+    return str(result.get("text") or result.get("preview") or "")
+
+
+def result_source_excerpt(result: dict[str, Any]) -> str:
+    return normalize_text(result_source_text(result))[:source_chars()]
+
+
+def public_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [{key: value for key, value in result.items() if key != "text"} for result in results]
 
 
 def is_low_quality_candidate(text: str) -> bool:
@@ -201,7 +311,7 @@ def select_answer_claims(question: str, results: list[dict[str, Any]]) -> list[s
 
     for rank, result in enumerate(results, start=1):
         rank_bonus = 1 / (rank + 2)
-        for sentence in split_candidate_sentences(str(result.get("preview", ""))):
+        for sentence in split_candidate_sentences(result_source_text(result)):
             key = sentence[:80]
             if key in seen:
                 continue
@@ -216,7 +326,7 @@ def select_answer_claims(question: str, results: list[dict[str, Any]]) -> list[s
         return claims
 
     fallback = [
-        normalize_text(str(result.get("preview", "")))[:240].strip()
+        normalize_text(result_source_text(result))[:240].strip()
         for result in results[: min(2, len(results))]
     ]
     return [item for item in fallback if item]
@@ -225,7 +335,7 @@ def select_answer_claims(question: str, results: list[dict[str, Any]]) -> list[s
 def build_gemini_prompt(question: str, results: list[dict[str, Any]]) -> str:
     source_blocks: list[str] = []
     for result in results[:8]:
-        preview = normalize_text(str(result.get("preview", "")))[:1400]
+        source = result_source_excerpt(result)
         source_blocks.append(
             "\n".join(
                 [
@@ -233,7 +343,7 @@ def build_gemini_prompt(question: str, results: list[dict[str, Any]]) -> str:
                     f"Institution: {result.get('institution', '')}",
                     f"File: {result.get('file_name', '')}",
                     f"Chunk: {result.get('chunk_index', '')}",
-                    f"Text: {preview}",
+                    f"Text: {source}",
                 ]
             )
         )
@@ -329,13 +439,13 @@ def attribute_claim(claim: str, results: list[dict[str, Any]]) -> dict[str, Any]
     matches: list[tuple[float, int, dict[str, Any]]] = []
 
     for source_number, result in enumerate(results, start=1):
-        preview = str(result.get("preview", ""))
-        preview_terms = set(tokenize(preview, include_ngrams=False))
-        if not claim_terms or not preview_terms:
+        source = result_source_text(result)
+        source_terms = set(tokenize(source, include_ngrams=False))
+        if not claim_terms or not source_terms:
             continue
-        overlap = claim_terms & preview_terms
+        overlap = claim_terms & source_terms
         lexical_score = len(overlap) / max(1, len(claim_terms))
-        substring_bonus = 0.35 if normalize_text(claim)[:80] in normalize_text(preview) else 0
+        substring_bonus = 0.35 if normalize_text(claim)[:80] in normalize_text(source) else 0
         rank_bonus = 0.05 / source_number
         score = lexical_score + substring_bonus + rank_bonus
         if score >= 0.18:
@@ -404,11 +514,17 @@ def number_sources(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 class SearchHandler(BaseHTTPRequestHandler):
     index_path: Path = DEFAULT_INDEX
+    generation_semaphore: threading.BoundedSemaphore = threading.BoundedSemaphore(DEFAULT_MAX_CONCURRENT_GENERATIONS)
 
     def end_headers(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self.headers.get("Origin")
+        allowed_origin = cors_origin_for(origin)
+        if allowed_origin:
+            self.send_header("Access-Control-Allow-Origin", allowed_origin)
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-RAG-API-Key, Authorization")
+        self.send_header("X-Content-Type-Options", "nosniff")
         super().end_headers()
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -422,14 +538,54 @@ class SearchHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def write_error(self, error: str, message: str, status: HTTPStatus) -> None:
+        self.write_json({"error": error, "message": message}, status)
+
+    def request_origin_allowed(self) -> bool:
+        origin = self.headers.get("Origin")
+        if origin and cors_origin_for(origin) is None:
+            self.write_error("origin_not_allowed", "허용되지 않은 Origin입니다.", HTTPStatus.FORBIDDEN)
+            return False
+        return True
+
+    def request_authorized(self) -> bool:
+        if is_authorized(self.headers):
+            return True
+        self.write_error("unauthorized", "API 인증 토큰이 필요합니다.", HTTPStatus.UNAUTHORIZED)
+        return False
+
+    def request_allowed(self, *, protected: bool = False) -> bool:
+        if not self.request_origin_allowed():
+            return False
+        if protected and not self.request_authorized():
+            return False
+        return True
+
     def read_json_body(self) -> dict[str, Any]:
-        length = int(self.headers.get("Content-Length", "0") or "0")
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_content_length", "Content-Length가 올바르지 않습니다.") from exc
         if length <= 0:
             return {}
+        if length > request_max_bytes():
+            raise ApiError(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                "request_too_large",
+                f"요청 본문은 {request_max_bytes()} bytes 이내여야 합니다.",
+            )
         body = self.rfile.read(length).decode("utf-8")
-        return json.loads(body) if body else {}
+        try:
+            payload = json.loads(body) if body else {}
+        except json.JSONDecodeError as exc:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_json", "JSON 형식이 올바르지 않습니다.") from exc
+        if not isinstance(payload, dict):
+            raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_json_body", "JSON object를 보내 주세요.")
+        return payload
 
     def do_OPTIONS(self) -> None:
+        if not self.request_origin_allowed():
+            return
         self.write_json({"ok": True})
 
     def do_GET(self) -> None:
@@ -438,24 +594,39 @@ class SearchHandler(BaseHTTPRequestHandler):
 
         try:
             if parsed.path == "/health":
+                if not self.request_allowed():
+                    return
                 self.write_json(index_stats(self.index_path))
                 return
 
             if parsed.path == "/institutions":
+                if not self.request_allowed():
+                    return
                 self.write_json({"institutions": list_institutions(self.index_path)})
                 return
 
             if parsed.path == "/search":
+                if not self.request_allowed(protected=True):
+                    return
                 question = query.get("q", [""])[0].strip()
                 institution = query.get("institution", [""])[0].strip() or None
-                top_k = int(query.get("top_k", ["8"])[0])
-                results = search_index(self.index_path, question, top_k, institution)
+                top_k = parse_top_k(query.get("top_k", [DEFAULT_TOP_K])[0])
+                results = search_index(
+                    self.index_path,
+                    question,
+                    top_k,
+                    institution,
+                    preview_chars=preview_chars(),
+                )
                 self.write_json({"query": question, "institution": institution, "results": results})
                 return
 
             self.write_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
+        except ApiError as exc:
+            self.write_error(exc.error, exc.message, exc.status)
         except Exception as exc:
-            self.write_json({"error": type(exc).__name__, "message": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            print(f"GET {parsed.path} failed: {type(exc).__name__}: {exc}", flush=True)
+            self.write_error("internal_error", "요청 처리 중 문제가 발생했습니다.", HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
@@ -464,27 +635,42 @@ class SearchHandler(BaseHTTPRequestHandler):
             if parsed.path != "/chat":
                 self.write_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
                 return
-
-            body = self.read_json_body()
-            question = str(body.get("question", "")).strip()
-            institution = str(body.get("institution", "")).strip() or None
-            top_k = int(body.get("top_k", 8))
-
-            if not question:
-                self.write_json({"error": "question_required"}, HTTPStatus.BAD_REQUEST)
+            if not self.request_allowed(protected=True):
                 return
 
-            results = search_index(self.index_path, question, top_k, institution)
+            body = self.read_json_body()
+            question = validate_question(body.get("question", ""))
+            institution = str(body.get("institution", "")).strip() or None
+            top_k = parse_top_k(body.get("top_k", DEFAULT_TOP_K))
+
+            results = search_index(
+                self.index_path,
+                question,
+                top_k,
+                institution,
+                preview_chars=preview_chars(),
+                include_text=True,
+            )
             numbered_results = number_sources(results)
             draft_answer = None
             generator = "extractive"
             if gemini_enabled() and numbered_results:
+                acquired = self.generation_semaphore.acquire(blocking=False)
+                if not acquired:
+                    self.write_error(
+                        "server_busy",
+                        "답변 생성 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+                        HTTPStatus.TOO_MANY_REQUESTS,
+                    )
+                    return
                 try:
                     draft_answer, used_model = generate_answer_with_gemini(question, numbered_results)
                     generator = f"gemini:{used_model}"
                 except Exception as exc:
                     generator = f"extractive_after_gemini_error:{type(exc).__name__}"
                     print(f"Gemini generation failed: {exc}", flush=True)
+                finally:
+                    self.generation_semaphore.release()
 
             rag = build_rag_response(question, numbered_results, draft_answer, generator)
             self.write_json(
@@ -496,11 +682,14 @@ class SearchHandler(BaseHTTPRequestHandler):
                     "claims": rag["claims"],
                     "generator": rag["generator"],
                     "draft_answer": rag.get("draft_answer"),
-                    "results": numbered_results,
+                    "results": public_results(numbered_results),
                 }
             )
+        except ApiError as exc:
+            self.write_error(exc.error, exc.message, exc.status)
         except Exception as exc:
-            self.write_json({"error": type(exc).__name__, "message": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            print(f"POST {parsed.path} failed: {type(exc).__name__}: {exc}", flush=True)
+            self.write_error("internal_error", "요청 처리 중 문제가 발생했습니다.", HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 def parse_args() -> argparse.Namespace:
@@ -509,13 +698,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--index", type=Path, default=DEFAULT_INDEX)
     parser.add_argument("--env-file", type=Path, default=DEFAULT_ENV_FILE)
+    parser.add_argument("--override-env", action="store_true", help="Allow values from --env-file to override existing environment variables.")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    load_env_file(args.env_file)
+    load_env_file(args.env_file, override=args.override_env)
     SearchHandler.index_path = args.index
+    SearchHandler.generation_semaphore = threading.BoundedSemaphore(
+        max(1, get_env_int("RAG_MAX_CONCURRENT_GENERATIONS", DEFAULT_MAX_CONCURRENT_GENERATIONS))
+    )
     server = ThreadingHTTPServer((args.host, args.port), SearchHandler)
     print(f"Search API listening on http://{args.host}:{args.port}")
     print(f"Index: {args.index.resolve()}")
@@ -523,6 +716,8 @@ def main() -> int:
     print(f"Gemini configured: {bool(gemini_api_key())}")
     print(f"Gemini model: {gemini_model()}")
     print(f"Gemini candidates: {', '.join(gemini_model_candidates())}")
+    print(f"Allowed origins: {', '.join(allowed_origins())}")
+    print(f"API token required: {bool(api_token())}")
     server.serve_forever()
     return 0
 

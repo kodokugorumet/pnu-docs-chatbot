@@ -57,14 +57,11 @@
 ### 1. 패키지 설치
 
 ```bash
-pnpm install
-```
-
-`pnpm`이 없다면 npm으로도 실행할 수 있습니다.
-
-```bash
 npm install
+python -m pip install -r requirements.txt
 ```
+
+현재 lockfile은 `package-lock.json` 기준입니다. `pnpm`을 사용해도 동작하지만 팀 단위 재현성은 npm 기준으로 맞추는 것을 권장합니다.
 
 ### 2. 환경변수 설정
 
@@ -88,6 +85,19 @@ GEMINI_MODEL=gemini-3.1-flash-lite
 
 `.env` 파일은 Git에 포함하지 않습니다.
 
+API 보호와 입력 제한 관련 기본값은 다음과 같습니다.
+
+```env
+RAG_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+RAG_API_TOKEN=
+RAG_MAX_TOP_K=20
+RAG_MAX_REQUEST_BYTES=32768
+RAG_MAX_QUESTION_CHARS=1000
+RAG_SOURCE_CHARS=1800
+```
+
+`RAG_API_TOKEN`을 설정하면 `/search`, `/chat` 요청에 `X-RAG-API-Key` 헤더가 필요합니다. 프론트에서 같이 쓰려면 같은 값을 `VITE_RAG_API_TOKEN`에 넣습니다. 로컬 데모에서는 비워 두면 인증 없이 동작합니다.
+
 ### 3. RAG API 서버 실행
 
 ```bash
@@ -103,7 +113,7 @@ http://127.0.0.1:8000/health
 ### 4. 프론트엔드 실행
 
 ```bash
-pnpm run dev --host localhost
+npm run dev -- --host localhost
 ```
 
 브라우저에서 다음 주소로 접속합니다.
@@ -180,19 +190,15 @@ python scripts/bm25_search.py search "상장폐지 공시" --institution 한국�
 - 검색된 문서 chunk 미리보기
 - 원문 위치 정보 표시
 - 모바일 drawer 레이아웃
+- 질문 길이 제한 및 요청 타임아웃 처리
 
 ## 검증 명령
 
 ```bash
-pnpm run build
-pnpm run lint
+npm run check
 ```
 
-Python 스크립트 문법 검사:
-
-```bash
-python -m py_compile scripts/search_api.py scripts/bm25_search.py scripts/parse_documents.py
-```
+`npm run check`는 Python 단위 테스트, ESLint, TypeScript/Vite production build를 한 번에 실행합니다.
 
 ## 개발 방식
 
@@ -216,3 +222,4 @@ git switch -c codex/improve-retrieval-quality
 - 문서별 정답 chunk 기반 retrieval 평가
 - 응답 캐싱 및 Gemini rate limit 대응
 - 크롤링, 파싱, 인덱싱 통합 pipeline script 추가
+- API rate limit/auth 배포 정책 정리

@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "python -m unittest discover -s tests",
+    "check": "python -m unittest discover -s tests && eslint . && tsc -b && vite build"
   },
   "dependencies": {
     "lucide-react": "^1.14.0",
