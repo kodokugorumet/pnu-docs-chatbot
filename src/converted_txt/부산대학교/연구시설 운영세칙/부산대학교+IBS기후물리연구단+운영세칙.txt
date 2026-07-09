@@ -1,0 +1,263 @@
+부산대학교 IBS기후물리연구단 운영세칙
+Enactment of Detailed Rule of Operation of IBS Center for Climate Physics
+제정 2018. 1. 10.
+제1조(목적) 이 시행세칙은 「부산대학교 연구시설 설치운영에 관한 규정」 제26조에 의거 IBS 기후물리연구단(IBS Center for Climate Physics, 이하 ICCP라 한다)의 조직과 운영에 관한 사항을 규정함을 목적으로 한다.
+Article 1(Purpose) This regulation describes the organization and operation of the IBS Center for Climate Physics(hereafter referred to as ICCP) in accordance with the provision of Article 26 of 「Regulations on installation and operation of research facilities」.
+제2조(역할과 책임) ICCP는 다음 각 호의 업무를 수행한다.
+Article 2(Role and Responsibility) ICCP is as follows:
+1. ICCP는 기후 전반과 그 변동성에 대한 기본적 이해를 높이고 기후 변화와 그에 따른 영향에 대한 예측성을 향상시키고자 노력한다. ICCP는 기후 시스템과 예측 가능성, 인간과의 상호 작용(interactions)을 명확하게 이해할 수 있는 획기적 방안을 마련한다. ICCP는 기후 시스템이 발전해가는 과정과 기후 시스템이 환경과 잠재적으로 사회에 미치는 영향을 과학적으로 이해할 수 있도록 노력한다. ICCP는 정책 입안자와 일반 대중들이 정보에 입각하여 기후 변화, 해수면 상승 및 해양 산성화 등 새로운 위협에 대처하고 대응하는 방안을 마련할 수 있도록 지식을 창출한다.
+1. The mission of ICCP is to enhance the basic understanding and improve the predictability of natural climate variability, man-made climate change and their impacts on the hydrological cycle, regional processes, ice-sheets and sea level. ICCP strives to make breakthroughs in the understanding of our climate system, its predictability and its interactions with humans. ICCP will provide basic scientific knowledge on the evolution of the climate system and its environmental and potential societal impacts. The ICCP will generate scientific knowledge that can help policy makers and the general public make informed decisions on how to cope and respond to the emerging threat of global and regional climate change, sea level rise and ocean acidification.
+2. ICCP는 기후 연구 분야에서 핵심이 되는 국제적 중심지로서 자리매김할 것이다. ICCP는 다양한 전공의 학생들과 전임교원에게 새로운 연구 기회, 업무 협업, 세미나 및 국제 학회 등을 통해 새로운 연구 환경을 제공한다. ICCP가 수행하는 기초 연구는 국지 규모의 기후 변화와 해수면 변화에 대한 예측을 향상시킬 것이다. ICCP가 제공하는 정보는 부산광역시와 대한민국 정부 당국의 정책 수립과 계획 결정에 도움이 될 것이다. 부산대학교(이하 본교라 한다)는 일반 대중과 정책 입안자들을 연결시키는 핵심 역할을 수행할 수 있다. 이 과정에서 본교는 다른 전공들도 참여시킬 수 있고, 신규 자금 기회를 창출할 수 있으며 학교 내부적으로도 새로운 차원의 시너지 효과를 만들 수 있다.
+2. The ICCP will become a key international hub for climate research. Students and faculty from various departments will benefit from this new research environment through new research opportunities, collaborations, seminars and international conferences. The basic research conducted by the ICCP will also lead to improved estimates of climate and sea level change on a regional scale. It is expected that this information will be highly beneficial for planning purposes and for policy decisions of Busan Metropolitan City and the Republic of Korea. PNU could become a key player in linking climate change information to the general public and policy makers. This activity could involve other departments within PNU, open new funding opportunities and create a new level of synergy within PNU.
+3. ICCP는 기초 기후 과학, 사회 적응, 도시 계획, 공중 보건, 수자원 관리, 및 토목 공학 등 융합 연구를 진행하는 차세대 환경 과학자들에게 특별한 교육 기회를 제공한다.
+3. The ICCP will offer unique training opportunities for the next generation of environmental scientists working at the nexus between basic climate science and applications to society, city planning, public health, water resource management and civil engineering.
+4. ICCP는 부산 지역의 고등학교와의 협력 프로그램을 수립하여 대중 홍보에 크게 관여한다. ICCP의 연구자들은 기후 변화의 다양한 측면에 대한 대중 강연을 진행하고, ICCP는 고등학생들을 대상으로 한 인턴십 프로그램을 제공한다. 대중 강연과 고등학생들을 대상으로 한 인턴십 프로그램은 부산광역시 재정으로도 지원된다. 이를 통해서 본교는 기후 변화 이슈에 대해 대중들이 갖고 있는 인식을 높이고, 기후 변화 완화(mitigation)와 적응(adaptation)에 관한 사회적 문제들을 해결할 수 있는 사회적 담론을 형성해가는데 중요한 역할을 담당할 것이다.
+4. The ICCP will also engage heavily in public outreach, by establishing outreach programs with high schools in the Busan area. ICCP scientists will give public lectures on various aspects of climate change and ICCP will also offer training internships for high school students. This activity will also be supported by ICCPs Busan City Fund. Through ICCPs outreach portfolio, PNU will play an important role in building up the public awareness of the climate change issue and initiate a public discourse on finding solutions to this challenging societal problem in terms of adaptation and mitigation.
+제3조(조직) ① ICCP에 단장, 부단장, 그룹리더, 과학자문위원회(외부), 운영위원회, 연구팀 및 연구 지원팀을 둔다. 연구팀에는 5개의 주요 연구 그룹을 두고, 각 그룹별로 그룹리더(Group leader)를 둔다.
+Article 3 (Organization Structure) ① The ICCP is composed of the Director, Associate Directors, Group Leaders, the external Scientific Advisory Committee, Steering Committee, Research team and Research support team.
+② 단장은 부단장, 그룹리더, 과학자문위원회(외부)와의 논의를 통해 ICCP의 연구 방향(scientific direction)을 결정한다.
+② The Director, along with the Associate Directors (search to be initiated in 2018), Group Leaders and the external Science Advisory Committee determine the scientific direction of the ICCP.
+③ 각 팀의 기능은 다음 각 호와 같다.
+③ The function for each team is as follows:
+1. 연구팀은 5개의 주요 연구 그룹으로 구성되고, 각 그룹들은 공동 연구를 통해 시너지를 창출한다. 연구팀은 각 그룹별로 그룹리더(Group leader)를 둔다. 그룹 1의 연구 주제는 지구 시스템 역학이며, 그룹 2는 고기후(Paleo-climate), 그룹 3은 수문기후(Hydroclimate), 그룹 4는 지구 시스템 예측, 그룹 5는 기후/인류 상호작용이다. 각 그룹 내에 소규모의 프로젝트를 담당하는 인원들이 구성되며, 그 인원들은 모두 프로젝트 리더(project leader)가 관리한다.
+1. The ICCP will have 5 major research groups, who will work together synergistically. There will be Group leaders for each of five research groups. The research subjects of Group 1 to Group 5 are Earth System Dynamics, Paleo-climate, Hydroclimate, Earth System Predictability and Climate/Human Interactions, respectively. Each Group may contain a member of smaller projects, directed by project leaders.
+2. 연구지원팀(Research support team)은 행정직, 커뮤니케이션, 아웃리치(outreach) 및 정보 처리 서비스(computing services) 업무를 담당한다. 연구지원팀은 ICCP 내 연구자들이 최첨단 연구를 진행할 수 있도록 최적의 연구·업무 환경을 창출한다.
+2. Research support teams, which include administration, communication, outreach and computing services, will create an optimal research and work environment, which will allow ICCP scientists to conduct cutting edge research.
+제4조(단장과 부단장) ① 단장은 ICCP의 장으로서 연구와 운영에 대한 모든 업무를 총괄한다. 단장은 기초과학연구원(Institute for Basic Science, 이하 IBS라 한다) 단장 협의회에 참석한다.
+Article 4 (Director and Associate Directors) ① The Director as head of the ICCP is responsible for the entire research and operation of the Center. The Director participates in the IBS Directors Council Meetings.
+② 단장은 본교 전임교원으로 총장이 임명한다.
+② The Director is appointed as a full-time distinguished and tenured faculty member by the PNU president.
+③ 단장의 역할과 책임은 다음 각 호와 같다.
+③ The role and responsibility of the Director are as follows:
+1. 단장은 ICCP의 수석 연구원이자, 관리자이며 공식 대표로서 역할을 수행한다. 단장은 그룹 1(지구 시스템 역학)의 그룹리더로서 그룹 간 과학적 교류를 장려하고 시너지를 창출한다.
+1. The Director is the Principal Investigator, manager and official representative of the ICCP. He provides scientific leadership and vision for the entire institute and is in charge of managing it. He will be the group leader of Group 1 (Earth System Dynamics) and facilitate scientific exchange and create synergy among research groups.
+2. 단장은 ICCP의 총 예산과 본교 산학협력단(Institute for Research and Industry Cooperation, 이하 IRIC라 한다)에서 배분되는 간접비를 총괄한다. 단장의 출장, 병가 또는 기타 부득이한 부재 상황이 있을 경우에는 단장과 협의한 후 한 명의 부단장이 단장을 대리하여 ICCP의 재정과 운영을 담당한다.
+2. The Director will have the sole authority over the ICCP budget and the returned indirect costs from IRIC. In case of travel, sickness or other impairments, the Director may from case to case assign one of the Associate Directors or a deputy to act on his behalf temporarily and manage the finances and operation of the institute in consultation with the Director.
+3. 단장은 부단장과 그룹리더와의 논의를 거쳐서 ICCP 예산 집행 계획서를 매년 IBS에 제출한다.
+3. The Director, after consultation with the Associate Directors and Group Leaders, will submit annually the ICCP budget to IBS.
+4. 단장은 운영위원회와의 논의를 거쳐서 연구직과 행정직의 연간 업무 성과를 평가하고, 연구 성과급과 장려금을 책정하여 지급한다.
+4. The Director, in consultation with the Steering Committee, conducts annual evaluations of research staff and administration and determines the level of research incentives and bonuses.
+5. 단장은 운영위원회와 논의를 거쳐 International ICCP Fellow를 최종적으로 선정한다.
+5. The Director, in consultation with the Steering Committee, makes the final decision on who will be selected as International ICCP fellow.
+6. 단장은 직원 채용 계약에 승인하고, 직원들의 징계 및 해고 조치를 행사할 수 있다.
+6. The Director signs employment contracts and takes Disciplinary and Discharge Actions for Employees.
+7. 단장은 논문의 과학적 수준이 낮거나 ICCP의 명성을 실추시킬 수 있다고 판단될 경우에는 논문 제출을 중단시키거나 심사(review) 과정의 논문을 철회시킬 수 있다.
+7. The Director has the right to halt submission of scientific publications or withdraw them when in review, if their scientific level is too low and they may hurt the reputation of the ICCP.
+8. 단장은 그의 재량에 따라 3~6항에 규정된 업무를 운영위원회에 부여할 수 있다.
+8. The Director may, upon his discretion, delegate any of the duties stipulated in the provision 3~6 to a member of the Steering Committee.
+9. 단장은 ICCP 사무실 (통합기계관 10층 및 11층) 내 연구원과 행정원들을 위한 업무 공간 배치를 대한 모든 결정권을 가진다.
+9. The Director will make all decisions regarding space allocation of research and administrative staff within the ICCP office space (10th and 11th floor of Integrated Mechanical Engineering building).
+④ 부단장은 기초과학연구원(Institute for Basic Science, 이하 IBS) 원장이 단장과 협의하여 임명한다. 부단장은 본교 전임교원으로 총장이 임명한다.
+④ The Associate Directors are appointed by the IBS President, in consultation with the Director. The Associate Directors are appointed as a full-time tenured faculty member by the PNU president.
+⑤ 부단장의 역할과 책임은 다음 각 호와 같다.
+⑤ The role and responsibility of the Associate Directors are stipulated by the following provisions:
+1. 부단장은 단장과 협의를 통해 연구 그룹을 독자적으로 운영할 수 있는 ICCP의 수석 연구자다. 부단장은 박사학위 소지자 중에서 박사 학위 취득 이후 최소 10년 이상의 연구 경력을 가진 자여야 한다.
+1. The Associate Director is a Principal Scientist within the ICCP who independently operates a Research group via consultation with the Centers Director. Minimum requirement is PhD and at least 10 years of post-PhD research experience.
+2. 부단장은 단장을 도와 ICCP의 운영과 관리를 지원함과 동시에 그룹 간 시너지를 창출하고, 그룹리더로 역할을 하고, 부산광역시 예산 관리를 돕는다.
+2. The Associate Director assists the Director in ICCP management and governance, initiate synergy among the groups and serve as group leader and helps manage the Busan City Fund to support the ICCP.
+3. 부단장은 ICCP 운영에 대한 단장의 업무 협조 요청에 응한다.
+3. The Associate Director can be asked by the Director to help with management activities of the ICCP.
+4. 부단장은 ICCP 운영, 채용 의사 결정, 제반 시설, 회의, 직원 평가 등 ICCP와 관련된 사항들에 대해 단장을 보좌할 수 있다.
+4. The Associate Director can advise the Director in matters relevant to the ICCP, such as management decisions, hiring decisions, infrastructure decisions, meetings, staff evaluations.
+제5조(연구원 등) ① 그룹리더(Group Leader)는 선임 연구원(본교 전임교수 전환 예정자)이 맡는다. 그룹리더는 그룹의 비전을 제시하고 업무를 감독하고, 그룹 간 공동 연구를 조율해야 하며 단장과 부단장들의 일부 행정업무도 보조한다. 또한, 그룹리더는 상위 저널에 논문을 게재하는 것을 목표로 최상의 연구를 수행한다. 그룹리더는 ICCP에서 2026년까지 근무하며, 추후로도 IBS 재정 지원(funding)을 받는 경우 연장하여 근무할 수 있다. 그룹리더(Group Leader)는 박사학위 소지자 중에서 박사 학위 취득 이후 최소 10년 이상의 연구 경력을 가진 자여야 한다.
+Article 5 (Researchers) ① Group Leader : Independent senior researcher (with the option to become PNU faculty member) provides supervision, guidance and vision to research Groups, responsible for coordinating cross-group collaborative research, helps founding director and associate directors in some administrative tasks, conduct cutting-edge research to be published in top ranked journals. Group leader appointments in the ICCP last until end of 2026 and can be extended if additional IBS funding becomes available for the second phase. Minimum requirement is PhD and at least 10 years of post-PhD research experience.
+② 리서치 펠로우(Research Fellows): ICCP 내 리서치 펠로우는 박사학위 취득자이고 5년 이상의 연구 경력을 가진 자로, 본인의 연구 분야에서 우수한 연구실적과 능력을 보유한 것으로 인정받은 자이다. ICCP의 범주에서 리서치 펠로우는 박사후 연구원(Postdoctoral researcher), 조연구원(Assistant researcher), 선임연구원(Senior researcher)이 포함된다. 리서치 펠로우는 단장 및 부단장에게 학술적인 지원을 제공하고, 그룹리더와 프로젝트 리더의 감독 하에 본인만의 연구 아이디어를 개발하고, 전문가 평가를 할(peer-reviewed) 우수한 국제 저널를 발행한다.
+② Research Fellows: A research fellow in ICCP is a full-time employee with a PhD and with more than five years of research experience and recognized through excellent research achievements. Within the ICCP this category comprises postdoctoral researchers, assistant, associate and senior researchers and project leaders. Research fellows provide scientific support to Directors, Associate Directors develop their own scientific ideas under supervision publish in excellent international peer-reviewed journals.
+본 세칙에서 사용한 리서치 펠로우 정의는 IBS 연구 관리 계획(research management plan) 및 연구비 할당(budget allocation)에서 적용한 리서치 펠로우 정의와 동일한 정의를 사용하기 위하여 IBS 리서치 펠로우 정의를 사용한다.
+This definition follows the general IBS definitions of research fellows, which ICCP adopts to maintain consistency with IBS research management plan and budget allocation from IBS.
+리서치 펠로우는 국제적 인재 서치 과정을 통해 단장/부단장이 선출한다. 리서치 펠로우의 고용 계약서는 총장과 단장/부단장이 각각 서명한다.
+Research fellows are selected by the ICCP Director/Associate Director through an internationally advertised search. Their labor contract will be signed, both by the PNU President and the ICCP Director/Associate Director.
+리서치 펠로우 직책의 범주(부록 2 참조)는 다음과 같이 정의한다:
+1. 박사후 연구원(Postdoctoral researcher): 박사 학위 소지자로서 박사 학위 취득 이후 적어도 3년 이내의 연구 경력을 보유해야 한다.
+2. 조연구원(Assistant researcher): 박사 학위 소지자로서 박사 학위 취득 이후 적어도 3년에서 6년 이내의 연구 경력을 보유해야 한다.
+3. 부연구원(Associate Researcher): 박사 학위 소지자로서 박사 학위 취득 이후 적어도 6년에서 10년 이내의 연구 경력을 보유해야 한다.
+4. 프로젝트 리더(Project leader): 1명에서 3명이내의 박사후 연구원(postdoctoral fellows)로 구성된 소규모 연구팀을 이끌어갈 책임이 있는 연구단 내의 조연구원(Assistant researcher), 부연구원(Associate researcher) 및 선임 연구원(Senior researcher)이다.
+The individual categories (see Annex 2) are defined as follows
+1. Postdoctoral researcher: A scientist who holds a PhD and has less than 3 years of scientific work experience past his/her PhD completion.
+2. Assistant Researcher: A scientist who holds a PhD and has 3-6 years of scientific work experience past his/her PhD completion.
+3. Associate Researcher: A scientist who holds a PhD and has 6-10 years of scientific work experience past his/her PhD completion.
+4. Project Leader: Assistant, Associate and Senior Researcher whinin ICCP responsible for supervising small research team of 1-3 team postdoctoral fellows.
+리서치 펠로우 각 직책별 계약 기간은 다음과 같다:
+1. 박사후 연구원(Postdoctoral researchers)은 최초 2년동안 고용되며, 이 기간 이후의 계약은 연구비의 이용 가능 여부와 연구 성과에 따라 갱신될 수 있다.
+2. 조연구원(Assistant researcher), 부연구원(Associate Researcher) 및 선임 연구원(Senior Researcher)는 최초 3년동안 고용되며, 이 기간 이후의 계약은 연구비의 이용 가능 여부와 연구 성과에 따라 갱신될 수 있다.
+3. 프로젝트 리더는 최초 3년에서 5년동안 고용되며, 이 기간 이후의 계약은 연구비의 이용 가능 여부와 연구 성과에 따라 갱신될 수 있다.
+The contract periods for the individual categories of research fellows are as follows:
+1. Postdoctoral researchers are hired initially for 2 years, renewal of contract is possible, based on availability of funds and scientific performance.
+2. Assistant, Associate and Senior Researchers are hired initially for 3 years, renewal of contract is possible, based on availability of funds and scientific performance.
+3. Project leaders are hired initially for 3-5 years, renewal of contract beyond this period is possible, based on availability of funds and scientific performance.
+③ 프로젝트 리더: 프로젝트 리더는 리서치 펠로우의 세부 범주로서, 연구 그룹 내 조연구원(Assistant researcher), 부연구원(Associate researcher) 또는 선임연구원(Senior researcher)로 구성된다. 프로젝트 리더는 단장의 ICCP 운영과 관리를 돕고, 1~3명의 박사후 연구원으로 구성된 소규모 연구팀을 감독해야 하며, 그룹 목표 수행을 위해 그룹리더를 돕는다. 프로젝트 리더는 상위 저널에 논문을 게재할 수 있도록 최상의 연구를 수행한다. 프로젝트 리더는 박사학위 소지자 중에서 박사 학위 취득 이후 최소 5년 이상의 연구 경력을 가진 자여야 한다. 프로젝트 리더는 3년~5년 기준으로 근무 계약을 맺고 계약은 갱신할 수 있다.
+③ Project leader: Project leaders are specific categroy of research fellows comprised of Assistant, Associate or Senior Researchers operating within the Research Groups, responsible for supervising small research teams of 1-3 postdocs, help group leaders in accomplishing Group mission, conduct cutting-edge research to be published in top ranked journals. Minimum requirement is PhD and at least 5 years of post-PhD research experience. Contracts will be issued for 3-5 years with possibility for renewal.
+제6조(직원) ① ICCP는 연구자들의 최첨단 연구를 진행할 수 있도록 행정업무, 커뮤니케이션, 아웃리치(outreach) 및 정보 처리 서비스(computing services) 업무를 담당하는 직원을 둔다.
+Article 6 (Employee) ① There are employees in charge of administration, communication, outreach and computing services in order to allow ICCP scientists to conduct cutting edge research.
+② 전산 시스템 관리원 (Computer system manager)은 다음 각 호의 업무를 담당한다.
+1. ICCP 내 전산 시스템 및 네트워크 등 전산 제반 시설 (하드웨어 및 소프트웨어) 관리·감독
+2. 전산 시설의 향상
+3. 최첨단 데이터 서비스 시스템 (data service system) 운영
+4. 슈퍼 컴퓨팅 시설에 대한 심의서 작성과 국가연구시설장비진흥센터(NFEC) 및 타 기관과의 입찰 업무 보조
+단장은 전산 시스템 관리원과 1년 기준으로 계약을 체결하며 계약을 연장할 수 있다. 전산 시스템 관리원은 최소 석사 학위 보유자여야 한다.
+② Computer system manager has the following responsibilities:
+1. Overseeing and managing computing infrastructure (hard and software) of ICCP computing system and network
+2. Upgrading the infrastructure
+3. Maintaining a state-of-the art data service system and
+4. Helping with the submission of the supercomputing proposal and the NFEC and subsequent bidding process.
+Appointments by the Director are for 1 year with possiblity for renewal. Minimum requirement is a Master degree.
+③ 회계 사무원(사무장)은 다음 각 호의 업무를 담당한다.
+1. IBS와 본교 규정을 준수하여 ICCP 재정 감독함
+2. IBS와 본교 감사 정책, 장비 구매 등을 충실히 고수함
+3. 단장에게 예산 문제들을 충고함
+4. ICCP의 재정 책무성
+5. 구매 및 조달 업무에 대한 책임
+6. 행정직원 관리 및 총괄에 대한 책임
+단장은 회계 사무원과 2년~5년 기준으로 근무 계약을 체결하고, 추후 계약을 연장할 수 있다. 회계 사무원은 최소 학사 학위 보유자여야 한다.
+③ Fiscal officer (Office manager) has following responsibilities:
+1. Oversees fiscal compliance with IBS and PNU rules
+2. Adhering to the IBS/PNU audit policies, procurements of equipment
+3. Advising Director on budget matters
+4. Fiscal accountability of ICCP
+5. Responsible for purchasing and procurement and
+6. Responsible for overseeing and managing the administrative office staff.
+Appointments by the Director are for up to 2~5 years with possibility for renewal. Minimum requirement is a Bachelor degree.
+④ 영문 에디터(English editor)는 다음 각 호의 업무를 담당한다.
+1. 과학분야 영어 강의 제공
+2. ICCP 내 연구자들에게 영문 교정 서비스 제공
+3. 해외 연구자들에게 한국어 교육 실시
+4. 과학적 글쓰기 (scientific writing) 워크숍 제공
+단장은 영문 에디터와 1년 기준으로 근무 계약을 체결하고, 그 이후로 재계약할 수 있다. 영문 에디터는 최소 학사 학위 보유자여야 한다.
+④ English editor has the following responsibilities:
+1. Providing scientific English language training
+2. Offering scientific editing services for ICCP scientists
+3. Providing Korean language training for international scientists
+4. Offering workshops on scientific writing.
+Appointments by the Director are for 1 year with possibility for renewal. Minimum requirement is a Bachelor degree.
+⑤ 아웃리치 전문가(Outreach expert)는 다음 업무를 담당한다.
+1. 대중에게 주요 연구 성과 전달
+2. 대중 행사 조직
+3. ICCP 홈페이지의 내용(contents) 제공
+4. 부산광역시 내 고등학교들과 교육 프로그램(outreach program) 개발
+5. Climate Voices Korea 사업 조직
+6. 뉴스레터와 연례보고서 작성
+단장은 아웃리치 전문가와 1년 기준으로 계약을 체결하고, 추후 계약을 연장할 수 있다. 아웃리치 전문가는 최소 학사 학위 보유자여야 한다.
+⑤ Outreach expert is responsible for the followings:
+1. Presenting research highlights to the public
+2. Organizing public relation events
+3. Providing content for ICCP web pages
+4. Developing outreach program with high schools in Busan
+5. Organize Climate Voices Korea initiative and
+6. Newsletter and annual reports, exhibitions.
+Appointments by the Director are for 1 year with possibility for renewal. Minimum requirement is a Bachelor degree.
+⑥ 인적자원 행정원(Human resource officer)은 다음 각 호의 업무를 담당한다.
+1. ICCP 직원들의 채용 프로세스
+2. 비자 관련 사항, 승진, 월급, 복리후생, 보험, 성과급, 여비 지급
+3. 기타 직원 관련 업무
+단장은 인적자원 행정원과 2년~5년 기준으로 근무 계약을 체결하고, 추후 계약을 연장할 수 있다. 인적자원 행정원은 최소 학사 학위 보유자여야 한다.
+⑥ Human resource officer is responsible for the following works:
+1. The hiring process of ICCP employees,
+2. Visa matters, promotions, employee salaries, benefits, health care, incentives, reimbursement of travel expenditures and
+3. Other personnel-related matters.
+Appointments by the Director are for up to 2~5 years with possibility for renewal. Minimum requirement is a Bachelor degree.
+⑦ 임원 비서(Executive Assistant)는 다음 각 호의 업무를 담당한다.
+1. 개인 비서로서 단장을 지원하고, 다양한 행정 업무를 수행함
+2. 단장과 학교 행정 조직, 기초과학연구원(IBS)와의 연락 담당
+3. 연구단 공간 배치 담당
+4. 단장이 관련 모든 규정을 준수할 수 있도록 조언
+단장은 임원 비서와 2년~5년 기준으로 근무 계약을 체결하고, 추후 계약을 연장할 수 있다. 임원 비서는 최소 학사 학위 보유자여야 한다.
+⑦ Executive Assistant has the following responsibilities
+1. Supporting Director as personal assistant and with diverse administrative tasks,
+2. Serving as liaison between Director, University Administration and IBS,
+3. In charge of office space allocation,
+4. Ensure compliance of all transactions.
+Appointments by the Director are for up to 2~5 years with possibility for renewal. Minimum requirement is a Bachelor degree.
+⑧ 개인 비서(Personal assistant)는 다음 각 호의 업무를 담당한다.
+1. 각종 행정 업무에 대해 부단장 및 그룹리더 업무 보조
+2. 단장은 개인 비서와 2년~5년 기준으로 근무 계약을 체결하고, 추후 계약을 연장할 수 있다. 개인 비서는 최소한 학사 학위 보유자여야 한다.
+⑧ Personal assistants have the following responsibilities
+1. Supporing Associate Director and Group leaders with diverse administrative tasks,
+2. Appointments by the Director are for up to 2~5 years with possibility for renewal. Minimum requirement is a Bachelor degree.
+국제 협력 행정원(International Liaison Officer)은 다음 업무를 담당한다:
+1. 국제 워크숍 조직
+2. 국제 과학자 교류 주선
+3. ICCP 내 외국인 연구자들과 해외 ICCP 펠로우(fellow)의 비자 문제 보조
+4. ICCP 홈페이지 제작·관리
+5. 연구원들로부터 컨텐츠(content) 수집 및 영문 내용 제공
+단장은 국제 협력 행정원과 2년~3년 기준으로 계약을 체결하고, 추후 계약을 연장할 수 있다. 국제 협력 행정원은 최소 학사 학위 보유자여 한다.
+International Liaison Officer has the following responsibilities
+1. Organizing international workshops
+2. Arranging international scientist exchanges
+3. Assisting foreign country ICCP scientists and international ICCP fellows.
+4. Creating and maintaining professional website for ICCP and collect content from scientists and serve it in English.
+Appointments by the Director are for up to 2~3 years with possibility for renewal. Minimum requirement is a Bachelor degree.
+제7조(운영위원회) ① 운영위원회는 단장, 부단장 및 그룹리더를 포함하여 5명 이내로 구성한다. 단장은 운영위원회 회원들과 함께 경영상의 문제를 논의한다. 단장이 운영위원회의 장이 된다.
+Article 7 (Steering Committee) ① The steering committee includes the Director, the Associate Directors and Group Leaders. The maximum number of committee members is five and executive decisions will be made by the Director in consultation with the other members of the steering committee. The Director acts as the Chairman of Steering Committee.
+② 운영위원회는 다음 각 호와 관련하여 단장을 지원한다.
+1. 컨퍼런스(conference)와 행사 조직
+2. 직원 평가 실시
+3. 신규 연구 방향과 설비 확인
+4. 경영, 채용, 연구 방향 및 행정 문제
+② The Steering Committee has the following responsibilities to help the Director in:
+1. Organizing conferences and events
+2. Conducting staff evaluations
+3. Identifying new research directions and infrastructure and
+4. Managing, hiring, science direction and administrative matters.
+제8조(과학 자문 위원회) ① 국제 과학 자문 위원회(Science Advisory Board, SAB)는 세계 정상급 과학자들로 구성된다. 과학 자문 위원회는 매년 ICCP를 자문한다.
+Article 8 (Scientific Advisory Board) ① The ICCP will be advised annually by an international Science Advisory Board (SAB) of world-class scientists.
+② 과학 자문 위원회는 다음 각 호에 대한 자문과 의견을 제공한다.
+1. 연구 방향에 대한 의견 제시,
+2. 주요 연구 목표 실행,
+3. 조직 구조.
+② This Board will provide feedback and advise on:
+1. Research directions
+2. Implementation of the main research goals and
+3. Organizational structure.
+③ 최초 과학 자문 위원회의 구성원은 단장이 임명한다. 위원들의 임기는 4년~5년으로 한다.
+③ The Board will be invited initially by the Director. Members are expected to stay on the SAB for about 4-5 years.
+④ 과학 자문 위원회는 운영위원회와 함께 본교에서 연례회의를 갖는다.
+④ The Steering Committee will meet with the SAB members at PNU once a year.
+⑤ ICCP는 과학 자문 위원회와 관련한 모든 IBS 규칙을 준수한다.
+⑤ The ICCP will adopt all other IBS rules for Scientific Advisory Boards.
+제9조(협동 연구 등) ① ICCP 수행 연구 과제와 관련하여 중요한 사항에 대해 국내·외 연구 기관과 협동 연구를 수행할 수 있다.
+Article 9 (Collaborative Research and Outsourcing) ① The ICCP shall have the right to engage in any national and international research collaboration deemed important and relevant for the ICCP.
+② ICCP는 위탁 업무 및 기술 자문을 제공하는 인력을 사용할 경우, 별도로 할당된 IBS 연구 자금을 사용할 수 있다.
+② The ICCP may from time to time use a part of its specially allocated IBS research funds for outsourced labor to outsource work and technical expertise to other research institutions.
+제10조(재정과 회계) ICCP 재정의 편성·관리와 회계는 「산학협력단 회계처리규칙」을 원칙으로 한다. 단, 특별한 경우에는 본교 산학협력단 동의 하에 IBS 규정을 따를 수 있다.
+Article 10 (Finance and Accounting) The allocation, management and accounting of ICCP finance follows the 「Rule for Accounting Management of Institute for Research Industry Cooperation(IRIC), PNU」. In special cases, Institute for Basic Science rules can be applied, after agreement with IRIC.
+제11조(기타) 기타 연구소 운영에 필요한 세부사항은 위원회의 심의를 거쳐 단장이 따로 정한다.
+Article 11 (Other) Other matters related with the operation of ICCP will be determined by the Director in consultation with the Steering Committee.
+부 칙
+Supplementary provision
+제1조(시행일) 이 운영세칙은 결과통보한 날부터 시행한다.
+Article 1 (Effective Date) This regulation shall take effect from the date of publishment.
+별첨 1. 조직 구조
+Annex 1. Structure of Organization
+별첨 2. 리서치 펠로우(Research Follow)의 최소 자격 요건
+Annex 2. Minimum qualification for research Fellows
+구분
+Category
+학력
+Education
+관련 경력
+Related Experience
+비고
+Note
+박사후 연구원
+(Postdoctoral researcher)
+최소 박사학위 소지자
+At least PhD
+박사학위 취득 후 최소 3년간의 연구 경력
+At least 3 years research experience after PhD
+조연구원
+(Assistant researcher)
+최소 박사학위 소지자
+At least PhD
+박사학위 취득 후 최소 3~6년간의 연구 경력
+At least 3-6 years research experience after PhD
+부연구원
+(Associate researcher)
+최소 박사학위 소지자
+At least PhD
+박사학위 취득 후 최소 6~10년간의 연구 경력
+At least 6-10 years research experience after PhD
+프로젝트 리더
+(Project Leader)
+최소 박사학위 소지자
+At least PhD
+Assistant, Associate and Senior Researcher within ICCP responsible for supervising small research team of 1-3 team postdoctoral fellows.
