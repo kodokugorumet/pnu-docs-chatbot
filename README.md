@@ -36,6 +36,70 @@
 - 한국인터넷진흥원(KISA)
 - 한국해양과학기술원
 
+## 부산대학교 홈페이지 크롤링
+
+부산대학교 메인 홈페이지에서 시작해 공개된 `*.pusan.ac.kr` 학과·기관
+홈페이지 링크를 자동으로 따라갑니다. 학사, 수업, 졸업, 장학, 학생지원,
+공지사항을 우선 방문하며 HTML 원문과 PDF/HWP/HWPX/Office 첨부파일을 함께
+저장합니다. 로그인·관리자 페이지, 외부 도메인, 이미지·스크립트 자산은
+수집하지 않습니다.
+
+먼저 100페이지만 시험 수집합니다.
+
+```bash
+python3 scripts/crawl_pnu_site.py \
+  --max-pages 100 \
+  --max-files 100 \
+  --max-depth 3
+```
+
+범위를 넓혀 수집하려면 다음과 같이 실행합니다.
+
+```bash
+python3 scripts/crawl_pnu_site.py \
+  --max-pages 5000 \
+  --max-files 3000 \
+  --max-depth 6 \
+  --max-pages-per-host 500 \
+  --delay 1.5
+```
+
+결과는 기본적으로 `downloads/pnu-web-crawl/`에 저장됩니다.
+
+```text
+downloads/pnu-web-crawl/
+├─ content/부산대학교/
+│  ├─ 웹페이지/            # 파서에 투입할 HTML 원문
+│  └─ 첨부파일/            # PDF, HWP, HWPX, Office 문서
+├─ state/
+│  ├─ crawl.sqlite3        # 재개 가능한 URL 큐
+│  ├─ pages.jsonl          # 페이지별 원 URL·제목·체크섬
+│  └─ attachments.jsonl    # 첨부파일별 원 URL·저장 경로·체크섬
+└─ summary.json
+```
+
+중간에 중단해도 같은 명령을 다시 실행하면 남은 URL부터 이어집니다. 현재
+누적 상태는 다음 명령으로 확인할 수 있습니다.
+
+```bash
+python3 scripts/crawl_pnu_site.py --status
+```
+
+이미 수집한 URL도 다시 확인하려면 `--refresh`를 붙입니다. 별도 학과
+홈페이지를 시작점에 추가할 때는 `--seed`를 반복해서 지정할 수 있습니다.
+기본 허용 범위는 부산대학교 공식 도메인 전체이므로 발견된 다른
+`*.pusan.ac.kr` 학과·기관 사이트도 자동으로 포함됩니다.
+
+수집 결과는 상태 파일을 제외한 `content` 디렉터리만 파서에 전달합니다.
+
+```bash
+.parser-tools/venvs/core/bin/python scripts/parse_pipeline.py run \
+  --profile all \
+  --input downloads/pnu-web-crawl/content \
+  --output processed/runs \
+  --expect-korean
+```
+
 ## 프로젝트 구조
 
 ```text
@@ -46,6 +110,7 @@
 │  └─ data/                # 기관별 원문 문서
 ├─ scripts/
 │  ├─ crawl_finance_docs.py # 금융권 문서 크롤러
+│  ├─ crawl_pnu_site.py    # 부산대 본문·학과·첨부파일 크롤러
 │  ├─ parse_documents.py   # 문서 파싱 및 청킹
 │  ├─ parse_pipeline.py    # 3개 파서 프로필 실행·진단·검증 CLI
 │  ├─ document_parsing/    # 공통 Block 스키마, 어댑터, 품질·출력 계층
