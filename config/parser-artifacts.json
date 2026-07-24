@@ -1,0 +1,562 @@
+{
+  "schema_version": 1,
+  "pins": {
+    "python": "3.12",
+    "hwp_worker": "1.0.0",
+    "hwplib": "1.1.10",
+    "hwpxlib": "1.0.8",
+    "unhwp": "0.3.0",
+    "docling": "2.114.0",
+    "docling_models": "2.114.0-default",
+    "paddleocr": "3.7.0",
+    "paddlepaddle": "3.2.0",
+    "pp_structure": "PP-StructureV3",
+    "pp_layout": "PP-DocLayout_plus-L",
+    "pp_ocr_detection": "PP-OCRv5_mobile_det",
+    "pp_ocr_korean": "korean_PP-OCRv5_mobile_rec",
+    "tesseract": "5.5.2",
+    "tika": "3.3.2"
+  },
+  "profiles": {
+    "baseline": {
+      "required": [
+        "core_python",
+        "openpyxl",
+        "python_docx",
+        "xlrd",
+        "pymupdf",
+        "pdfplumber",
+        "java",
+        "hwp_worker_jar",
+        "hwplib_jar",
+        "hwpxlib_jar",
+        "tesseract",
+        "tesseract_kor",
+        "tesseract_eng"
+      ],
+      "optional": [
+        "trafilatura"
+      ],
+      "artifacts": [
+        "hwplib",
+        "hwpxlib"
+      ]
+    },
+    "challenger": {
+      "required": [
+        "core_python",
+        "openpyxl",
+        "python_docx",
+        "xlrd",
+        "pymupdf",
+        "unhwp",
+        "docling",
+        "docling_models",
+        "paddlepaddle",
+        "paddleocr",
+        "pp_structure_v3_model",
+        "pp_ocrv5_detection_model",
+        "pp_ocrv5_korean_model"
+      ],
+      "optional": [
+        "trafilatura"
+      ],
+      "artifacts": [
+        "unhwp"
+      ]
+    },
+    "cascade": {
+      "required": [
+        "core_python",
+        "openpyxl",
+        "python_docx",
+        "xlrd",
+        "pymupdf",
+        "pdfplumber",
+        "pypdf",
+        "java",
+        "hwp_worker_jar",
+        "hwplib_jar",
+        "hwpxlib_jar",
+        "unhwp",
+        "docling",
+        "docling_models",
+        "paddlepaddle",
+        "paddleocr",
+        "pp_structure_v3_model",
+        "pp_ocrv5_detection_model",
+        "pp_ocrv5_korean_model",
+        "tesseract",
+        "tesseract_kor",
+        "tesseract_eng",
+        "tika_jar"
+      ],
+      "optional": [
+        "trafilatura",
+        "paddleocr_vl_model"
+      ],
+      "artifacts": [
+        "hwplib",
+        "hwpxlib",
+        "unhwp",
+        "tika"
+      ]
+    }
+  },
+  "capabilities": {
+    "core_python": {
+      "kind": "python_import",
+      "module": "json",
+      "distribution": "",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python",
+        "python/bin/python3.12"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "runtime_group": "core",
+      "setup_hint": "Create a Python 3.12 virtual environment at <tools_dir>/venvs/core; do not install it globally."
+    },
+    "pymupdf": {
+      "kind": "python_import",
+      "module": "pymupdf",
+      "distribution": "PyMuPDF",
+      "required_imports": [
+        "fitz"
+      ],
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "1.28.0",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "olefile": {
+      "kind": "python_import",
+      "module": "olefile",
+      "distribution": "olefile",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "0.47",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "openpyxl": {
+      "kind": "python_import",
+      "module": "openpyxl",
+      "distribution": "openpyxl",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "3.1.5",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "python_docx": {
+      "kind": "python_import",
+      "module": "docx",
+      "distribution": "python-docx",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "1.2.0",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "xlrd": {
+      "kind": "python_import",
+      "module": "xlrd",
+      "distribution": "xlrd",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "2.0.2",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "python_pptx": {
+      "kind": "python_import",
+      "module": "pptx",
+      "distribution": "python-pptx",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "1.0.2",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "pdfplumber": {
+      "kind": "python_import",
+      "module": "pdfplumber",
+      "distribution": "pdfplumber",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "0.11.9",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "pypdf": {
+      "kind": "python_import",
+      "module": "pypdf",
+      "distribution": "pypdf",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "6.10.0",
+      "runtime_group": "core",
+      "setup_hint": "Install the locked core requirements in <tools_dir>/venvs/core."
+    },
+    "trafilatura": {
+      "kind": "python_import",
+      "module": "trafilatura",
+      "distribution": "trafilatura",
+      "interpreter_relative_paths": [
+        "venvs/core/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "exact_version": "2.0.0",
+      "runtime_group": "core",
+      "setup_hint": "Install Trafilatura in <tools_dir>/venvs/core to enable the HTML fallback."
+    },
+    "docling": {
+      "kind": "python_import",
+      "module": "docling",
+      "distribution": "docling",
+      "interpreter_relative_paths": [
+        "venvs/docling/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "min_version": "2.114.0",
+      "exact_version": "2.114.0",
+      "required_symbols": {
+        "docling.datamodel.base_models": [
+          "InputFormat"
+        ],
+        "docling.datamodel.pipeline_options": [
+          "PdfPipelineOptions"
+        ],
+        "docling.document_converter": [
+          "DocumentConverter",
+          "PdfFormatOption"
+        ]
+      },
+      "probe_timeout_seconds": 30,
+      "runtime_group": "docling",
+      "setup_hint": "Create <tools_dir>/venvs/docling with Python 3.12 and install the locked Docling 2.114.0 worker requirements."
+    },
+    "docling_models": {
+      "kind": "model",
+      "relative_paths": [
+        "models/docling"
+      ],
+      "version": "2.114.0-default",
+      "required_globs": [
+        "docling-project--docling-layout-heron/*.safetensors",
+        "docling-project--docling-layout-heron/*config*.json",
+        "**/model_artifacts/tableformer/accurate/*.safetensors",
+        "**/model_artifacts/tableformer/accurate/*config*.json"
+      ],
+      "setup_hint": "Using the pinned Docling environment, run 'docling-tools models download -o <tools_dir>/models/docling layout tableformer'. Doctor requires both reviewed layout and accurate TableFormer artifacts."
+    },
+    "paddleocr": {
+      "kind": "python_import",
+      "module": "paddleocr",
+      "distribution": "paddleocr",
+      "interpreter_relative_paths": [
+        "venvs/paddle/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "min_version": "3.7.0",
+      "exact_version": "3.7.0",
+      "required_symbols": {
+        "paddleocr": [
+          "PPStructureV3"
+        ]
+      },
+      "probe_timeout_seconds": 30,
+      "runtime_group": "paddle",
+      "setup_hint": "Create <tools_dir>/venvs/paddle with Python 3.12 and install the locked PaddleOCR 3.7.0 worker requirements."
+    },
+    "paddlepaddle": {
+      "kind": "python_import",
+      "module": "paddle",
+      "distribution": "paddlepaddle",
+      "interpreter_relative_paths": [
+        "venvs/paddle/bin/python"
+      ],
+      "interpreter_commands": [
+        "python3.12"
+      ],
+      "min_version": "3.2.0",
+      "exact_version": "3.2.0",
+      "probe_timeout_seconds": 30,
+      "runtime_group": "paddle",
+      "setup_hint": "Create <tools_dir>/venvs/paddle with Python 3.12 and install the locked PaddlePaddle 3.2.0 CPU inference engine."
+    },
+    "java": {
+      "kind": "command",
+      "relative_paths": [
+        "jdk/bin/java"
+      ],
+      "commands": [
+        "java"
+      ],
+      "java_home": true,
+      "version_args": [
+        "-version"
+      ],
+      "min_version": "21",
+      "setup_hint": "Point JAVA_HOME at JDK 21 or place a local JDK at <tools_dir>/jdk."
+    },
+    "hwp_worker_jar": {
+      "kind": "file",
+      "relative_paths": [
+        "java/hwp-parser-worker.jar"
+      ],
+      "version": "1.0.0",
+      "setup_hint": "Run prepare with --execute to build the pinned Java HWP/HWPX worker and copy it under <tools_dir>/java."
+    },
+    "hwplib_jar": {
+      "kind": "file",
+      "relative_paths": [
+        "java/lib/hwplib-1.1.10.jar"
+      ],
+      "version": "1.1.10",
+      "checksum_algorithm": "sha256",
+      "checksum": "fce557a7b4aff0c626c544558e0939459601a008d9378457b6183f7f3ae9d1b9",
+      "setup_hint": "Run prepare with --execute to download the checksum-pinned hwplib JAR locally."
+    },
+    "hwpxlib_jar": {
+      "kind": "file",
+      "relative_paths": [
+        "java/lib/hwpxlib-1.0.8.jar"
+      ],
+      "version": "1.0.8",
+      "checksum_algorithm": "sha256",
+      "checksum": "fb29798f929310dbc6f2c7a1c5b9b39e293f404fb02fed0e4740aa8690e06059",
+      "setup_hint": "Run prepare with --execute to download the checksum-pinned hwpxlib JAR locally."
+    },
+    "unhwp": {
+      "kind": "command",
+      "relative_paths": [
+        "bin/unhwp",
+        "bin/unhwp.exe"
+      ],
+      "commands": [
+        "unhwp"
+      ],
+      "version_args": [
+        "--version"
+      ],
+      "min_version": "0.3.0",
+      "exact_version": "0.3.0",
+      "setup_hint": "Run prepare with --execute to install the checksum-pinned unhwp binary under <tools_dir>/bin."
+    },
+    "tesseract": {
+      "kind": "command",
+      "relative_paths": [
+        "tesseract/bin/tesseract",
+        "bin/tesseract"
+      ],
+      "commands": [
+        "tesseract"
+      ],
+      "version_args": [
+        "--version"
+      ],
+      "min_version": "5.5.2",
+      "exact_version": "5.5.2",
+      "setup_hint": "Provision Tesseract 5.5.2 in <tools_dir>/tesseract; a global install is not performed by prepare."
+    },
+    "tesseract_kor": {
+      "kind": "tessdata",
+      "filename": "kor.traineddata",
+      "relative_paths": [
+        "tesseract/share/tessdata/kor.traineddata",
+        "share/tessdata/kor.traineddata"
+      ],
+      "shared_parent_group": "tesseract_languages",
+      "setup_hint": "Copy the checksum-reviewed Korean traineddata into <tools_dir>/tesseract/share/tessdata."
+    },
+    "tesseract_eng": {
+      "kind": "tessdata",
+      "filename": "eng.traineddata",
+      "relative_paths": [
+        "tesseract/share/tessdata/eng.traineddata",
+        "share/tessdata/eng.traineddata"
+      ],
+      "shared_parent_group": "tesseract_languages",
+      "setup_hint": "Copy the checksum-reviewed English traineddata into <tools_dir>/tesseract/share/tessdata."
+    },
+    "tika_jar": {
+      "kind": "file",
+      "relative_paths": [
+        "tika/tika-app-3.3.2.jar"
+      ],
+      "version": "3.3.2",
+      "checksum_algorithm": "sha512",
+      "checksum": "88c2032cba0d45feea361e6eebd2918bd04707614cdda5d89a1b167da5503c98e7b4cd368336f0402d559abcaf5006fcc7c825c32c749ae0417ea2f3b8423aba",
+      "setup_hint": "Run prepare with --execute to download the checksum-pinned Apache Tika application JAR locally."
+    },
+    "pp_structure_v3_model": {
+      "kind": "model",
+      "relative_paths": [
+        "models/paddle/PP-StructureV3/layout_detection"
+      ],
+      "version": "PP-DocLayout_plus-L",
+      "required_files": [
+        "inference.json",
+        "inference.pdiparams",
+        "inference.yml"
+      ],
+      "setup_hint": "Place the approved PP-DocLayout model files in <tools_dir>/models/paddle/PP-StructureV3/layout_detection."
+    },
+    "pp_ocrv5_detection_model": {
+      "kind": "model",
+      "relative_paths": [
+        "models/paddle/PP-StructureV3/text_detection"
+      ],
+      "version": "PP-OCRv5_mobile_det",
+      "required_files": [
+        "inference.json",
+        "inference.pdiparams",
+        "inference.yml"
+      ],
+      "setup_hint": "Place the approved PP-OCRv5 detection model files in <tools_dir>/models/paddle/PP-StructureV3/text_detection."
+    },
+    "pp_ocrv5_korean_model": {
+      "kind": "model",
+      "relative_paths": [
+        "models/paddle/korean_PP-OCRv5_mobile_rec"
+      ],
+      "version": "korean_PP-OCRv5_mobile_rec",
+      "required_files": [
+        "inference.json",
+        "inference.pdiparams",
+        "inference.yml"
+      ],
+      "setup_hint": "Place the approved Korean PP-OCRv5 recognition model files in <tools_dir>/models/paddle/korean_PP-OCRv5_mobile_rec."
+    },
+    "paddleocr_vl_model": {
+      "kind": "model",
+      "relative_paths": [
+        "models/paddle/PaddleOCR-VL"
+      ],
+      "version": "manual-review-only",
+      "require_nonempty": true,
+      "setup_hint": "Optional: place the approved PaddleOCR-VL snapshot in <tools_dir>/models/paddle/PaddleOCR-VL for manual review only."
+    }
+  },
+  "artifacts": {
+    "hwplib": {
+      "version": "1.1.10",
+      "license": "Apache-2.0",
+      "variants": {
+        "any": {
+          "url": "https://repo1.maven.org/maven2/kr/dogfoot/hwplib/1.1.10/hwplib-1.1.10.jar",
+          "checksum_algorithm": "sha256",
+          "checksum": "fce557a7b4aff0c626c544558e0939459601a008d9378457b6183f7f3ae9d1b9",
+          "destination": "java/lib/hwplib-1.1.10.jar",
+          "archive": "file"
+        }
+      }
+    },
+    "hwpxlib": {
+      "version": "1.0.8",
+      "license": "Apache-2.0",
+      "variants": {
+        "any": {
+          "url": "https://repo1.maven.org/maven2/kr/dogfoot/hwpxlib/1.0.8/hwpxlib-1.0.8.jar",
+          "checksum_algorithm": "sha256",
+          "checksum": "fb29798f929310dbc6f2c7a1c5b9b39e293f404fb02fed0e4740aa8690e06059",
+          "destination": "java/lib/hwpxlib-1.0.8.jar",
+          "archive": "file"
+        }
+      }
+    },
+    "unhwp": {
+      "version": "0.3.0",
+      "license": "MIT",
+      "variants": {
+        "macos-aarch64": {
+          "url": "https://github.com/iyulab/unhwp/releases/download/v0.3.0/unhwp-macos-aarch64-v0.3.0.tar.gz",
+          "checksum_algorithm": "sha256",
+          "checksum": "90c016d9efe229b2dd592fa6ecfd24a4ec3ed7338851fb6d24159cfdd79ca47b",
+          "destination": "bin/unhwp",
+          "archive": "tar.gz",
+          "archive_member": "unhwp"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/iyulab/unhwp/releases/download/v0.3.0/unhwp-macos-x86_64-v0.3.0.tar.gz",
+          "checksum_algorithm": "sha256",
+          "checksum": "055b76ca15756ae87680fd9d99393a95609b0b641f3aecef6c2b451223d43f33",
+          "destination": "bin/unhwp",
+          "archive": "tar.gz",
+          "archive_member": "unhwp"
+        },
+        "linux-x86_64": {
+          "url": "https://github.com/iyulab/unhwp/releases/download/v0.3.0/unhwp-linux-x86_64-v0.3.0.tar.gz",
+          "checksum_algorithm": "sha256",
+          "checksum": "948fcc3f8a8f02f61285b2af5be7e7ffa2c86300898af75a5ae88ceaecb6b825",
+          "destination": "bin/unhwp",
+          "archive": "tar.gz",
+          "archive_member": "unhwp"
+        },
+        "windows-x86_64": {
+          "url": "https://github.com/iyulab/unhwp/releases/download/v0.3.0/unhwp-windows-x86_64-v0.3.0.zip",
+          "checksum_algorithm": "sha256",
+          "checksum": "e7f402ed40cc216749efb3e42a9d8d25eab2cd407ba51f3a0dfd2a41ef5b27c0",
+          "destination": "bin/unhwp.exe",
+          "archive": "zip",
+          "archive_member": "unhwp.exe"
+        }
+      }
+    },
+    "tika": {
+      "version": "3.3.2",
+      "license": "Apache-2.0",
+      "variants": {
+        "any": {
+          "url": "https://dlcdn.apache.org/tika/3.3.2/tika-app-3.3.2.jar",
+          "checksum_algorithm": "sha512",
+          "checksum": "88c2032cba0d45feea361e6eebd2918bd04707614cdda5d89a1b167da5503c98e7b4cd368336f0402d559abcaf5006fcc7c825c32c749ae0417ea2f3b8423aba",
+          "destination": "tika/tika-app-3.3.2.jar",
+          "archive": "file"
+        }
+      }
+    }
+  }
+}

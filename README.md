@@ -44,8 +44,13 @@
 ├─ scripts/
 │  ├─ crawl_finance_docs.py # 금융권 문서 크롤러
 │  ├─ parse_documents.py   # 문서 파싱 및 청킹
+│  ├─ parse_pipeline.py    # 3개 파서 프로필 실행·진단·검증 CLI
+│  ├─ document_parsing/    # 공통 Block 스키마, 어댑터, 품질·출력 계층
 │  ├─ bm25_search.py       # SQLite FTS5/BM25 인덱스
 │  └─ search_api.py        # 로컬 RAG API 서버
+├─ parser-workers/         # Java HWP/HWPX, Docling, Paddle 격리 worker
+├─ requirements/           # 파서 런타임별 고정 버전 의존성
+├─ config/parser-artifacts.json # 도구·모델·아티팩트 버전/체크섬
 ├─ processed/              # 파싱/청킹/인덱스 산출물, Git 제외
 ├─ logs/                   # 서버 로그, Git 제외
 ├─ .env.example            # Gemini API 설정 예시
@@ -123,6 +128,89 @@ http://localhost:5173
 ```
 
 ## 데이터 파이프라인
+
+### 3개 프로필 파서 파이프라인
+
+새 파이프라인은 모든 파서 결과를 동일한 11필드 Block 스키마로 정규화합니다.
+
+- `baseline`: HWP/HWPX는 hwplib·hwpxlib, PDF는 PyMuPDF·pdfplumber, 스캔은 Tesseract
+- `challenger`: HWP/HWPX는 unhwp, PDF는 Docling, 스캔은 PP-StructureV3 + 한국어 PP-OCRv5
+- `cascade`: 문서·페이지 품질에 따라 baseline → 구조 파서/OCR → 최후 fallback을 선택
+- HTML과 Office 문서는 세 프로필에서 공통 native adapter를 사용
+
+먼저 로컬 runtime 계획과 누락 항목을 확인합니다. 기본 `prepare`는 읽기 전용이며, `--execute`를 붙여야 체크섬이 고정된 도구 다운로드와 Java worker 빌드를 수행합니다.
+
+```bash
+python3 scripts/parse_pipeline.py prepare --profile all
+python3 scripts/parse_pipeline.py prepare --profile baseline --execute
+python3 scripts/parse_pipeline.py doctor --profile all
+```
+
+`prepare` 결과의 `manual_actions`에는 Python 3.12 venv, Tesseract, Paddle 모델처럼 별도 준비가 필요한 항목이 표시됩니다. `doctor`는 고정 버전, 실제 import/API, 동일 venv, 모델 파일 형태를 함께 확인합니다. `doctor`가 확인한 core venv와 같은 interpreter로 실행해야 in-process PDF/Office adapter가 활성화됩니다.
+
+Paddle scan 경로는 실행 중 모델을 받지 않습니다. 검토·고정한 각
+`inference.json`, `inference.pdiparams`, `inference.yml`을 다음
+디렉터리에 놓아야
+`doctor`가 준비 완료로 판정합니다.
+
+```text
+.parser-tools/models/paddle/PP-StructureV3/layout_detection/
+.parser-tools/models/paddle/PP-StructureV3/text_detection/
+.parser-tools/models/paddle/korean_PP-OCRv5_mobile_rec/
+```
+
+이 경로는 레이아웃·텍스트 검출·한국어 인식만 로컬 모델로 실행하며,
+표·수식·차트·도장 하위 모델은 비활성화합니다.
+
+Docling은 같은 버전의 전용 환경에서 레이아웃과 TableFormer 모델을
+미리 받은 경우에만 활성화됩니다.
+
+```bash
+.parser-tools/venvs/docling/bin/docling-tools models download \
+  -o .parser-tools/models/docling layout tableformer
+```
+
+```bash
+.parser-tools/venvs/core/bin/python scripts/parse_pipeline.py run \
+  --profile all \
+  --input src/data \
+  --output processed/runs \
+  --expect-korean
+```
+
+개발 중 누락된 외부 도구를 명시적인 `unavailable` attempt로 기록하며 일부 형식만 시험하려면 `--allow-missing`을 사용할 수 있습니다. 이 옵션은 시작 조건만 완화하며, `doctor`가 승인하지 않은 PATH 명령·Python 패키지를 우회 실행하지 않습니다. 관리형 `run`에서는 일반 `PARSER_*_CMD` 환경변수도 무시합니다(VL 수동 검토 명령 제외).
+
+기본 입력 한도는 파일당 250 MiB, 문서당 250,000 Block입니다. 필요하면 `--max-file-mb`와 `--max-blocks`로 더 낮게 제한할 수 있습니다.
+
+각 실행은 `processed/runs/<run-id>/<profile>/` 아래 임시 디렉터리에서 완성·검증된 뒤 원자적으로 게시됩니다. 기존 run을 덮어쓰지 않으며 `processed/current`도 변경하지 않습니다.
+
+```text
+documents.jsonl
+blocks.jsonl
+chunks.jsonl
+attempts.jsonl
+parse_report.csv
+parse_summary.json
+run_manifest.json
+raw/
+```
+
+산출물과 raw worker snapshot의 체크섬, Block/표/청크 참조 무결성은 다음 명령으로 다시 검사할 수 있습니다.
+
+```bash
+python3 scripts/parse_pipeline.py verify-run \
+  --run processed/runs/<run-id>
+```
+
+검증된 프로필의 `chunks.jsonl`은 현재 BM25 builder와 바로 호환됩니다.
+
+```bash
+python3 scripts/bm25_search.py build \
+  --chunks processed/runs/<run-id>/cascade/chunks.jsonl \
+  --index processed/index/bm25-cascade.sqlite
+```
+
+### 기존 MVP 파서
 
 ### 문서 파싱 및 청킹
 
