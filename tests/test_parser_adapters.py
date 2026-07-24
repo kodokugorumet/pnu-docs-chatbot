@@ -250,6 +250,35 @@ class NativeAdapterTests(unittest.TestCase):
             self.assertEqual(result.blocks[0].text, "표 앞 문단")
             self.assertEqual(result.blocks[-1].text, "표 뒤 문단")
 
+    def test_xlsx_stops_while_streaming_when_block_limit_is_exceeded(self) -> None:
+        try:
+            import openpyxl
+        except ImportError:
+            self.skipTest("openpyxl is not installed")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "large.xlsx"
+            workbook = openpyxl.Workbook()
+            sheet = workbook.active
+            sheet.append(["항목", "값"])
+            sheet.append(["A", "1"])
+            workbook.save(str(path))
+            workbook.close()
+
+            result = parse_native_office(
+                make_source(path),
+                AdapterContext(
+                    parser="baseline/openpyxl",
+                    options={"max_blocks": 4},
+                ),
+            )
+
+            self.assertEqual(result.blocks, [])
+            self.assertEqual(result.attempts[0].status, "error")
+            self.assertIn(
+                "block_limit_exceeded",
+                result.attempts[0].reason,
+            )
+
 
 class SubprocessAdapterTests(unittest.TestCase):
     def test_missing_command_is_explicitly_unavailable(self) -> None:

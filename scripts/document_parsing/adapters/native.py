@@ -432,9 +432,24 @@ def _parse_xlsx(
             str(source_path(source)), read_only=True, data_only=True
         )
         blocks: List[Block] = []
+        maximum_blocks = max(
+            1,
+            int(
+                context.options.get("max_blocks", 250000)
+                if context
+                else 250000
+            ),
+        )
         try:
             for table_number, sheet in enumerate(workbook.worksheets):
                 heading = clean_text(sheet.title)
+                if len(blocks) + 1 > maximum_blocks:
+                    raise ValueError(
+                        "block_limit_exceeded:{}>{}".format(
+                            len(blocks) + 1,
+                            maximum_blocks,
+                        )
+                    )
                 blocks.append(
                     make_block(
                         source,
@@ -445,12 +460,32 @@ def _parse_xlsx(
                         section_path=[heading],
                     )
                 )
-                rows = _normalize_rows(
-                    [
-                        ["" if value is None else str(value) for value in row]
-                        for row in sheet.iter_rows(values_only=True)
+                # openpyxl's read-only mode streams rows, but materializing the
+                # entire iterator before checking the document block limit can
+                # still consume many gigabytes for large statistical sheets.
+                # Keep the iterator streaming and fail before constructing
+                # hundreds of thousands of Block objects.
+                rows: List[List[str]] = []
+                width = 0
+                for values in sheet.iter_rows(values_only=True):
+                    row = [
+                        clean_text("" if value is None else str(value))
+                        for value in values
                     ]
-                )
+                    if not any(row):
+                        continue
+                    rows.append(row)
+                    width = max(width, len(row))
+                    projected_blocks = (
+                        len(blocks) + 1 + len(rows) * width
+                    )
+                    if projected_blocks > maximum_blocks:
+                        raise ValueError(
+                            "block_limit_exceeded:{}>{}".format(
+                                projected_blocks,
+                                maximum_blocks,
+                            )
+                        )
                 if rows:
                     _append_table_blocks(source, parser, blocks, rows, table_number, [heading])
         finally:
