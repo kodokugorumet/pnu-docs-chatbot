@@ -114,10 +114,22 @@ const suggestedQuestions = [
 ]
 
 const recentQueries = [
-  '상장폐지 공시',
-  '신탁 수탁고 현황',
-  '지급결제 리스크',
-  '휴학 신청',
+  {
+    label: '상장폐지 공시',
+    institution: '한국거래소',
+  },
+  {
+    label: '신탁 수탁고 현황',
+    institution: '금융감독원',
+  },
+  {
+    label: '지급결제 리스크',
+    institution: '한국은행',
+  },
+  {
+    label: '휴학 신청',
+    institution: '부산대학교',
+  },
 ]
 
 function makeId() {
@@ -290,6 +302,20 @@ function App() {
     [health],
   )
   const pipelineStages = useMemo(() => getPipelineStages(health), [health])
+  const availableSuggestedQuestions = useMemo(
+    () =>
+      suggestedQuestions.filter((item) =>
+        institutions.includes(item.institution),
+      ),
+    [institutions],
+  )
+  const availableRecentQueries = useMemo(
+    () =>
+      recentQueries.filter((item) =>
+        institutions.includes(item.institution),
+      ),
+    [institutions],
+  )
   const selectedAnswer = useMemo(
     () =>
       assistantMessages.find((message) => message.id === selectedMessageId) ??
@@ -587,14 +613,17 @@ function App() {
             빠른 검색
           </div>
           <div className="conversation-list">
-            {recentQueries.map((query) => (
+            {availableRecentQueries.map((item) => (
               <button
                 disabled={isLoading || health?.ready !== true}
-                key={query}
-                onClick={() => void submitQuestion(query)}
+                key={item.label}
+                onClick={() => {
+                  setInstitution(item.institution)
+                  void submitQuestion(item.label, item.institution)
+                }}
                 type="button"
               >
-                {query}
+                {item.label}
               </button>
             ))}
           </div>
@@ -652,7 +681,7 @@ function App() {
               </span>
               <h2>질문을 입력하면 파싱된 공문서 chunk에서 근거 후보를 찾아옵니다</h2>
               <div className="suggestion-grid">
-                {suggestedQuestions.map((item) => (
+                {availableSuggestedQuestions.map((item) => (
                   <button
                     disabled={isLoading || health?.ready !== true}
                     key={item.question}
