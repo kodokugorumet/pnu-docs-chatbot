@@ -14,15 +14,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from bm25_search import build_index, rerank_results, search_index
+from bm25_search import (
+    build_dense_index,
+    build_index,
+    rerank_results,
+    search_index,
+)
 from search_api import (
     ApiError,
     build_gemini_prompt,
+    create_hybrid_retriever,
     cors_origin_for,
     is_authorized,
     load_env_file,
     parse_top_k,
     public_results,
+    search_pipeline,
     SearchHandler,
     validate_question,
 )
@@ -171,6 +178,75 @@ class ApiHardeningTests(unittest.TestCase):
         reranked = rerank_results("상장폐지 제도 개선 심사 일정", rows, top_k=1)
 
         self.assertEqual(reranked[0]["chunk_id"], "strong#0000")
+
+    def test_hybrid_pipeline_runs_dense_rrf_and_returns_stage_scores(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bm25_path = self.make_index(root)
+            dense_path = root / "dense.sqlite"
+            build_dense_index(bm25_path, dense_path, dimensions=32)
+            retriever, warning = create_hybrid_retriever(
+                bm25_path,
+                dense_path,
+            )
+
+            results, trace = search_pipeline(
+                bm25_path,
+                retriever,
+                "ragtestterm 핵심 조건",
+                2,
+                "한국거래소",
+                include_text=False,
+            )
+
+        self.assertIsNone(warning)
+        self.assertEqual(trace["strategy"], "BM25 + Dense + RRF")
+        self.assertEqual(trace["lanes"]["bm25"]["status"], "ok")
+        self.assertEqual(trace["lanes"]["dense"]["status"], "ok")
+        self.assertEqual(trace["fusion"]["status"], "ok")
+        self.assertEqual(len(results), 2)
+        self.assertNotIn("text", results[0])
+        self.assertIsNotNone(results[0]["scores"]["rrf"])
+        self.assertIsNotNone(results[0]["scores"]["reranker"])
+
+    def test_hybrid_retriever_disables_stale_dense_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bm25_path = self.make_index(root)
+            dense_path = root / "dense.sqlite"
+            build_dense_index(bm25_path, dense_path, dimensions=32)
+            replacement_chunks = root / "replacement.jsonl"
+            replacement_chunks.write_text(
+                json.dumps(
+                    {
+                        "chunk_id": "replacement#0000",
+                        "doc_id": "replacement",
+                        "chunk_index": 0,
+                        "text": "새 corpus revision",
+                        "metadata": {"institution": "테스트"},
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            build_index(replacement_chunks, bm25_path, batch_size=10)
+
+            retriever, warning = create_hybrid_retriever(
+                bm25_path,
+                dense_path,
+            )
+            _, trace = search_pipeline(
+                bm25_path,
+                retriever,
+                "revision",
+                1,
+                None,
+                include_text=False,
+            )
+
+        self.assertEqual(warning, "dense_corpus_revision_mismatch")
+        self.assertEqual(trace["lanes"]["dense"]["status"], "disabled")
 
     def test_prompt_uses_full_chunk_but_response_strips_internal_text(self) -> None:
         result = {

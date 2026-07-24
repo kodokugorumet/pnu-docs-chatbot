@@ -13,8 +13,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from bm25_search import build_index, search_bm25_candidates
+from bm25_search import build_dense_index, build_index, search_bm25_candidates
 from rag.corpus import inspect_corpus
+from rag.retrieval import DenseIndex
 
 
 def jsonl(rows: list[dict[str, Any]]) -> str:
@@ -26,10 +27,18 @@ def sha256(path: Path) -> str:
 
 
 class CorpusGateTests(unittest.TestCase):
-    def make_run(self, root: Path, *, decision: str = "pass") -> Path:
-        run_dir = root / "run-1" / "cascade"
+    def make_run(
+        self,
+        root: Path,
+        *,
+        decision: str = "pass",
+        run_id: str = "run-1",
+        institution: str = "부산대학교",
+    ) -> Path:
+        run_dir = root / run_id / "cascade"
         run_dir.mkdir(parents=True)
-        document_id = "doc-1"
+        document_id = "doc-1" if run_id == "run-1" else f"{run_id}-doc"
+        chunk_id = "chunk-1" if run_id == "run-1" else f"{run_id}-chunk"
         documents = [
             {
                 "document_id": document_id,
@@ -80,13 +89,13 @@ class CorpusGateTests(unittest.TestCase):
         ]
         chunks = [
             {
-                "chunk_id": "chunk-1",
+                "chunk_id": chunk_id,
                 "doc_id": document_id,
                 "chunk_index": 0,
                 "text": "구분 등록금 납부 안내",
                 "char_count": 12,
                 "metadata": {
-                    "institution": "부산대학교",
+                    "institution": institution,
                     "file_name": "등록금.hwp",
                     "relative_path": "부산대학교/등록금.hwp",
                     "source_path": "src/data/부산대학교/등록금.hwp",
@@ -121,7 +130,7 @@ class CorpusGateTests(unittest.TestCase):
             (run_dir / name).write_text(contents, encoding="utf-8")
 
         manifest = {
-            "run_id": "run-1",
+            "run_id": run_id,
             "profile": "cascade",
             "block_schema_version": 1,
             "files": {name: sha256(run_dir / name) for name in primary},
@@ -200,6 +209,89 @@ class CorpusGateTests(unittest.TestCase):
         self.assertEqual(results[0]["corpus_revision"], summary["corpus_revision"])
         self.assertEqual(results[0]["locations"][2]["column"], 1)
         self.assertEqual(results[0]["location"]["section_path"], ["제1장", "등록"])
+
+    def test_multi_source_index_is_verified_and_preserves_source_revisions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pnu = self.make_run(
+                root,
+                run_id="run-pnu",
+                institution="부산대학교",
+            )
+            kisa = self.make_run(
+                root,
+                run_id="run-kisa",
+                institution="한국인터넷진흥원",
+            )
+            index_path = root / "bm25.sqlite"
+
+            summary = build_index(
+                [pnu / "chunks.jsonl", kisa / "chunks.jsonl"],
+                index_path,
+                batch_size=10,
+                require_manifest=True,
+            )
+            connection = sqlite3.connect(index_path)
+            revisions = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT DISTINCT corpus_revision FROM chunks"
+                )
+            }
+            metadata = dict(
+                connection.execute("SELECT key, value FROM index_meta")
+            )
+            connection.close()
+
+        self.assertTrue(summary["verified_run"])
+        self.assertEqual(summary["source_count"], 2)
+        self.assertEqual(summary["chunk_count"], 2)
+        self.assertEqual(set(summary["institutions"]), {
+            "부산대학교",
+            "한국인터넷진흥원",
+        })
+        self.assertEqual(len(revisions), 2)
+        self.assertTrue(summary["corpus_revision"].startswith("collection:"))
+        self.assertEqual(metadata["source_count"], "2")
+
+    def test_multi_source_index_rejects_duplicate_chunk_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_dir = self.make_run(root)
+
+            with self.assertRaisesRegex(RuntimeError, "Duplicate chunk_id"):
+                build_index(
+                    [run_dir / "chunks.jsonl", run_dir / "chunks.jsonl"],
+                    root / "bm25.sqlite",
+                    batch_size=10,
+                    require_manifest=True,
+                )
+
+    def test_dense_index_keeps_revision_and_exact_locations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_dir = self.make_run(root)
+            bm25_path = root / "bm25.sqlite"
+            dense_path = root / "dense.sqlite"
+            bm25 = build_index(
+                run_dir / "chunks.jsonl",
+                bm25_path,
+                batch_size=10,
+                require_manifest=True,
+            )
+
+            dense_summary = build_dense_index(
+                bm25_path,
+                dense_path,
+                dimensions=32,
+            )
+            dense = DenseIndex.load(dense_path)
+            hits = dense.search("등록금 납부", top_k=1)
+
+        self.assertEqual(dense_summary["corpus_revision"], bm25["corpus_revision"])
+        self.assertEqual(dense.corpus_revision, bm25["corpus_revision"])
+        self.assertEqual(len(hits[0].locations), 3)
+        self.assertEqual(hits[0].locations[2].column, 1)
 
 
 if __name__ == "__main__":

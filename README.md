@@ -2,14 +2,17 @@
 
 부산대학교와 주요 공공기관의 행정 문서를 검색하고, 검색된 근거를 바탕으로 답변을 생성하는 졸업과제용 RAG 챗봇입니다.
 
-현재는 로컬 문서 파싱, 청킹, BM25 검색 인덱스, Gemini 기반 답변 생성, React 채팅 UI까지 연결된 MVP 상태입니다.
+현재는 로컬 문서 파싱, 검증된 다기관 corpus gate, BM25 + Dense/RRF
+하이브리드 검색, 공급자 선택형 답변 생성, React 채팅 UI까지 연결된 MVP
+상태입니다.
 
 ## 현재 구현 상태
 
 - 기관별 문서 수집 데이터 정리
 - 문서 파싱 및 청킹 파이프라인
-- SQLite FTS5 기반 BM25 검색
-- Gemini API 기반 답변 생성
+- SQLite FTS5 기반 BM25와 로컬 hashing Dense 검색
+- reciprocal-rank fusion(RRF)과 lexical reranking
+- local/frontier OpenAI 호환 API, Gemini, 추출형 fallback 답변 생성
 - claim 단위 근거 검증 및 출처 번호 표시
 - React + Vite + TypeScript 프론트엔드
 - 답변 생성 단계 표시
@@ -46,7 +49,8 @@
 │  ├─ parse_documents.py   # 문서 파싱 및 청킹
 │  ├─ parse_pipeline.py    # 3개 파서 프로필 실행·진단·검증 CLI
 │  ├─ document_parsing/    # 공통 Block 스키마, 어댑터, 품질·출력 계층
-│  ├─ bm25_search.py       # SQLite FTS5/BM25 인덱스
+│  ├─ bm25_search.py       # 다기관 BM25와 로컬 Dense 인덱스
+│  ├─ rag/                 # corpus gate, Dense/RRF, 생성기, 응답 계약
 │  └─ search_api.py        # 로컬 RAG API 서버
 ├─ parser-workers/         # Java HWP/HWPX, Docling, Paddle 격리 worker
 ├─ requirements/           # 파서 런타임별 고정 버전 의존성
@@ -99,6 +103,7 @@ RAG_MAX_TOP_K=20
 RAG_MAX_REQUEST_BYTES=32768
 RAG_MAX_QUESTION_CHARS=1000
 RAG_SOURCE_CHARS=1800
+RAG_DENSE_INDEX=processed/index/dense.sqlite
 ```
 
 `RAG_API_TOKEN`을 설정하면 `/search`, `/chat` 요청에 `X-RAG-API-Key` 헤더가 필요합니다. 프론트에서 같이 쓰려면 같은 값을 `VITE_RAG_API_TOKEN`에 넣습니다. 로컬 데모에서는 비워 두면 인증 없이 동작합니다.
@@ -202,13 +207,26 @@ python3 scripts/parse_pipeline.py verify-run \
   --run processed/runs/<run-id>
 ```
 
-검증된 프로필의 `chunks.jsonl`은 현재 BM25 builder와 바로 호환됩니다.
+검증된 프로필의 `chunks.jsonl`은 BM25 builder와 바로 호환됩니다.
+`--chunks`를 반복하면 여러 기관의 검증 결과를 하나의 collection revision으로
+묶습니다. 각 chunk에는 원래 parser run revision이 그대로 남고, 중복 chunk ID나
+checksum 불일치는 게시 전에 거부됩니다.
 
 ```bash
 python3 scripts/bm25_search.py build \
-  --chunks processed/runs/<run-id>/cascade/chunks.jsonl \
-  --index processed/index/bm25-cascade.sqlite
+  --chunks processed/runs/<pnu-run-id>/cascade/chunks.jsonl \
+  --chunks processed/runs/<kisa-run-id>/cascade/chunks.jsonl \
+  --index processed/index/bm25.sqlite \
+  --require-manifest
+
+python3 scripts/bm25_search.py build-dense \
+  --source-index processed/index/bm25.sqlite \
+  --index processed/index/dense.sqlite
 ```
+
+기본 Dense lane은 별도 모델 다운로드 없이 재현 가능한
+`local_hashing_v1` cosine baseline입니다. BM25와 Dense의 corpus revision이
+다르면 API는 stale Dense를 자동으로 끄고 BM25 단일 lane으로 계속 서비스합니다.
 
 ### 기존 MVP 파서
 
@@ -266,7 +284,8 @@ python scripts/bm25_search.py search "상장폐지 공시" --institution 한국�
 }
 ```
 
-응답에는 답변, 근거가 붙은 답변, claim 검증 결과, 검색된 chunk 목록이 포함됩니다.
+응답에는 답변, 근거가 붙은 답변, claim 검증 결과, 검색된 chunk 목록과
+BM25/Dense/RRF/reranker 실행 trace가 포함됩니다.
 
 ## 프론트엔드 기능
 
@@ -302,9 +321,7 @@ git switch -c codex/improve-retrieval-quality
 
 ## 다음 작업 후보
 
-- dense embedding 검색 추가
-- BM25 + vector hybrid retrieval
-- reranking 적용
+- 학습된 한국어 embedding 모델로 hashing Dense baseline 교체
 - 사용자 역할별 답변 프롬프트 분리
 - RAG 평가 벤치마크 제작
 - 문서별 정답 chunk 기반 retrieval 평가

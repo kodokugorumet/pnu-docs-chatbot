@@ -14,6 +14,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -23,7 +24,12 @@ import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
+
+# Direct CLI execution puts scripts/, not the repository root, on sys.path.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 try:
     from .rag.corpus import inspect_corpus
@@ -33,6 +39,7 @@ except ImportError:  # Direct CLI execution: python scripts/bm25_search.py
 
 DEFAULT_CHUNKS = Path("processed/current/chunks.jsonl")
 DEFAULT_INDEX = Path("processed/index/bm25.sqlite")
+DEFAULT_DENSE_INDEX = Path("processed/index/dense.sqlite")
 DEFAULT_RERANK_CANDIDATE_MULTIPLIER = 4
 TOKEN_RE = re.compile(r"[가-힣]+|[A-Za-z]+|\d+")
 HANGUL_RE = re.compile(r"^[가-힣]+$")
@@ -149,8 +156,30 @@ def _json_text(value: Any, default: Any) -> str:
     return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
 
 
+def _chunks_paths(value: Path | Sequence[Path]) -> list[Path]:
+    paths = [value] if isinstance(value, Path) else list(value)
+    if not paths:
+        raise ValueError("At least one chunks file is required")
+    normalized = [Path(path) for path in paths]
+    missing = [path for path in normalized if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"Missing chunks file: {missing[0]}")
+    return normalized
+
+
+def _collection_revision(revisions: Sequence[str]) -> str:
+    if len(revisions) == 1:
+        return revisions[0]
+    payload = json.dumps(
+        sorted(revisions),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return f"collection:{hashlib.sha256(payload).hexdigest()[:24]}"
+
+
 def build_index(
-    chunks_path: Path,
+    chunks_path: Path | Sequence[Path],
     index_path: Path,
     batch_size: int,
     *,
@@ -159,13 +188,22 @@ def build_index(
 ) -> dict[str, Any]:
     """Build a gated index and atomically publish it when complete."""
 
-    if not chunks_path.exists():
-        raise FileNotFoundError(f"Missing chunks file: {chunks_path}")
-
-    gate = inspect_corpus(
-        chunks_path,
-        allow_suspect=allow_suspect,
-        require_manifest=require_manifest,
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    chunks_paths = _chunks_paths(chunks_path)
+    sources = [
+        (
+            path,
+            inspect_corpus(
+                path,
+                allow_suspect=allow_suspect,
+                require_manifest=require_manifest,
+            ),
+        )
+        for path in chunks_paths
+    ]
+    corpus_revision = _collection_revision(
+        [gate.corpus_revision for _, gate in sources]
     )
     index_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_index = index_path.with_name(f".{index_path.name}.{uuid.uuid4().hex}.tmp")
@@ -178,6 +216,7 @@ def build_index(
         chunk_rows: list[tuple[Any, ...]] = []
         fts_rows: list[tuple[str, str]] = []
         institutions: Counter[str] = Counter()
+        seen_chunk_ids: set[str] = set()
         total = 0
 
         def flush() -> None:
@@ -205,73 +244,106 @@ def build_index(
             chunk_rows = []
             fts_rows = []
 
-        for chunk in iter_chunks(chunks_path):
-            if not gate.allows_chunk(chunk):
-                continue
-            metadata = chunk.get("metadata") or {}
-            chunk_id = str(chunk["chunk_id"])
-            document_id = str(chunk.get("document_id") or chunk.get("doc_id") or "")
-            if not document_id:
-                raise RuntimeError(f"Chunk {chunk_id} is missing document_id/doc_id")
-            institution = str(metadata.get("institution") or "")
-            text = str(chunk.get("text") or "")
-            block_ids = (
-                metadata.get("block_ids")
-                if isinstance(metadata.get("block_ids"), list)
-                else []
-            )
-            table_ids = (
-                metadata.get("table_ids")
-                if isinstance(metadata.get("table_ids"), list)
-                else []
-            )
-            chunk_rows.append(
-                (
-                    chunk_id,
-                    document_id,
-                    document_id,
-                    int(chunk.get("chunk_index", 0)),
-                    institution,
-                    metadata.get("source_path", ""),
-                    metadata.get("relative_path", ""),
-                    metadata.get("file_name", ""),
-                    metadata.get("extension", ""),
-                    metadata.get("parser", ""),
-                    int(chunk.get("char_count") or len(text)),
-                    metadata.get("page_start"),
-                    metadata.get("page_end"),
-                    _json_text(metadata.get("section_path"), None),
-                    _json_text(table_ids, []),
-                    _json_text(block_ids, []),
-                    _json_text(gate.locations_for_chunk(chunk), []),
-                    gate.corpus_revision,
-                    text,
+        for source_path, gate in sources:
+            for chunk in iter_chunks(source_path):
+                if not gate.allows_chunk(chunk):
+                    continue
+                metadata = chunk.get("metadata") or {}
+                chunk_id = str(chunk["chunk_id"])
+                if chunk_id in seen_chunk_ids:
+                    raise RuntimeError(
+                        f"Duplicate chunk_id across corpus sources: {chunk_id}"
+                    )
+                seen_chunk_ids.add(chunk_id)
+                document_id = str(
+                    chunk.get("document_id") or chunk.get("doc_id") or ""
                 )
-            )
-            fts_rows.append((chunk_id, make_search_text(chunk)))
-            institutions[institution] += 1
-            total += 1
+                if not document_id:
+                    raise RuntimeError(
+                        f"Chunk {chunk_id} is missing document_id/doc_id"
+                    )
+                institution = str(metadata.get("institution") or "")
+                text = str(chunk.get("text") or "")
+                block_ids = (
+                    metadata.get("block_ids")
+                    if isinstance(metadata.get("block_ids"), list)
+                    else []
+                )
+                table_ids = (
+                    metadata.get("table_ids")
+                    if isinstance(metadata.get("table_ids"), list)
+                    else []
+                )
+                chunk_rows.append(
+                    (
+                        chunk_id,
+                        document_id,
+                        document_id,
+                        int(chunk.get("chunk_index", 0)),
+                        institution,
+                        metadata.get("source_path", ""),
+                        metadata.get("relative_path", ""),
+                        metadata.get("file_name", ""),
+                        metadata.get("extension", ""),
+                        metadata.get("parser", ""),
+                        int(chunk.get("char_count") or len(text)),
+                        metadata.get("page_start"),
+                        metadata.get("page_end"),
+                        _json_text(metadata.get("section_path"), None),
+                        _json_text(table_ids, []),
+                        _json_text(block_ids, []),
+                        _json_text(gate.locations_for_chunk(chunk), []),
+                        gate.corpus_revision,
+                        text,
+                    )
+                )
+                fts_rows.append((chunk_id, make_search_text(chunk)))
+                institutions[institution] += 1
+                total += 1
 
-            if total % batch_size == 0:
-                flush()
-                print(f"Indexed {total} chunks")
+                if total % batch_size == 0:
+                    flush()
+                    print(f"Indexed {total} chunks")
 
         flush()
         if total == 0:
             raise RuntimeError("Corpus gate produced no non-empty chunks")
 
         created_at = datetime.now(timezone.utc).isoformat()
+        single_gate = sources[0][1] if len(sources) == 1 else None
+        source_descriptors = [
+            {
+                "chunks_path": str(path),
+                "corpus_revision": gate.corpus_revision,
+                "run_id": gate.run_id,
+                "profile": gate.profile,
+                "manifest_sha256": gate.manifest_sha256,
+            }
+            for path, gate in sources
+        ]
         metadata_rows = {
-            "chunks_path": str(chunks_path),
+            "chunks_path": str(chunks_paths[0]) if len(chunks_paths) == 1 else "",
+            "chunks_paths": json.dumps(
+                [str(path) for path in chunks_paths],
+                ensure_ascii=False,
+            ),
+            "sources": json.dumps(source_descriptors, ensure_ascii=False),
+            "source_count": str(len(sources)),
             "chunk_count": str(total),
             "created_at": created_at,
             "institutions": json.dumps(institutions, ensure_ascii=False),
-            "corpus_revision": gate.corpus_revision,
-            "run_id": gate.run_id or "",
-            "profile": gate.profile or "",
-            "manifest_sha256": gate.manifest_sha256,
-            "excluded_document_count": str(len(gate.excluded_document_ids)),
-            "excluded_chunk_count": str(len(gate.excluded_chunk_ids)),
+            "corpus_revision": corpus_revision,
+            "run_id": single_gate.run_id or "" if single_gate else "",
+            "profile": single_gate.profile or "" if single_gate else "",
+            "manifest_sha256": (
+                single_gate.manifest_sha256 if single_gate else ""
+            ),
+            "excluded_document_count": str(
+                sum(len(gate.excluded_document_ids) for _, gate in sources)
+            ),
+            "excluded_chunk_count": str(
+                sum(len(gate.excluded_chunk_ids) for _, gate in sources)
+            ),
         }
         connection.executemany(
             "INSERT INTO index_meta (key, value) VALUES (?, ?)",
@@ -285,19 +357,55 @@ def build_index(
         os.replace(temporary_index, index_path)
         return {
             "index": str(index_path),
-            "chunks_path": str(chunks_path),
+            "chunks_path": (
+                str(chunks_paths[0]) if len(chunks_paths) == 1 else None
+            ),
+            "chunks_paths": [str(path) for path in chunks_paths],
+            "source_count": len(sources),
             "chunk_count": total,
             "institutions": dict(institutions),
             "created_at": created_at,
-            "corpus_revision": gate.corpus_revision,
-            "verified_run": gate.is_verified_run,
-            "excluded_document_count": len(gate.excluded_document_ids),
-            "excluded_chunk_count": len(gate.excluded_chunk_ids),
+            "corpus_revision": corpus_revision,
+            "verified_run": all(gate.is_verified_run for _, gate in sources),
+            "excluded_document_count": sum(
+                len(gate.excluded_document_ids) for _, gate in sources
+            ),
+            "excluded_chunk_count": sum(
+                len(gate.excluded_chunk_ids) for _, gate in sources
+            ),
         }
     finally:
         if connection is not None:
             connection.close()
         temporary_index.unlink(missing_ok=True)
+
+
+def build_dense_index(
+    source_index: Path,
+    index_path: Path,
+    *,
+    dimensions: int = 256,
+) -> dict[str, Any]:
+    """Build the deterministic offline dense lane from a BM25 index."""
+
+    try:
+        from .rag.retrieval import DenseIndex, HashingEmbedder
+    except ImportError:  # Direct CLI execution.
+        from rag.retrieval import DenseIndex, HashingEmbedder
+
+    dense = DenseIndex.from_bm25_index(
+        source_index,
+        embedder=HashingEmbedder(dimensions=dimensions),
+        index_path=index_path,
+    )
+    return {
+        "index": str(index_path),
+        "source_index": str(source_index),
+        "chunk_count": len(dense),
+        "embedding_kind": dense.embedding_kind,
+        "dimensions": dense.dimensions,
+        "corpus_revision": dense.corpus_revision,
+    }
 
 
 def fts_query(user_query: str) -> str:
@@ -451,7 +559,7 @@ def search_bm25_candidates(
         FROM chunk_fts
         JOIN chunks c ON c.chunk_id = chunk_fts.chunk_id
         WHERE {where}
-        ORDER BY bm25_score
+        ORDER BY bm25_score, c.chunk_id
         LIMIT ?
         """,
         params,
@@ -471,6 +579,10 @@ def search_bm25_candidates(
             "section_path": row["section_path"],
             "table_ids": row["table_ids"],
             "block_ids": row["block_ids"],
+        }
+        row["metadata"] = {
+            "corpus_revision": row.get("corpus_revision"),
+            **row["location"],
         }
         row["score"] = row["bm25_score"]
         row["retrieval"] = {
@@ -523,7 +635,15 @@ def parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build = subparsers.add_parser("build", help="Build the SQLite BM25 index.")
-    build.add_argument("--chunks", type=Path, default=DEFAULT_CHUNKS)
+    build.add_argument(
+        "--chunks",
+        type=Path,
+        action="append",
+        help=(
+            "Chunks JSONL to include. Repeat for a verified multi-source "
+            f"collection (default: {DEFAULT_CHUNKS})."
+        ),
+    )
     build.add_argument("--index", type=Path, default=DEFAULT_INDEX)
     build.add_argument("--batch-size", type=int, default=1000)
     build.add_argument(
@@ -536,6 +656,14 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Reject legacy chunks that are not part of a verified parser run.",
     )
+
+    dense = subparsers.add_parser(
+        "build-dense",
+        help="Build the local hashing dense index from the BM25 store.",
+    )
+    dense.add_argument("--source-index", type=Path, default=DEFAULT_INDEX)
+    dense.add_argument("--index", type=Path, default=DEFAULT_DENSE_INDEX)
+    dense.add_argument("--dimensions", type=int, default=256)
 
     search = subparsers.add_parser("search", help="Search the BM25 index.")
     search.add_argument("query")
@@ -550,11 +678,20 @@ def main() -> int:
     args = parse_args()
     if args.command == "build":
         summary = build_index(
-            args.chunks,
+            args.chunks or [DEFAULT_CHUNKS],
             args.index,
             args.batch_size,
             allow_suspect=args.allow_suspect,
             require_manifest=args.require_manifest,
+        )
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "build-dense":
+        summary = build_dense_index(
+            args.source_index,
+            args.index,
+            dimensions=args.dimensions,
         )
         print(json.dumps(summary, ensure_ascii=False, indent=2))
         return 0

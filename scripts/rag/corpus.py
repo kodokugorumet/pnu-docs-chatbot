@@ -208,7 +208,10 @@ def inspect_corpus(
     try:
         from ..document_parsing.core.models import Block
     except ImportError:  # Direct CLI imports with scripts/ on sys.path.
-        from document_parsing.core.models import Block
+        try:
+            from scripts.document_parsing.core.models import Block
+        except ImportError:
+            from document_parsing.core.models import Block
 
     block_locations: dict[str, dict[str, Any]] = {}
     table_locations_mutable: dict[tuple[str, str], list[dict[str, Any]]] = {}

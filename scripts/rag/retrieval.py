@@ -282,11 +282,15 @@ class DenseIndex:
         | Callable[[Sequence[str]], Sequence[Sequence[float]]],
         path: Optional[Path] = None,
         embedding_kind: Optional[str] = None,
+        corpus_revision: Optional[str] = None,
     ) -> None:
         self._records = tuple(records)
         self.embedder = embedder
         self.path = Path(path) if path is not None else None
         self.embedding_kind = embedding_kind or _provider_kind(embedder)
+        self.corpus_revision = (
+            str(corpus_revision).strip() if corpus_revision else None
+        )
         dimensions = {len(record.vector) for record in self._records}
         if len(dimensions) > 1:
             raise ValueError("dense index contains mixed vector dimensions")
@@ -305,6 +309,7 @@ class DenseIndex:
             | Callable[[Sequence[str]], Sequence[Sequence[float]]]
         ] = None,
         index_path: Optional[Path] = None,
+        corpus_revision: Optional[str] = None,
     ) -> "DenseIndex":
         provider = embedder or HashingEmbedder()
         unique: Dict[str, SearchHit] = {}
@@ -333,6 +338,7 @@ class DenseIndex:
             embedder=provider,
             path=index_path,
             embedding_kind=_provider_kind(provider),
+            corpus_revision=corpus_revision,
         )
         if index_path is not None:
             result.save_atomic(Path(index_path))
@@ -348,6 +354,7 @@ class DenseIndex:
             | Callable[[Sequence[str]], Sequence[Sequence[float]]]
         ] = None,
         index_path: Optional[Path] = None,
+        corpus_revision: Optional[str] = None,
     ) -> "DenseIndex":
         path = Path(chunks_path)
 
@@ -377,6 +384,7 @@ class DenseIndex:
             records(),
             embedder=embedder,
             index_path=index_path,
+            corpus_revision=corpus_revision,
         )
 
     @classmethod
@@ -391,6 +399,7 @@ class DenseIndex:
             | Callable[[Sequence[str]], Sequence[Sequence[float]]]
         ] = None,
         index_path: Optional[Path] = None,
+        corpus_revision: Optional[str] = None,
     ) -> "DenseIndex":
         path = Path(source_path)
         if (
@@ -412,6 +421,80 @@ class DenseIndex:
             rows,
             embedder=embedder,
             index_path=index_path,
+            corpus_revision=corpus_revision,
+        )
+
+    @classmethod
+    def from_bm25_index(
+        cls,
+        source_path: Path,
+        *,
+        embedder: Optional[
+            EmbeddingProvider
+            | Callable[[Sequence[str]], Sequence[Sequence[float]]]
+        ] = None,
+        index_path: Optional[Path] = None,
+    ) -> "DenseIndex":
+        """Build from the canonical BM25 store without losing citation data."""
+
+        path = Path(source_path)
+        if (
+            index_path is not None
+            and Path(index_path).resolve() == path.resolve()
+        ):
+            raise ValueError("dense index path must differ from source SQLite")
+        connection = sqlite3.connect(str(path))
+        connection.row_factory = sqlite3.Row
+        try:
+            meta = {
+                str(row["key"]): str(row["value"])
+                for row in connection.execute(
+                    "SELECT key, value FROM index_meta"
+                )
+            }
+            raw_rows = connection.execute(
+                "SELECT * FROM chunks ORDER BY chunk_id"
+            ).fetchall()
+        finally:
+            connection.close()
+
+        def decode(value: Any, default: Any) -> Any:
+            if value in (None, ""):
+                return default
+            try:
+                return json.loads(str(value))
+            except (TypeError, json.JSONDecodeError):
+                return default
+
+        rows = []
+        for raw_row in raw_rows:
+            row = dict(raw_row)
+            locations = decode(row.pop("locations_json", None), [])
+            section_path = decode(row.pop("section_path_json", None), None)
+            table_ids = decode(row.pop("table_ids_json", None), [])
+            block_ids = decode(row.pop("block_ids_json", None), [])
+            metadata = {
+                "corpus_revision": row.get("corpus_revision"),
+                "page_start": row.get("page_start"),
+                "page_end": row.get("page_end"),
+                "section_path": section_path,
+                "table_ids": table_ids,
+                "block_ids": block_ids,
+            }
+            row.update(
+                {
+                    "locations": locations,
+                    "metadata": metadata,
+                    "preview": row.get("text", ""),
+                }
+            )
+            rows.append(row)
+
+        return cls.from_rows(
+            rows,
+            embedder=embedder,
+            index_path=index_path,
+            corpus_revision=meta.get("corpus_revision"),
         )
 
     @classmethod
@@ -489,6 +572,7 @@ class DenseIndex:
                     "embedding_kind": self.embedding_kind,
                     "dimensions": str(self.dimensions or 0),
                     "count": str(len(self._records)),
+                    "corpus_revision": self.corpus_revision or "",
                 }
                 connection.executemany(
                     "INSERT INTO dense_meta (key, value) VALUES (?, ?)",
@@ -567,6 +651,7 @@ class DenseIndex:
             embedder=provider,
             path=path,
             embedding_kind=embedding_kind,
+            corpus_revision=meta.get("corpus_revision") or None,
         )
 
     def search(

@@ -27,11 +27,23 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 try:
-    from .bm25_search import DEFAULT_INDEX, search_index, tokenize
+    from .bm25_search import (
+        DEFAULT_INDEX,
+        search_bm25_candidates,
+        search_index,
+        tokenize,
+    )
     from .rag.generators import GenerationError, SUPPORTED_PROVIDERS, generate
+    from .rag.retrieval import DenseIndex, HybridRetriever
 except ImportError:  # Direct CLI execution: python scripts/search_api.py
-    from bm25_search import DEFAULT_INDEX, search_index, tokenize
+    from bm25_search import (
+        DEFAULT_INDEX,
+        search_bm25_candidates,
+        search_index,
+        tokenize,
+    )
     from rag.generators import GenerationError, SUPPORTED_PROVIDERS, generate
+    from rag.retrieval import DenseIndex, HybridRetriever
 
 
 DEFAULT_HOST = "127.0.0.1"
@@ -310,7 +322,25 @@ def dense_index_path() -> Path:
     return Path(value) if value else DEFAULT_DENSE_INDEX
 
 
-def index_stats(index_path: Path) -> dict[str, Any]:
+def dense_index_metadata(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    connection = sqlite3.connect(str(path))
+    try:
+        rows = connection.execute(
+            "SELECT key, value FROM dense_meta"
+        ).fetchall()
+    except sqlite3.DatabaseError:
+        return {}
+    finally:
+        connection.close()
+    return {str(key): str(value) for key, value in rows}
+
+
+def index_stats(
+    index_path: Path,
+    dense_path: Path | None = None,
+) -> dict[str, Any]:
     if not index_path.exists():
         return {
             "ok": False,
@@ -339,8 +369,19 @@ def index_stats(index_path: Path) -> dict[str, Any]:
     ).fetchone()[0]
     metadata = index_metadata(connection)
     connection.close()
-    dense_path = dense_index_path()
-    dense_ready = dense_path.is_file()
+    dense_path = dense_path or dense_index_path()
+    dense_metadata = dense_index_metadata(dense_path)
+    dense_revision = dense_metadata.get("corpus_revision")
+    dense_ready = bool(
+        dense_metadata
+        and dense_revision
+        and dense_revision == metadata.get("corpus_revision")
+    )
+    dense_reason = None
+    if dense_path.is_file() and not dense_metadata:
+        dense_reason = "invalid_dense_index"
+    elif dense_path.is_file() and not dense_ready:
+        dense_reason = "corpus_revision_mismatch"
     providers = generation_provider_status()
     network_provider_ready = any(
         providers[name]["configured"] for name in ("local", "frontier", "gemini")
@@ -364,6 +405,8 @@ def index_stats(index_path: Path) -> dict[str, Any]:
         "providers": providers,
         "dense_index": str(dense_path),
         "dense_ready": dense_ready,
+        "dense_corpus_revision": dense_revision,
+        "dense_reason": dense_reason,
         "pipeline": {
             "parser": {"status": "external"},
             "corpus_gate": {
@@ -375,6 +418,7 @@ def index_stats(index_path: Path) -> dict[str, Any]:
             "dense": {
                 "status": "ready" if dense_ready else "disabled",
                 "index": str(dense_path),
+                "reason": dense_reason,
             },
             "rrf": {"status": "ready" if dense_ready else "single_lane"},
             "reranker": {"status": "ready", "kind": "lexical_fallback"},
@@ -719,8 +763,149 @@ def number_sources(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{**result, "source_number": index} for index, result in enumerate(results, start=1)]
 
 
+def create_hybrid_retriever(
+    index_path: Path,
+    dense_path: Path,
+) -> tuple[HybridRetriever, str | None]:
+    """Load a revision-matched dense lane and always retain BM25 fallback."""
+
+    dense = None
+    warning = None
+    if dense_path.is_file():
+        try:
+            candidate = DenseIndex.load(dense_path)
+            connection = sqlite3.connect(str(index_path))
+            try:
+                revision = index_metadata(connection).get("corpus_revision")
+            finally:
+                connection.close()
+            if not revision or candidate.corpus_revision != revision:
+                warning = "dense_corpus_revision_mismatch"
+            else:
+                dense = candidate
+        except Exception as exc:
+            warning = f"dense_load_failed:{type(exc).__name__}"
+    else:
+        warning = "dense_index_missing"
+
+    def bm25_lane(
+        *,
+        query: str,
+        top_k: int,
+        institution: str | None,
+    ) -> list[dict[str, Any]]:
+        return search_bm25_candidates(
+            index_path,
+            query,
+            top_k,
+            institution,
+            preview_chars=source_chars(),
+            include_text=True,
+        )
+
+    return (
+        HybridRetriever(
+            bm25_search=bm25_lane,
+            dense_index=dense,
+        ),
+        warning,
+    )
+
+
+def _stage_score(row: dict[str, Any]) -> float | None:
+    retrieval = row.get("retrieval")
+    if not isinstance(retrieval, dict):
+        return None
+    for stage in ("reranker", "rrf", "dense", "bm25"):
+        value = retrieval.get(stage)
+        if isinstance(value, dict) and isinstance(value.get("score"), (int, float)):
+            return float(value["score"])
+    return None
+
+
+def search_pipeline(
+    index_path: Path,
+    retriever: HybridRetriever | None,
+    question: str,
+    top_k: int,
+    institution: str | None,
+    *,
+    include_text: bool,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return backward-compatible rows plus an explicit retrieval trace."""
+
+    if retriever is None:
+        rows = search_index(
+            index_path,
+            question,
+            top_k,
+            institution,
+            preview_chars=preview_chars(),
+            include_text=include_text,
+        )
+        return rows, {
+            "strategy": "BM25 + lexical reranker",
+            "result_count": len(rows),
+            "lanes": {
+                "bm25": {"status": "ok", "count": len(rows)},
+                "dense": {"status": "disabled", "count": 0},
+            },
+            "fusion": {"status": "single_lane", "kind": "rrf"},
+            "reranker": {"status": "ok", "kind": "lexical_fallback"},
+        }
+
+    result = retriever.search(
+        question,
+        top_k=top_k,
+        institution=institution,
+    )
+    rows = []
+    for hit in result.hits:
+        row = hit.to_dict()
+        text = str(row.get("text") or "")
+        row["preview"] = text[:preview_chars()]
+        if not include_text:
+            row.pop("text", None)
+        score = _stage_score(row)
+        row["score"] = score
+        row["scores"] = {
+            stage: (
+                value.get("score")
+                if isinstance(value, dict)
+                else None
+            )
+            for stage, value in row["retrieval"].items()
+        }
+        metadata = row.get("metadata")
+        if isinstance(metadata, dict):
+            row["corpus_revision"] = metadata.get("corpus_revision")
+        row["location"] = row["locations"][0] if row["locations"] else None
+        rows.append(row)
+
+    trace = dict(result.trace)
+    dense_status = (
+        trace.get("lanes", {}).get("dense", {}).get("status")
+        if isinstance(trace.get("lanes"), dict)
+        else None
+    )
+    trace.update(
+        {
+            "strategy": (
+                "BM25 + Dense + RRF"
+                if dense_status == "ok"
+                else "BM25 single-lane + RRF"
+            ),
+            "result_count": len(rows),
+        }
+    )
+    return rows, trace
+
+
 class SearchHandler(BaseHTTPRequestHandler):
     index_path: Path = DEFAULT_INDEX
+    dense_path: Path = DEFAULT_DENSE_INDEX
+    retriever: HybridRetriever | None = None
+    retriever_warning: str | None = None
     generation_semaphore: threading.BoundedSemaphore = threading.BoundedSemaphore(DEFAULT_MAX_CONCURRENT_GENERATIONS)
 
     def end_headers(self) -> None:
@@ -803,7 +988,9 @@ class SearchHandler(BaseHTTPRequestHandler):
             if parsed.path == "/health":
                 if not self.request_allowed():
                     return
-                self.write_json(index_stats(self.index_path))
+                payload = index_stats(self.index_path, self.dense_path)
+                payload["retriever_warning"] = self.retriever_warning
+                self.write_json(payload)
                 return
 
             if parsed.path == "/institutions":
@@ -818,14 +1005,22 @@ class SearchHandler(BaseHTTPRequestHandler):
                 question = query.get("q", [""])[0].strip()
                 institution = query.get("institution", [""])[0].strip() or None
                 top_k = parse_top_k(query.get("top_k", [DEFAULT_TOP_K])[0])
-                results = search_index(
+                results, retrieval = search_pipeline(
                     self.index_path,
+                    self.retriever,
                     question,
                     top_k,
                     institution,
-                    preview_chars=preview_chars(),
+                    include_text=False,
                 )
-                self.write_json({"query": question, "institution": institution, "results": results})
+                self.write_json(
+                    {
+                        "query": question,
+                        "institution": institution,
+                        "retrieval": retrieval,
+                        "results": public_results(results),
+                    }
+                )
                 return
 
             self.write_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
@@ -851,12 +1046,12 @@ class SearchHandler(BaseHTTPRequestHandler):
             top_k = parse_top_k(body.get("top_k", DEFAULT_TOP_K))
             requested_provider = validate_provider(body.get("provider"))
 
-            results = search_index(
+            results, retrieval = search_pipeline(
                 self.index_path,
+                self.retriever,
                 question,
                 top_k,
                 institution,
-                preview_chars=preview_chars(),
                 include_text=True,
             )
             numbered_results = number_sources(results)
@@ -928,6 +1123,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     "citations": rag.get("citations", []),
                     "generator": rag["generator"],
                     "generation": generation,
+                    "retrieval": retrieval,
                     "results": public_results(numbered_results),
                 }
             )
@@ -943,6 +1139,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--index", type=Path, default=DEFAULT_INDEX)
+    parser.add_argument("--dense-index", type=Path)
     parser.add_argument("--env-file", type=Path, default=DEFAULT_ENV_FILE)
     parser.add_argument("--override-env", action="store_true", help="Allow values from --env-file to override existing environment variables.")
     return parser.parse_args()
@@ -952,12 +1149,22 @@ def main() -> int:
     args = parse_args()
     load_env_file(args.env_file, override=args.override_env)
     SearchHandler.index_path = args.index
+    SearchHandler.dense_path = args.dense_index or dense_index_path()
+    (
+        SearchHandler.retriever,
+        SearchHandler.retriever_warning,
+    ) = create_hybrid_retriever(
+        SearchHandler.index_path,
+        SearchHandler.dense_path,
+    )
     SearchHandler.generation_semaphore = threading.BoundedSemaphore(
         max(1, get_env_int("RAG_MAX_CONCURRENT_GENERATIONS", DEFAULT_MAX_CONCURRENT_GENERATIONS))
     )
     server = ThreadingHTTPServer((args.host, args.port), SearchHandler)
     print(f"Search API listening on http://{args.host}:{args.port}")
     print(f"Index: {args.index.resolve()}")
+    print(f"Dense index: {SearchHandler.dense_path.resolve()}")
+    print(f"Retriever warning: {SearchHandler.retriever_warning}")
     print(f"Generation mode: {generation_mode()}")
     print(f"Gemini configured: {bool(gemini_api_key())}")
     print(f"Gemini model: {gemini_model()}")
