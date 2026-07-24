@@ -15,17 +15,25 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
+import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+try:
+    from .rag.corpus import inspect_corpus
+except ImportError:  # Direct CLI execution: python scripts/bm25_search.py
+    from rag.corpus import inspect_corpus
+
 
 DEFAULT_CHUNKS = Path("processed/current/chunks.jsonl")
 DEFAULT_INDEX = Path("processed/index/bm25.sqlite")
+DEFAULT_RERANK_CANDIDATE_MULTIPLIER = 4
 TOKEN_RE = re.compile(r"[가-힣]+|[A-Za-z]+|\d+")
 HANGUL_RE = re.compile(r"^[가-힣]+$")
 
@@ -87,6 +95,7 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
         CREATE TABLE chunks (
           chunk_id TEXT PRIMARY KEY,
           doc_id TEXT NOT NULL,
+          document_id TEXT NOT NULL,
           chunk_index INTEGER NOT NULL,
           institution TEXT,
           source_path TEXT,
@@ -95,6 +104,13 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
           extension TEXT,
           parser TEXT,
           char_count INTEGER,
+          page_start INTEGER,
+          page_end INTEGER,
+          section_path_json TEXT,
+          table_ids_json TEXT NOT NULL DEFAULT '[]',
+          block_ids_json TEXT NOT NULL DEFAULT '[]',
+          locations_json TEXT NOT NULL DEFAULT '[]',
+          corpus_revision TEXT NOT NULL,
           text TEXT NOT NULL
         );
 
@@ -111,6 +127,7 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
 
         CREATE INDEX idx_chunks_institution ON chunks(institution);
         CREATE INDEX idx_chunks_doc_id ON chunks(doc_id);
+        CREATE INDEX idx_chunks_document_id ON chunks(document_id);
         """
     )
 
@@ -127,93 +144,344 @@ def iter_chunks(path: Path) -> Iterable[dict[str, Any]]:
                 raise RuntimeError(f"Invalid JSON at {path}:{line_no}: {exc}") from exc
 
 
-def build_index(chunks_path: Path, index_path: Path, batch_size: int) -> dict[str, Any]:
+def _json_text(value: Any, default: Any) -> str:
+    normalized = value if value is not None else default
+    return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
+
+
+def build_index(
+    chunks_path: Path,
+    index_path: Path,
+    batch_size: int,
+    *,
+    allow_suspect: bool = False,
+    require_manifest: bool = False,
+) -> dict[str, Any]:
+    """Build a gated index and atomically publish it when complete."""
+
     if not chunks_path.exists():
         raise FileNotFoundError(f"Missing chunks file: {chunks_path}")
 
-    connection = open_index(index_path)
-    ensure_schema(connection)
+    gate = inspect_corpus(
+        chunks_path,
+        allow_suspect=allow_suspect,
+        require_manifest=require_manifest,
+    )
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_index = index_path.with_name(f".{index_path.name}.{uuid.uuid4().hex}.tmp")
+    connection: sqlite3.Connection | None = None
 
-    chunk_rows: list[tuple[Any, ...]] = []
-    fts_rows: list[tuple[str, str]] = []
-    institutions: Counter[str] = Counter()
-    total = 0
+    try:
+        connection = open_index(temporary_index)
+        ensure_schema(connection)
 
-    def flush() -> None:
-        nonlocal chunk_rows, fts_rows
-        if not chunk_rows:
-            return
+        chunk_rows: list[tuple[Any, ...]] = []
+        fts_rows: list[tuple[str, str]] = []
+        institutions: Counter[str] = Counter()
+        total = 0
+
+        def flush() -> None:
+            nonlocal chunk_rows, fts_rows
+            if not chunk_rows:
+                return
+            assert connection is not None
+            connection.executemany(
+                """
+                INSERT INTO chunks (
+                  chunk_id, doc_id, document_id, chunk_index, institution,
+                  source_path, relative_path, file_name, extension, parser,
+                  char_count, page_start, page_end, section_path_json,
+                  table_ids_json, block_ids_json, locations_json,
+                  corpus_revision, text
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                chunk_rows,
+            )
+            connection.executemany(
+                "INSERT INTO chunk_fts (chunk_id, search_text) VALUES (?, ?)",
+                fts_rows,
+            )
+            connection.commit()
+            chunk_rows = []
+            fts_rows = []
+
+        for chunk in iter_chunks(chunks_path):
+            if not gate.allows_chunk(chunk):
+                continue
+            metadata = chunk.get("metadata") or {}
+            chunk_id = str(chunk["chunk_id"])
+            document_id = str(chunk.get("document_id") or chunk.get("doc_id") or "")
+            if not document_id:
+                raise RuntimeError(f"Chunk {chunk_id} is missing document_id/doc_id")
+            institution = str(metadata.get("institution") or "")
+            text = str(chunk.get("text") or "")
+            block_ids = (
+                metadata.get("block_ids")
+                if isinstance(metadata.get("block_ids"), list)
+                else []
+            )
+            table_ids = (
+                metadata.get("table_ids")
+                if isinstance(metadata.get("table_ids"), list)
+                else []
+            )
+            chunk_rows.append(
+                (
+                    chunk_id,
+                    document_id,
+                    document_id,
+                    int(chunk.get("chunk_index", 0)),
+                    institution,
+                    metadata.get("source_path", ""),
+                    metadata.get("relative_path", ""),
+                    metadata.get("file_name", ""),
+                    metadata.get("extension", ""),
+                    metadata.get("parser", ""),
+                    int(chunk.get("char_count") or len(text)),
+                    metadata.get("page_start"),
+                    metadata.get("page_end"),
+                    _json_text(metadata.get("section_path"), None),
+                    _json_text(table_ids, []),
+                    _json_text(block_ids, []),
+                    _json_text(gate.locations_for_chunk(chunk), []),
+                    gate.corpus_revision,
+                    text,
+                )
+            )
+            fts_rows.append((chunk_id, make_search_text(chunk)))
+            institutions[institution] += 1
+            total += 1
+
+            if total % batch_size == 0:
+                flush()
+                print(f"Indexed {total} chunks")
+
+        flush()
+        if total == 0:
+            raise RuntimeError("Corpus gate produced no non-empty chunks")
+
+        created_at = datetime.now(timezone.utc).isoformat()
+        metadata_rows = {
+            "chunks_path": str(chunks_path),
+            "chunk_count": str(total),
+            "created_at": created_at,
+            "institutions": json.dumps(institutions, ensure_ascii=False),
+            "corpus_revision": gate.corpus_revision,
+            "run_id": gate.run_id or "",
+            "profile": gate.profile or "",
+            "manifest_sha256": gate.manifest_sha256,
+            "excluded_document_count": str(len(gate.excluded_document_ids)),
+            "excluded_chunk_count": str(len(gate.excluded_chunk_ids)),
+        }
         connection.executemany(
-            """
-            INSERT INTO chunks (
-              chunk_id, doc_id, chunk_index, institution, source_path, relative_path,
-              file_name, extension, parser, char_count, text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            chunk_rows,
-        )
-        connection.executemany(
-            "INSERT INTO chunk_fts (chunk_id, search_text) VALUES (?, ?)",
-            fts_rows,
+            "INSERT INTO index_meta (key, value) VALUES (?, ?)",
+            metadata_rows.items(),
         )
         connection.commit()
-        chunk_rows = []
-        fts_rows = []
+        connection.close()
+        connection = None
 
-    for chunk in iter_chunks(chunks_path):
-        metadata = chunk.get("metadata") or {}
-        chunk_id = chunk["chunk_id"]
-        institution = metadata.get("institution", "")
-        text = chunk.get("text", "")
-        chunk_rows.append(
-            (
-                chunk_id,
-                chunk.get("doc_id", ""),
-                int(chunk.get("chunk_index", 0)),
-                institution,
-                metadata.get("source_path", ""),
-                metadata.get("relative_path", ""),
-                metadata.get("file_name", ""),
-                metadata.get("extension", ""),
-                metadata.get("parser", ""),
-                int(chunk.get("char_count") or len(text)),
-                text,
-            )
-        )
-        fts_rows.append((chunk_id, make_search_text(chunk)))
-        institutions[institution] += 1
-        total += 1
-
-        if total % batch_size == 0:
-            flush()
-            print(f"Indexed {total} chunks")
-
-    flush()
-    created_at = datetime.now(timezone.utc).isoformat()
-    metadata_rows = {
-        "chunks_path": str(chunks_path),
-        "chunk_count": str(total),
-        "created_at": created_at,
-        "institutions": json.dumps(institutions, ensure_ascii=False),
-    }
-    connection.executemany(
-        "INSERT INTO index_meta (key, value) VALUES (?, ?)",
-        metadata_rows.items(),
-    )
-    connection.commit()
-    connection.close()
-    return {
-        "index": str(index_path),
-        "chunks_path": str(chunks_path),
-        "chunk_count": total,
-        "institutions": dict(institutions),
-        "created_at": created_at,
-    }
+        # The previous index stays intact until this point.
+        os.replace(temporary_index, index_path)
+        return {
+            "index": str(index_path),
+            "chunks_path": str(chunks_path),
+            "chunk_count": total,
+            "institutions": dict(institutions),
+            "created_at": created_at,
+            "corpus_revision": gate.corpus_revision,
+            "verified_run": gate.is_verified_run,
+            "excluded_document_count": len(gate.excluded_document_ids),
+            "excluded_chunk_count": len(gate.excluded_chunk_ids),
+        }
+    finally:
+        if connection is not None:
+            connection.close()
+        temporary_index.unlink(missing_ok=True)
 
 
 def fts_query(user_query: str) -> str:
     terms = dedupe_keep_order(tokenize(user_query), limit=32)
     return " OR ".join(terms)
+
+
+def normalize_for_rank(value: str) -> str:
+    return re.sub(r"\s+", " ", value.lower()).strip()
+
+
+def lexical_rerank_score(query: str, row: dict[str, Any], bm25_rank: int) -> float:
+    query_terms = set(dedupe_keep_order(tokenize(query, include_ngrams=False), limit=24))
+    if not query_terms:
+        return 0.0
+
+    text = str(row.get("text") or row.get("preview") or "")
+    metadata_text = " ".join(
+        str(row.get(field) or "")
+        for field in ("institution", "file_name", "relative_path")
+    )
+    body_terms = set(tokenize(text, include_ngrams=False))
+    metadata_terms = set(tokenize(metadata_text, include_ngrams=False))
+
+    body_coverage = len(query_terms & body_terms) / len(query_terms)
+    metadata_coverage = len(query_terms & metadata_terms) / len(query_terms)
+
+    normalized_query = normalize_for_rank(query)
+    normalized_text = normalize_for_rank(text)
+    phrase_bonus = 1.0 if normalized_query and normalized_query in normalized_text else 0.0
+
+    # SQLite FTS bm25 scores are useful but hard to compare across queries. Rank
+    # position keeps that signal stable while allowing domain-specific boosts.
+    bm25_rank_signal = 1 / max(1, bm25_rank)
+    return (
+        body_coverage * 0.52
+        + metadata_coverage * 0.16
+        + phrase_bonus * 0.18
+        + bm25_rank_signal * 0.14
+    )
+
+
+def rerank_results(query: str, rows: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+    scored = [
+        (lexical_rerank_score(query, row, rank), rank, dict(row))
+        for rank, row in enumerate(rows, start=1)
+    ]
+    scored.sort(key=lambda item: (item[0], -item[1]), reverse=True)
+    reranked: list[dict[str, Any]] = []
+    for final_rank, (rerank_score, _, row) in enumerate(scored[:top_k], start=1):
+        retrieval = dict(row.get("retrieval") or {})
+        retrieval["reranker"] = {
+            "rank": final_rank,
+            "score": round(rerank_score, 8),
+            "kind": "lexical_fallback",
+        }
+        retrieval["final_rank"] = final_rank
+        row["retrieval"] = retrieval
+        row["rerank_score"] = round(rerank_score, 8)
+        # Backward-compatible alias.  Unlike the old response, score now means
+        # the final comparable relevance score, not SQLite's negative BM25.
+        row["score"] = row["rerank_score"]
+        reranked.append(row)
+    return reranked
+
+
+def _chunk_columns(connection: sqlite3.Connection) -> set[str]:
+    return {
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(chunks)").fetchall()
+    }
+
+
+def _json_column(value: Any, default: Any) -> Any:
+    if value in (None, ""):
+        return default
+    try:
+        decoded = json.loads(str(value))
+    except (TypeError, json.JSONDecodeError):
+        return default
+    return decoded
+
+
+def search_bm25_candidates(
+    index_path: Path,
+    query: str,
+    limit: int,
+    institution: str | None,
+    *,
+    preview_chars: int = 700,
+    include_text: bool = False,
+) -> list[dict[str, Any]]:
+    """Return raw BM25 candidates for fusion without applying the reranker."""
+
+    if not index_path.exists():
+        raise FileNotFoundError(f"Missing index DB: {index_path}")
+
+    match_query = fts_query(query)
+    if not match_query:
+        return []
+
+    preview_chars = max(1, min(int(preview_chars), 5000))
+    connection = sqlite3.connect(str(index_path))
+    connection.row_factory = sqlite3.Row
+    columns = _chunk_columns(connection)
+    document_id_select = (
+        "c.document_id AS document_id"
+        if "document_id" in columns
+        else "c.doc_id AS document_id"
+    )
+
+    optional_columns = {
+        "page_start": "c.page_start",
+        "page_end": "c.page_end",
+        "section_path_json": "c.section_path_json",
+        "table_ids_json": "c.table_ids_json",
+        "block_ids_json": "c.block_ids_json",
+        "locations_json": "c.locations_json",
+        "corpus_revision": "c.corpus_revision",
+    }
+    optional_selects = [
+        f"{expression} AS {name}" if name in columns else f"NULL AS {name}"
+        for name, expression in optional_columns.items()
+    ]
+    if include_text:
+        optional_selects.append("c.text AS text")
+    optional_sql = ",\n          ".join(optional_selects)
+
+    params: list[Any] = [preview_chars, match_query]
+    where = "chunk_fts MATCH ?"
+    if institution:
+        where += " AND c.institution = ?"
+        params.append(institution)
+    params.append(max(1, int(limit)))
+
+    rows = connection.execute(
+        f"""
+        SELECT
+          c.chunk_id,
+          c.doc_id,
+          {document_id_select},
+          c.chunk_index,
+          c.institution,
+          c.file_name,
+          c.source_path,
+          c.relative_path,
+          c.char_count,
+          bm25(chunk_fts) AS bm25_score,
+          substr(c.text, 1, ?) AS preview,
+          {optional_sql}
+        FROM chunk_fts
+        JOIN chunks c ON c.chunk_id = chunk_fts.chunk_id
+        WHERE {where}
+        ORDER BY bm25_score
+        LIMIT ?
+        """,
+        params,
+    ).fetchall()
+    connection.close()
+
+    candidates: list[dict[str, Any]] = []
+    for bm25_rank, raw_row in enumerate(rows, start=1):
+        row = dict(raw_row)
+        row["section_path"] = _json_column(row.pop("section_path_json", None), None)
+        row["table_ids"] = _json_column(row.pop("table_ids_json", None), [])
+        row["block_ids"] = _json_column(row.pop("block_ids_json", None), [])
+        row["locations"] = _json_column(row.pop("locations_json", None), [])
+        row["location"] = {
+            "page_start": row.pop("page_start", None),
+            "page_end": row.pop("page_end", None),
+            "section_path": row["section_path"],
+            "table_ids": row["table_ids"],
+            "block_ids": row["block_ids"],
+        }
+        row["score"] = row["bm25_score"]
+        row["retrieval"] = {
+            "bm25": {"rank": bm25_rank, "score": row["bm25_score"]},
+            "dense": None,
+            "rrf": None,
+            "reranker": None,
+            "final_rank": None,
+        }
+        candidates.append(row)
+    return candidates
 
 
 def search_index(
@@ -224,49 +492,18 @@ def search_index(
     *,
     preview_chars: int = 700,
     include_text: bool = False,
+    candidate_multiplier: int = DEFAULT_RERANK_CANDIDATE_MULTIPLIER,
 ) -> list[dict[str, Any]]:
-    if not index_path.exists():
-        raise FileNotFoundError(f"Missing index DB: {index_path}")
-
-    match_query = fts_query(query)
-    if not match_query:
-        return []
-
-    preview_chars = max(1, min(int(preview_chars), 5000))
-    select_full_text = ",\n          c.text AS text" if include_text else ""
-    connection = sqlite3.connect(str(index_path))
-    connection.row_factory = sqlite3.Row
-    params: list[Any] = [preview_chars, match_query]
-    where = "chunk_fts MATCH ?"
-    if institution:
-        where += " AND c.institution = ?"
-        params.append(institution)
-    params.append(top_k)
-
-    rows = connection.execute(
-        f"""
-        SELECT
-          c.chunk_id,
-          c.doc_id,
-          c.chunk_index,
-          c.institution,
-          c.file_name,
-          c.source_path,
-          c.relative_path,
-          c.char_count,
-          bm25(chunk_fts) AS score,
-          substr(c.text, 1, ?) AS preview
-          {select_full_text}
-        FROM chunk_fts
-        JOIN chunks c ON c.chunk_id = chunk_fts.chunk_id
-        WHERE {where}
-        ORDER BY score
-        LIMIT ?
-        """,
-        params,
-    ).fetchall()
-    connection.close()
-    return [dict(row) for row in rows]
+    candidate_limit = max(top_k, top_k * max(1, int(candidate_multiplier)))
+    rows = search_bm25_candidates(
+        index_path,
+        query,
+        candidate_limit,
+        institution,
+        preview_chars=preview_chars,
+        include_text=include_text,
+    )
+    return rerank_results(query, rows, top_k)
 
 
 def print_results(results: list[dict[str, Any]]) -> None:
@@ -289,6 +526,16 @@ def parse_args() -> argparse.Namespace:
     build.add_argument("--chunks", type=Path, default=DEFAULT_CHUNKS)
     build.add_argument("--index", type=Path, default=DEFAULT_INDEX)
     build.add_argument("--batch-size", type=int, default=1000)
+    build.add_argument(
+        "--allow-suspect",
+        action="store_true",
+        help="Index suspect documents as well as quality=pass documents.",
+    )
+    build.add_argument(
+        "--require-manifest",
+        action="store_true",
+        help="Reject legacy chunks that are not part of a verified parser run.",
+    )
 
     search = subparsers.add_parser("search", help="Search the BM25 index.")
     search.add_argument("query")
@@ -302,7 +549,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     if args.command == "build":
-        summary = build_index(args.chunks, args.index, args.batch_size)
+        summary = build_index(
+            args.chunks,
+            args.index,
+            args.batch_size,
+            allow_suspect=args.allow_suspect,
+            require_manifest=args.require_manifest,
+        )
         print(json.dumps(summary, ensure_ascii=False, indent=2))
         return 0
 

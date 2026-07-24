@@ -26,7 +26,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from bm25_search import DEFAULT_INDEX, search_index, tokenize
+try:
+    from .bm25_search import DEFAULT_INDEX, search_index, tokenize
+    from .rag.generators import GenerationError, SUPPORTED_PROVIDERS, generate
+except ImportError:  # Direct CLI execution: python scripts/search_api.py
+    from bm25_search import DEFAULT_INDEX, search_index, tokenize
+    from rag.generators import GenerationError, SUPPORTED_PROVIDERS, generate
 
 
 DEFAULT_HOST = "127.0.0.1"
@@ -37,10 +42,12 @@ DEFAULT_MAX_REQUEST_BYTES = 32 * 1024
 DEFAULT_MAX_QUESTION_CHARS = 1000
 DEFAULT_PREVIEW_CHARS = 700
 DEFAULT_SOURCE_CHARS = 1800
+DEFAULT_MAX_CITATION_LOCATIONS = 100
 DEFAULT_MAX_CONCURRENT_GENERATIONS = 2
 DEFAULT_ALLOWED_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 MAX_CLAIMS = 5
 DEFAULT_ENV_FILE = Path(".env")
+DEFAULT_DENSE_INDEX = Path("processed/index/dense.sqlite")
 DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 DEFAULT_GEMINI_FALLBACK_MODELS = (
     "gemini-2.5-flash-lite",
@@ -136,6 +143,19 @@ def source_chars() -> int:
     return max(300, get_env_int("RAG_SOURCE_CHARS", DEFAULT_SOURCE_CHARS))
 
 
+def max_citation_locations() -> int:
+    return max(
+        1,
+        min(
+            1000,
+            get_env_int(
+                "RAG_MAX_CITATION_LOCATIONS",
+                DEFAULT_MAX_CITATION_LOCATIONS,
+            ),
+        ),
+    )
+
+
 def parse_top_k(value: Any, default: int = DEFAULT_TOP_K) -> int:
     try:
         parsed = int(value)
@@ -197,7 +217,7 @@ def gemini_model_candidates() -> list[str]:
 
 def generation_mode() -> str:
     value = os.environ.get("RAG_GENERATION_MODE", "auto").strip().lower()
-    if value not in {"auto", "gemini", "extractive"}:
+    if value not in SUPPORTED_PROVIDERS:
         return "auto"
     return value
 
@@ -207,6 +227,67 @@ def gemini_enabled() -> bool:
     if mode == "extractive":
         return False
     return bool(gemini_api_key())
+
+
+def validate_provider(value: Any) -> str:
+    provider = str(value or generation_mode()).strip().lower()
+    if provider not in SUPPORTED_PROVIDERS:
+        raise ApiError(
+            HTTPStatus.BAD_REQUEST,
+            "invalid_provider",
+            "provider는 auto, local, frontier 중 하나를 선택해 주세요.",
+        )
+    return provider
+
+
+def generation_provider_status() -> dict[str, dict[str, Any]]:
+    local_model = os.environ.get("RAG_LOCAL_MODEL", "").strip()
+    frontier_model = os.environ.get("RAG_FRONTIER_MODEL", "").strip()
+    frontier_key = (
+        os.environ.get("RAG_FRONTIER_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or ""
+    ).strip()
+    return {
+        "auto": {
+            "configured": True,
+            "label": "자동 선택",
+        },
+        "local": {
+            "configured": bool(local_model),
+            "label": "로컬 LLM",
+            "model": local_model or None,
+            "api_style": os.environ.get(
+                "RAG_LOCAL_API_STYLE", "chat_completions"
+            ).strip(),
+        },
+        "frontier": {
+            "configured": bool(frontier_model and frontier_key),
+            "label": "프론티어 API",
+            "model": frontier_model or None,
+            "api_style": os.environ.get(
+                "RAG_FRONTIER_API_STYLE", "responses"
+            ).strip(),
+        },
+        "gemini": {
+            "configured": bool(gemini_api_key()),
+            "label": "Gemini API",
+            "model": gemini_model(),
+        },
+        "extractive": {
+            "configured": True,
+            "label": "추출형 안전 응답",
+            "model": None,
+        },
+    }
+
+
+def index_metadata(connection: sqlite3.Connection) -> dict[str, str]:
+    try:
+        rows = connection.execute("SELECT key, value FROM index_meta").fetchall()
+    except sqlite3.DatabaseError:
+        return {}
+    return {str(key): str(value) for key, value in rows}
 
 
 def list_institutions(index_path: Path) -> list[str]:
@@ -224,25 +305,85 @@ def list_institutions(index_path: Path) -> list[str]:
     return [row[0] for row in rows]
 
 
+def dense_index_path() -> Path:
+    value = os.environ.get("RAG_DENSE_INDEX", "").strip()
+    return Path(value) if value else DEFAULT_DENSE_INDEX
+
+
 def index_stats(index_path: Path) -> dict[str, Any]:
     if not index_path.exists():
-        return {"ready": False, "index": str(index_path)}
+        return {
+            "ok": False,
+            "ready": False,
+            "status": "not_ready",
+            "index": str(index_path),
+            "default_provider": generation_mode(),
+            "providers": generation_provider_status(),
+            "pipeline": {
+                "parser": {"status": "external"},
+                "corpus_gate": {"status": "not_ready"},
+                "chunk": {"status": "not_ready"},
+                "bm25": {"status": "not_ready"},
+                "dense": {"status": "not_ready"},
+                "rrf": {"status": "not_ready"},
+                "reranker": {"status": "not_ready"},
+                "generation": {"status": "not_ready"},
+                "citation": {"status": "not_ready"},
+            },
+        }
 
     connection = sqlite3.connect(str(index_path))
     chunk_count = connection.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
     institution_count = connection.execute(
         "SELECT COUNT(DISTINCT institution) FROM chunks WHERE institution != ''"
     ).fetchone()[0]
+    metadata = index_metadata(connection)
     connection.close()
+    dense_path = dense_index_path()
+    dense_ready = dense_path.is_file()
+    providers = generation_provider_status()
+    network_provider_ready = any(
+        providers[name]["configured"] for name in ("local", "frontier", "gemini")
+    )
+    status = "ready" if dense_ready and network_provider_ready else "degraded"
     return {
+        "ok": True,
         "ready": True,
+        "status": status,
         "index": str(index_path),
         "chunk_count": chunk_count,
         "institution_count": institution_count,
+        "corpus_revision": metadata.get("corpus_revision"),
+        "run_id": metadata.get("run_id") or None,
+        "profile": metadata.get("profile") or None,
         "generation_mode": generation_mode(),
         "gemini_configured": bool(gemini_api_key()),
         "gemini_model": gemini_model(),
         "gemini_model_candidates": gemini_model_candidates(),
+        "default_provider": generation_mode(),
+        "providers": providers,
+        "dense_index": str(dense_path),
+        "dense_ready": dense_ready,
+        "pipeline": {
+            "parser": {"status": "external"},
+            "corpus_gate": {
+                "status": "ready" if metadata.get("corpus_revision") else "legacy",
+                "corpus_revision": metadata.get("corpus_revision"),
+            },
+            "chunk": {"status": "ready", "count": chunk_count},
+            "bm25": {"status": "ready", "count": chunk_count},
+            "dense": {
+                "status": "ready" if dense_ready else "disabled",
+                "index": str(dense_path),
+            },
+            "rrf": {"status": "ready" if dense_ready else "single_lane"},
+            "reranker": {"status": "ready", "kind": "lexical_fallback"},
+            "generation": {
+                "status": "ready" if network_provider_ready else "fallback",
+                "default_provider": generation_mode(),
+            },
+            "citation": {"status": "ready", "schema": "CitationV1"},
+        },
         "max_top_k": max_top_k(),
         "max_question_chars": question_max_chars(),
         "api_token_required": bool(api_token()),
@@ -264,7 +405,41 @@ def result_source_excerpt(result: dict[str, Any]) -> str:
 
 
 def public_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [{key: value for key, value in result.items() if key != "text"} for result in results]
+    public: list[dict[str, Any]] = []
+    for result in results:
+        row = {key: value for key, value in result.items() if key != "text"}
+        row["document_id"] = result.get("document_id") or result.get("doc_id")
+        # Temporary alias for clients built against the original MVP contract.
+        row["doc_id"] = row["document_id"]
+        locations = result.get("locations")
+        if isinstance(locations, list):
+            limit = max_citation_locations()
+            row["location_count"] = len(locations)
+            row["locations_truncated"] = len(locations) > limit
+            row["locations"] = locations[:limit]
+        public.append(row)
+    return public
+
+
+def citation_for_result(result: dict[str, Any]) -> dict[str, Any]:
+    locations = result.get("locations")
+    locations = locations if isinstance(locations, list) else []
+    limit = max_citation_locations()
+    return {
+        "citation_id": f"citation:{result.get('chunk_id', '')}",
+        "source_number": result.get("source_number"),
+        "chunk_id": result.get("chunk_id"),
+        "document_id": result.get("document_id") or result.get("doc_id"),
+        "corpus_revision": result.get("corpus_revision"),
+        "excerpt": result_source_excerpt(result),
+        "locations": locations[:limit],
+        "location_count": len(locations),
+        "locations_truncated": len(locations) > limit,
+        "institution": result.get("institution"),
+        "file_name": result.get("file_name"),
+        "source_path": result.get("source_path"),
+        "relative_path": result.get("relative_path"),
+    }
 
 
 def is_low_quality_candidate(text: str) -> bool:
@@ -332,6 +507,24 @@ def select_answer_claims(question: str, results: list[dict[str, Any]]) -> list[s
     return [item for item in fallback if item]
 
 
+def extractive_fallback_answer(
+    question: str,
+    contexts: Any,
+) -> str:
+    results = [
+        dict(item)
+        for item in contexts
+        if isinstance(item, dict)
+    ]
+    return "\n".join(select_answer_claims(question, results))
+
+
+def strip_untrusted_citation_markers(value: str) -> str:
+    """Citation numbers are assigned only after server-side attribution."""
+
+    return re.sub(r"\s*\[(?:\d+\s*,?\s*)+\]", "", value).strip()
+
+
 def build_gemini_prompt(question: str, results: list[dict[str, Any]]) -> str:
     source_blocks: list[str] = []
     for result in results[:8]:
@@ -347,6 +540,7 @@ def build_gemini_prompt(question: str, results: list[dict[str, Any]]) -> str:
                 ]
             )
         )
+    joined_source_blocks = "\n\n".join(source_blocks)
 
     return (
         "사용자 질문에 답하기 위해 아래 검색 근거만 사용하세요.\n"
@@ -356,7 +550,7 @@ def build_gemini_prompt(question: str, results: list[dict[str, Any]]) -> str:
         "답변은 한국어로, 3~5개의 짧은 문장 또는 bullet로 작성하세요.\n\n"
         f"질문: {question}\n\n"
         "검색 근거:\n"
-        f"{'\n\n'.join(source_blocks)}"
+        f"{joined_source_blocks}"
     )
 
 
@@ -459,6 +653,7 @@ def attribute_claim(claim: str, results: list[dict[str, Any]]) -> dict[str, Any]
         "confidence": round(min(0.99, top_matches[0][0]) if top_matches else 0.0, 3),
         "source_ids": [match[2]["chunk_id"] for match in top_matches],
         "source_numbers": [match[1] for match in top_matches],
+        "citations": [citation_for_result(match[2]) for match in top_matches],
     }
 
 
@@ -473,6 +668,7 @@ def build_rag_response(
             "answer": "검색된 근거 문서가 없습니다. 기관 범위나 질문 표현을 바꿔 다시 검색해 주세요.",
             "cited_answer": "검색된 근거 문서가 없습니다. 기관 범위나 질문 표현을 바꿔 다시 검색해 주세요.",
             "claims": [],
+            "citations": [],
             "generator": generator,
         }
 
@@ -488,6 +684,7 @@ def build_rag_response(
             "answer": "검색 결과는 있으나 답변 문장을 지지하는 근거를 충분히 확인하지 못했습니다.",
             "cited_answer": "검색 결과는 있으나 답변 문장을 지지하는 근거를 충분히 확인하지 못했습니다.",
             "claims": claims,
+            "citations": [],
             "draft_answer": draft_answer,
             "generator": generator,
         }
@@ -503,6 +700,16 @@ def build_rag_response(
         "answer": "\n".join(f"- {line}" for line in answer_lines),
         "cited_answer": "\n".join(f"- {line}" for line in cited_lines),
         "claims": claims,
+        "citations": [
+            citation_for_result(result)
+            for result in results
+            if result.get("chunk_id")
+            in {
+                source_id
+                for claim in supported_claims
+                for source_id in claim["source_ids"]
+            }
+        ],
         "draft_answer": draft_answer,
         "generator": generator,
     }
@@ -642,6 +849,7 @@ class SearchHandler(BaseHTTPRequestHandler):
             question = validate_question(body.get("question", ""))
             institution = str(body.get("institution", "")).strip() or None
             top_k = parse_top_k(body.get("top_k", DEFAULT_TOP_K))
+            requested_provider = validate_provider(body.get("provider"))
 
             results = search_index(
                 self.index_path,
@@ -654,8 +862,20 @@ class SearchHandler(BaseHTTPRequestHandler):
             numbered_results = number_sources(results)
             draft_answer = None
             generator = "extractive"
-            if gemini_enabled() and numbered_results:
-                acquired = self.generation_semaphore.acquire(blocking=False)
+            generation = {
+                "requested": requested_provider,
+                "used": "none",
+                "model": None,
+                "fallback_reason": "no_results" if not numbered_results else None,
+                "attempts": [],
+            }
+            if numbered_results:
+                requires_slot = requested_provider != "extractive"
+                acquired = (
+                    self.generation_semaphore.acquire(blocking=False)
+                    if requires_slot
+                    else True
+                )
                 if not acquired:
                     self.write_error(
                         "server_busy",
@@ -664,13 +884,38 @@ class SearchHandler(BaseHTTPRequestHandler):
                     )
                     return
                 try:
-                    draft_answer, used_model = generate_answer_with_gemini(question, numbered_results)
-                    generator = f"gemini:{used_model}"
-                except Exception as exc:
-                    generator = f"extractive_after_gemini_error:{type(exc).__name__}"
-                    print(f"Gemini generation failed: {exc}", flush=True)
+                    generated = generate(
+                        question,
+                        numbered_results,
+                        requested=requested_provider,
+                        extractive_fallback=extractive_fallback_answer,
+                    )
+                    draft_answer = strip_untrusted_citation_markers(generated.text)
+                    generation = generated.metadata()
+                    generator = (
+                        f"{generated.used}:{generated.model}"
+                        if generated.model
+                        else generated.used
+                    )
+                except GenerationError as exc:
+                    # A deadline can expire before the normal extractive route.
+                    # Keep the service useful with an in-process safe fallback.
+                    draft_answer = extractive_fallback_answer(
+                        question, numbered_results
+                    )
+                    generation = {
+                        "requested": requested_provider,
+                        "used": "extractive",
+                        "model": None,
+                        "fallback_reason": exc.code,
+                        "attempts": [
+                            attempt.to_dict() for attempt in exc.attempts
+                        ],
+                    }
+                    generator = "extractive"
                 finally:
-                    self.generation_semaphore.release()
+                    if requires_slot:
+                        self.generation_semaphore.release()
 
             rag = build_rag_response(question, numbered_results, draft_answer, generator)
             self.write_json(
@@ -680,8 +925,9 @@ class SearchHandler(BaseHTTPRequestHandler):
                     "answer": rag["answer"],
                     "cited_answer": rag["cited_answer"],
                     "claims": rag["claims"],
+                    "citations": rag.get("citations", []),
                     "generator": rag["generator"],
-                    "draft_answer": rag.get("draft_answer"),
+                    "generation": generation,
                     "results": public_results(numbered_results),
                 }
             )

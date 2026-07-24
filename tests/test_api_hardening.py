@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from bm25_search import build_index, search_index
+from bm25_search import build_index, rerank_results, search_index
 from search_api import (
     ApiError,
     build_gemini_prompt,
@@ -149,6 +149,28 @@ class ApiHardeningTests(unittest.TestCase):
         self.assertLessEqual(len(public[0]["preview"]), 50)
         self.assertIn("text", internal[0])
         self.assertIn("뒤쪽 핵심 조건", internal[0]["text"])
+
+    def test_rerank_prefers_better_question_term_coverage_over_raw_rank(self) -> None:
+        rows = [
+            {
+                "chunk_id": "weak#0000",
+                "institution": "한국거래소",
+                "file_name": "weak.pdf",
+                "relative_path": "한국거래소/weak.pdf",
+                "preview": "상장폐지 관련 일반 안내입니다.",
+            },
+            {
+                "chunk_id": "strong#0000",
+                "institution": "한국거래소",
+                "file_name": "strong.pdf",
+                "relative_path": "한국거래소/strong.pdf",
+                "preview": "상장폐지 제도 개선 심사 일정과 이의신청 절차를 안내합니다.",
+            },
+        ]
+
+        reranked = rerank_results("상장폐지 제도 개선 심사 일정", rows, top_k=1)
+
+        self.assertEqual(reranked[0]["chunk_id"], "strong#0000")
 
     def test_prompt_uses_full_chunk_but_response_strips_internal_text(self) -> None:
         result = {
