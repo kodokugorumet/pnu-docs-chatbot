@@ -43,6 +43,8 @@ export type SearchResult = {
   preview?: string
   location?: CitationLocation | null
   locations?: CitationLocation[]
+  location_count?: number
+  locations_truncated?: boolean
   page?: number | null
   page_start?: number | null
   page_end?: number | null

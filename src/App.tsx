@@ -77,6 +77,8 @@ function envNumber(value: unknown, fallback: number) {
 }
 
 const MAX_QUESTION_CHARS = envNumber(import.meta.env.VITE_MAX_QUESTION_CHARS, 1000)
+const MAX_SOURCE_LOCATIONS = 3
+const MAX_DETAIL_LOCATIONS = 8
 const sanjiniSrc = '/sanjini.webp'
 const allInstitutions = '전체 기관'
 const defaultInstitutions = [
@@ -148,6 +150,18 @@ function resultScoreLabel(result: SearchResult) {
           (value): value is number => typeof value === 'number',
         )
   return typeof score === 'number' ? Math.abs(score).toFixed(2) : '—'
+}
+
+function resultLocationSummary(result: SearchResult, limit: number) {
+  const locations = getResultLocations(result)
+  const reportedCount =
+    typeof result.location_count === 'number'
+      ? result.location_count
+      : locations.length
+  return {
+    locations: locations.slice(0, limit),
+    hiddenCount: Math.max(reportedCount - Math.min(locations.length, limit), 0),
+  }
 }
 
 function retrievalSummary(retrieval?: Record<string, unknown>) {
@@ -1057,7 +1071,10 @@ function App() {
                 {selectedAnswer.results && selectedAnswer.results.length > 0 ? (
                   <div className="citation-list">
                     {selectedAnswer.results.map((result, index) => {
-                      const locations = getResultLocations(result)
+                      const locationSummary = resultLocationSummary(
+                        result,
+                        MAX_SOURCE_LOCATIONS,
+                      )
                       const fileName =
                         result.file_name ?? result.relative_path ?? '제목 없는 문서'
                       const sourcePath =
@@ -1073,15 +1090,20 @@ function App() {
                           <h3>{fileName}</h3>
                           {sourcePath && <p className="location">{sourcePath}</p>}
                           {result.preview && <p>{cleanPreview(result.preview)}</p>}
-                          {locations.length > 0 && (
+                          {locationSummary.locations.length > 0 && (
                             <div className="result-locations">
-                              {locations.map((location, locationIndex) => (
+                              {locationSummary.locations.map((location, locationIndex) => (
                                 <CitationLocation
                                   compact
                                   key={`${result.chunk_id}-location-${locationIndex}`}
                                   location={location}
                                 />
                               ))}
+                              {locationSummary.hiddenCount > 0 && (
+                                <span className="location-overflow">
+                                  외 {locationSummary.hiddenCount.toLocaleString()}개 위치
+                                </span>
+                              )}
                             </div>
                           )}
                           <dl>
@@ -1125,7 +1147,10 @@ function App() {
             {sourceTab === 'locations' && (
               <div className="location-list">
                 {selectedAnswer.results?.map((result, index) => {
-                  const locations = getResultLocations(result)
+                  const locationSummary = resultLocationSummary(
+                    result,
+                    MAX_DETAIL_LOCATIONS,
+                  )
                   const fileName =
                     result.file_name ?? result.relative_path ?? '제목 없는 문서'
                   return (
@@ -1137,14 +1162,19 @@ function App() {
                       {(result.relative_path || result.source_path) && (
                         <p>{result.relative_path ?? result.source_path}</p>
                       )}
-                      {locations.length > 0 ? (
+                      {locationSummary.locations.length > 0 ? (
                         <div className="location-details">
-                          {locations.map((location, locationIndex) => (
+                          {locationSummary.locations.map((location, locationIndex) => (
                             <CitationLocation
                               key={`${result.chunk_id}-detail-${locationIndex}`}
                               location={location}
                             />
                           ))}
+                          {locationSummary.hiddenCount > 0 && (
+                            <span className="location-overflow">
+                              외 {locationSummary.hiddenCount.toLocaleString()}개 위치
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <p className="no-location">세부 위치 정보가 제공되지 않았습니다.</p>

@@ -849,6 +849,7 @@ button {
 }
 
 .citation-card {
+  min-width: 0;
   padding: 15px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -874,6 +875,7 @@ button {
 .citation-card h3 {
   margin-top: 12px;
   font-size: 16px;
+  overflow-wrap: anywhere;
 }
 
 .citation-card p {
@@ -886,6 +888,7 @@ button {
   margin-top: 4px;
   color: var(--pnu-blue);
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .citation-card dl {
@@ -928,6 +931,7 @@ button {
 }
 
 .location-card {
+  min-width: 0;
   padding: 13px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -944,6 +948,7 @@ button {
   color: var(--text-primary);
   font-size: 14px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .location-card span {
@@ -1323,6 +1328,20 @@ button {
   border-color: rgba(168, 112, 0, 0.2);
   background: var(--yellow-soft);
   color: #745612;
+}
+
+.citation-card .location-overflow,
+.location-card .location-overflow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .location-card .no-location {
