@@ -27,12 +27,15 @@ from search_api import (
     cors_origin_for,
     is_authorized,
     load_env_file,
+    normalize_retrieval_query,
     parse_top_k,
     public_results,
     search_pipeline,
+    select_answer_claims,
     SearchHandler,
     validate_question,
 )
+from rag.retrieval import lexical_fallback_rerank
 
 
 class QuietSearchHandler(SearchHandler):
@@ -178,6 +181,71 @@ class ApiHardeningTests(unittest.TestCase):
         reranked = rerank_results("상장폐지 제도 개선 심사 일정", rows, top_k=1)
 
         self.assertEqual(reranked[0]["chunk_id"], "strong#0000")
+
+    def test_retrieval_query_removes_institution_and_request_boilerplate(self) -> None:
+        self.assertEqual(
+            normalize_retrieval_query(
+                "부산대학교 휴학 관련 규정을 검색해줘",
+                "부산대학교",
+            ),
+            "휴학",
+        )
+        self.assertEqual(normalize_retrieval_query("규정"), "규정")
+
+    def test_hybrid_reranker_prefers_matching_article_heading_and_diversifies(self) -> None:
+        rows = [
+            {
+                "chunk_id": f"election#000{index}",
+                "doc_id": "election",
+                "chunk_index": index,
+                "institution": "부산대학교",
+                "file_name": "부산대학교 총장임용후보자 선정규정.hwp",
+                "text": "선거권자는 휴학 또는 정학 중이 아닌 학생이어야 한다.",
+            }
+            for index in range(4)
+        ]
+        rows.extend(
+            [
+                {
+                    "chunk_id": "rules#0000",
+                    "doc_id": "rules",
+                    "chunk_index": 0,
+                    "institution": "부산대학교",
+                    "file_name": "부산대학교 학칙 전문.hwp",
+                    "text": "제64조(휴학) 학생은 정당한 사유가 있을 때 휴학할 수 있다.",
+                },
+                {
+                    "chunk_id": "guide#0000",
+                    "doc_id": "guide",
+                    "chunk_index": 0,
+                    "institution": "부산대학교",
+                    "file_name": "학생 안내.hwp",
+                    "text": "휴학 신청은 학사과에 제출한다.",
+                },
+            ]
+        )
+
+        reranked = lexical_fallback_rerank("휴학", rows, top_k=4)
+
+        self.assertEqual(reranked[0].chunk_id, "rules#0000")
+        self.assertLessEqual(
+            sum(hit.document_id == "election" for hit in reranked),
+            2,
+        )
+
+    def test_extractive_claim_selection_matches_korean_word_endings(self) -> None:
+        results = [
+            {
+                "text": "① 학생은 정당한 사유가 있을 때 휴학할 수 있다.",
+            },
+            {
+                "text": "학생선거인은 개인정보 처리동의를 제출한다.",
+            },
+        ]
+
+        claims = select_answer_claims("휴학", results)
+
+        self.assertIn("휴학할 수 있다", claims[0])
 
     def test_hybrid_pipeline_runs_dense_rrf_and_returns_stage_scores(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

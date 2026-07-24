@@ -58,6 +58,30 @@ DEFAULT_MAX_CITATION_LOCATIONS = 100
 DEFAULT_MAX_CONCURRENT_GENERATIONS = 2
 DEFAULT_ALLOWED_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
 MAX_CLAIMS = 5
+RETRIEVAL_REQUEST_TERMS = frozenset(
+    {
+        "관련",
+        "규정",
+        "규정을",
+        "규정은",
+        "문서",
+        "문서를",
+        "내용",
+        "내용을",
+        "검색",
+        "검색해줘",
+        "검색해주세요",
+        "검색해",
+        "찾아줘",
+        "찾아주세요",
+        "알려줘",
+        "알려주세요",
+        "설명해줘",
+        "설명해주세요",
+        "요약해줘",
+        "요약해주세요",
+    }
+)
 DEFAULT_ENV_FILE = Path(".env")
 DEFAULT_DENSE_INDEX = Path("processed/index/dense.sqlite")
 DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
@@ -187,6 +211,24 @@ def validate_question(value: Any) -> str:
             f"질문은 {question_max_chars()}자 이내로 입력해 주세요.",
         )
     return question
+
+
+def normalize_retrieval_query(
+    question: str,
+    institution: str | None = None,
+) -> str:
+    """Keep content-bearing terms and remove UI-style request boilerplate."""
+
+    value = str(question or "").strip()
+    if institution:
+        value = re.sub(re.escape(institution), " ", value, flags=re.IGNORECASE)
+    original_terms = tokenize(value, include_ngrams=False)
+    content_terms = [
+        term for term in original_terms if term not in RETRIEVAL_REQUEST_TERMS
+    ]
+    # A query consisting only of a generic word such as "규정" is still valid.
+    resolved = content_terms or original_terms
+    return " ".join(resolved).strip() or str(question or "").strip()
 
 
 def is_authorized(headers: Any) -> bool:
@@ -519,8 +561,18 @@ def overlap_score(question_terms: set[str], text: str) -> float:
     terms = set(tokenize(text, include_ngrams=False))
     if not terms:
         return 0.0
-    overlap = question_terms & terms
-    return len(overlap) / max(1, len(question_terms))
+    matched = 0
+    for question_term in question_terms:
+        if question_term in terms:
+            matched += 1
+            continue
+        if re.fullmatch(r"[가-힣]{2,}", question_term) and any(
+            question_term in term for term in terms
+        ):
+            # Korean particles and verb endings are commonly attached to the
+            # content word (휴학 → 휴학할, 휴학기간은).
+            matched += 1
+    return matched / max(1, len(question_terms))
 
 
 def select_answer_claims(question: str, results: list[dict[str, Any]]) -> list[str]:
@@ -560,7 +612,14 @@ def extractive_fallback_answer(
         for item in contexts
         if isinstance(item, dict)
     ]
-    return "\n".join(select_answer_claims(question, results))
+    institutions = {
+        str(item.get("institution") or "").strip()
+        for item in results
+        if str(item.get("institution") or "").strip()
+    }
+    institution = next(iter(institutions)) if len(institutions) == 1 else None
+    answer_query = normalize_retrieval_query(question, institution)
+    return "\n".join(select_answer_claims(answer_query, results))
 
 
 def strip_untrusted_citation_markers(value: str) -> str:
@@ -834,10 +893,11 @@ def search_pipeline(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return backward-compatible rows plus an explicit retrieval trace."""
 
+    retrieval_query = normalize_retrieval_query(question, institution)
     if retriever is None:
         rows = search_index(
             index_path,
-            question,
+            retrieval_query,
             top_k,
             institution,
             preview_chars=preview_chars(),
@@ -845,6 +905,7 @@ def search_pipeline(
         )
         return rows, {
             "strategy": "BM25 + lexical reranker",
+            "retrieval_query": retrieval_query,
             "result_count": len(rows),
             "lanes": {
                 "bm25": {"status": "ok", "count": len(rows)},
@@ -855,7 +916,7 @@ def search_pipeline(
         }
 
     result = retriever.search(
-        question,
+        retrieval_query,
         top_k=top_k,
         institution=institution,
     )
@@ -883,6 +944,7 @@ def search_pipeline(
         rows.append(row)
 
     trace = dict(result.trace)
+    trace["retrieval_query"] = retrieval_query
     dense_status = (
         trace.get("lanes", {}).get("dense", {}).get("status")
         if isinstance(trace.get("lanes"), dict)

@@ -46,6 +46,9 @@ from .models import (
 
 
 TOKEN_RE = re.compile(r"[가-힣]+|[A-Za-z]+|\d+")
+ARTICLE_HEADING_RE = re.compile(
+    r"제\s*\d+\s*조(?:의\s*\d+)?\s*[（(]([^)\n）]{1,80})[)）]"
+)
 HANGUL_RE = re.compile(r"^[가-힣]+$")
 SQL_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 DEFAULT_RRF_K = 60
@@ -880,6 +883,41 @@ def _lexical_tokens(value: str) -> List[str]:
     ]
 
 
+def _heading_match_coverage(query_terms: set[str], text: str) -> float:
+    """Measure topic matches in legal-style article headings.
+
+    A term in ``제64조(휴학)`` is substantially stronger evidence than the
+    same term appearing incidentally in a long body paragraph.
+    """
+
+    headings = " ".join(ARTICLE_HEADING_RE.findall(text.lower()))
+    if not headings:
+        return 0.0
+    matched = sum(1 for term in query_terms if term in headings)
+    return matched / len(query_terms)
+
+
+def _primary_policy_title_bonus(hit: SearchHit) -> float:
+    """Prefer a selected institution's own top-level policy document.
+
+    This stays conservative: the institution name must be immediately followed
+    by a policy-document label after punctuation is removed.  Affiliated-unit
+    documents such as ``부산대학교 사범대학부설고등학교 학칙`` therefore do
+    not receive the boost unless the query terms independently support them.
+    """
+
+    if not hit.institution or not hit.file_name:
+        return 0.0
+    institution = re.sub(r"[^0-9A-Za-z가-힣]+", "", hit.institution.lower())
+    file_name = re.sub(r"[^0-9A-Za-z가-힣]+", "", hit.file_name.lower())
+    if not institution or institution not in file_name:
+        return 0.0
+    labels = ("학칙", "규정", "규칙", "지침", "요강")
+    return 1.0 if any(
+        institution + label in file_name for label in labels
+    ) else 0.0
+
+
 def lexical_fallback_score(
     query: str,
     hit: SearchHit | Mapping[str, Any],
@@ -920,12 +958,16 @@ def lexical_fallback_score(
         if normalized_query and normalized_query in normalized_text
         else 0.0
     )
+    heading_coverage = _heading_match_coverage(query_terms, normalized_text)
+    primary_policy_bonus = _primary_policy_title_bonus(canonical)
     rank_signal = 1.0 / max(1, int(base_rank))
     return (
-        body_coverage * 0.52
-        + metadata_coverage * 0.16
-        + phrase_bonus * 0.18
-        + rank_signal * 0.14
+        body_coverage * 0.42
+        + metadata_coverage * 0.10
+        + phrase_bonus * 0.12
+        + heading_coverage * 0.36
+        + primary_policy_bonus * 0.12
+        + rank_signal * 0.10
     )
 
 
@@ -953,7 +995,24 @@ def lexical_fallback_rerank(
         )
     scored.sort(key=lambda item: (-item[0], item[1], item[2]))
     if top_k is not None:
-        scored = scored[: max(0, int(top_k))]
+        limit = max(0, int(top_k))
+        selected = []
+        deferred = []
+        document_counts: Dict[str, int] = {}
+        for item in scored:
+            document_id = item[3].document_id
+            if document_counts.get(document_id, 0) >= 2:
+                deferred.append(item)
+                continue
+            selected.append(item)
+            document_counts[document_id] = (
+                document_counts.get(document_id, 0) + 1
+            )
+            if len(selected) >= limit:
+                break
+        if len(selected) < limit:
+            selected.extend(deferred[: limit - len(selected)])
+        scored = selected
     result = []
     for rank, (score, _, _, hit) in enumerate(scored, start=1):
         result.append(
@@ -961,7 +1020,7 @@ def lexical_fallback_rerank(
                 "reranker",
                 rank=rank,
                 score=score,
-                kind="lexical_fallback",
+                kind="lexical_heading_diverse",
             ).with_final_rank(rank)
         )
     return result
