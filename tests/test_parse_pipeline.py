@@ -33,7 +33,12 @@ from scripts.document_parsing.pipeline import (
     PipelineRunner,
     build_source_document,
 )
-from scripts.parse_pipeline import _stage_sources, run_sources
+from scripts.parse_pipeline import (
+    _stage_sources,
+    discover_input_files,
+    load_corpus_manifest,
+    run_sources,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -68,6 +73,26 @@ def create_html_input(input_root: Path) -> Path:
     return path
 
 
+def manifest_record(path: Path, input_root: Path, **metadata) -> dict:
+    value = {
+        "input_relative_path": path.relative_to(input_root).as_posix(),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "size_bytes": path.stat().st_size,
+    }
+    value.update(metadata)
+    return value
+
+
+def write_manifest(path: Path, records: list[dict]) -> None:
+    path.write_text(
+        "".join(
+            json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+
+
 def run_baseline_html(
     input_root: Path,
     workspace: Path,
@@ -90,6 +115,204 @@ def run_baseline_html(
 
 
 class ParsePipelineIntegrationTests(unittest.TestCase):
+    def test_corpus_manifest_is_authoritative_and_preserves_source_metadata(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_root = root / "input"
+            included = create_html_input(input_root)
+            excluded = input_root / "부산대학교" / "research.html"
+            excluded.write_text(HTML_FIXTURE, encoding="utf-8")
+            manifest_path = root / "corpus.jsonl"
+            record = manifest_record(
+                included,
+                input_root,
+                source_title="졸업과제 안내",
+                source_url="https://www.pusan.ac.kr/notice/1",
+                download_url="https://www.pusan.ac.kr/download/1",
+                source_host="www.pusan.ac.kr",
+                fetched_at="2026-07-25T00:00:00+00:00",
+                published_at=None,
+                category="academic",
+                include_reason="student-facing academic notice",
+                source_aliases=[
+                    "https://www.pusan.ac.kr/notice/1?alias=1"
+                ],
+                crawl_storage_path="content/aa/guide.html",
+            )
+            write_manifest(manifest_path, [record])
+
+            selection = load_corpus_manifest(
+                manifest_path,
+                input_root,
+                "baseline",
+                repo_root=REPO_ROOT,
+            )
+
+            self.assertEqual(
+                [source.relative_path for source in selection.sources],
+                ["부산대학교/guide.html"],
+            )
+            self.assertNotIn(
+                excluded.resolve(),
+                [source.path for source in selection.sources],
+            )
+            self.assertEqual(
+                selection.selection_counts,
+                {"manifest_entries": 1, "selected_files": 1},
+            )
+            source = selection.sources[0]
+            self.assertEqual(source.source_title, "졸업과제 안내")
+            self.assertEqual(
+                source.source_url,
+                "https://www.pusan.ac.kr/notice/1",
+            )
+            self.assertEqual(
+                source.source_aliases,
+                ("https://www.pusan.ac.kr/notice/1?alias=1",),
+            )
+
+            staged = _stage_sources(
+                list(selection.sources),
+                root / "staged",
+                input_root,
+            )
+            self.assertNotEqual(staged[0].path, source.path)
+            for field in (
+                "source_title",
+                "source_url",
+                "download_url",
+                "source_host",
+                "fetched_at",
+                "published_at",
+                "category",
+                "include_reason",
+                "source_aliases",
+                "crawl_storage_path",
+            ):
+                self.assertEqual(
+                    getattr(staged[0], field),
+                    getattr(source, field),
+                )
+
+            config = PipelineConfig(
+                profile="baseline",
+                tools_dir=root / "tools",
+                raw_output_dir=root / "work" / "raw",
+                repo_root=REPO_ROOT,
+                expect_korean=True,
+            )
+            outcome = PipelineRunner(config).run(staged[0])
+            output_dir = root / "run"
+            write_profile_run(
+                output_dir,
+                [outcome],
+                config,
+                input_root,
+                run_id="manifest-metadata",
+                source_manifest_sha256=(
+                    selection.source_manifest_sha256
+                ),
+                selection_counts=selection.selection_counts,
+            )
+
+            document = read_jsonl(output_dir / "documents.jsonl")[0]
+            chunk = read_jsonl(output_dir / "chunks.jsonl")[0]
+            for field in (
+                "source_title",
+                "source_url",
+                "download_url",
+                "source_host",
+                "fetched_at",
+                "published_at",
+                "category",
+                "include_reason",
+                "source_aliases",
+                "crawl_storage_path",
+            ):
+                expected = document[field]
+                self.assertEqual(chunk["metadata"][field], expected)
+            run_manifest = json.loads(
+                (output_dir / "run_manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                run_manifest["source_manifest_sha256"],
+                selection.source_manifest_sha256,
+            )
+            self.assertEqual(
+                run_manifest["selection_counts"],
+                {"manifest_entries": 1, "selected_files": 1},
+            )
+            self.assertTrue(
+                verify_profile_run(output_dir)["valid"],
+                verify_profile_run(output_dir)["errors"],
+            )
+
+    def test_corpus_manifest_rejects_invalid_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_root = root / "input"
+            included = create_html_input(input_root)
+            valid = manifest_record(included, input_root)
+            cases = (
+                ("bad-sha", "SHA-256 mismatch", [
+                    dict(valid, sha256="0" * 64),
+                ]),
+                ("bad-size", "size mismatch", [
+                    dict(valid, size_bytes=valid["size_bytes"] + 1),
+                ]),
+                (
+                    "duplicate-path",
+                    "duplicate input_relative_path",
+                    [valid, dict(valid)],
+                ),
+                ("escaping-path", "invalid input_relative_path", [
+                    dict(valid, input_relative_path="../guide.html"),
+                ]),
+                ("bad-url", "source_url must be an HTTP", [
+                    dict(valid, source_url="file:///tmp/guide.html"),
+                ]),
+                ("credential-url", "without credentials", [
+                    dict(
+                        valid,
+                        source_url="https://user:secret@www.pusan.ac.kr/guide",
+                    ),
+                ]),
+            )
+            for label, message, records in cases:
+                with self.subTest(label=label):
+                    manifest_path = root / (label + ".jsonl")
+                    write_manifest(manifest_path, records)
+                    with self.assertRaisesRegex(ValueError, message):
+                        load_corpus_manifest(
+                            manifest_path,
+                            input_root,
+                            "baseline",
+                            repo_root=REPO_ROOT,
+                        )
+
+    def test_legacy_discovery_without_manifest_remains_compatible(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            input_root = Path(directory) / "input"
+            first = create_html_input(input_root)
+            second = input_root / "부산대학교" / "second.html"
+            second.write_text(HTML_FIXTURE, encoding="utf-8")
+
+            discovered = discover_input_files(input_root)
+            self.assertEqual(discovered, [first.resolve(), second.resolve()])
+            source = build_source_document(
+                discovered[0],
+                input_root,
+                "baseline",
+                repo_root=REPO_ROOT,
+            )
+            self.assertIsNone(source.source_url)
+            self.assertIsNone(source.source_title)
+            self.assertEqual(source.source_aliases, ())
+
     def test_closing_stream_waits_for_active_parser_workers(self) -> None:
         active = 0
         finished = []

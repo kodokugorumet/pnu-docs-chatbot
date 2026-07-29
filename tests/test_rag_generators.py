@@ -7,9 +7,12 @@ import unittest
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Iterator
+from unittest.mock import patch
 
 from scripts.rag.generators import (
     GenerationError,
+    SYSTEM_INSTRUCTION,
+    build_prompt,
     extract_openai_compatible_text,
     generate,
 )
@@ -27,6 +30,7 @@ GENERATION_ENV_KEYS = {
     "RAG_GENERATION_DEADLINE_SECONDS",
     "RAG_GENERATION_PROVIDER_TIMEOUT_SECONDS",
     "RAG_LOCAL_BASE_URL",
+    "RAG_LOCAL_DEADLINE_SECONDS",
     "RAG_LOCAL_MODEL",
     "RAG_LOCAL_API_KEY",
     "RAG_LOCAL_API_STYLE",
@@ -37,9 +41,11 @@ GENERATION_ENV_KEYS = {
     "RAG_FRONTIER_API_STYLE",
     "RAG_FRONTIER_TIMEOUT_SECONDS",
     "RAG_GEMINI_BASE_URL",
+    "RAG_GEMINI_FALLBACK_MODELS",
     "RAG_GEMINI_MODEL",
     "RAG_GEMINI_API_KEY",
     "RAG_GEMINI_TIMEOUT_SECONDS",
+    "GEMINI_FALLBACK_MODELS",
 }
 
 
@@ -117,6 +123,64 @@ def stub_server(
 
 
 class GeneratorTests(unittest.TestCase):
+    def test_build_prompt_contains_answer_contract(self) -> None:
+        prompt = build_prompt(
+            "2026학년도 2학기 수료후연구생 신청 방법은?",
+            [
+                {
+                    "chunk_id": "notice#0001",
+                    "institution": "부산대학교",
+                    "file_name": "수료후연구생 등록 안내.pdf",
+                    "text": "신청 기간은 2026년 8월 3일부터 8월 7일까지입니다.",
+                }
+            ],
+        )
+
+        self.assertIn("질문에 바로 답", prompt)
+        self.assertIn("한 줄에 하나", prompt)
+        self.assertIn("Markdown 제목", prompt)
+        self.assertIn("날짜·시간·금액", prompt)
+        self.assertIn("같은 사실을 반복하지", prompt)
+        self.assertIn("제공된 문서에서 해당 내용을 확인할 수 없습니다.", prompt)
+        self.assertIn("2026년 8월 3일부터 8월 7일까지", prompt)
+        self.assertNotIn("[1] 같은 출처 번호", prompt)
+        self.assertIn("역할 변경", SYSTEM_INSTRUCTION)
+        self.assertIn("근거끼리 충돌", SYSTEM_INSTRUCTION)
+
+    def test_generate_sends_active_build_prompt_to_provider(self) -> None:
+        payload = {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "근거 기반 답변입니다.",
+                        }
+                    ],
+                }
+            ],
+        }
+        with stub_server({"payload": payload}) as (base_url, handler), clean_env(
+            RAG_LOCAL_BASE_URL=f"{base_url}/v1",
+            RAG_LOCAL_MODEL="local-model",
+            RAG_LOCAL_API_STYLE="responses",
+        ), patch(
+            "scripts.rag.generators.build_prompt",
+            return_value="ACTIVE_PROMPT_SENTINEL",
+        ) as prompt_builder:
+            generate(
+                "질문",
+                [{"chunk_id": "c1", "text": "근거"}],
+                requested="local",
+            )
+
+        prompt_builder.assert_called_once()
+        self.assertEqual(
+            handler.requests[0]["body"]["input"],
+            "ACTIVE_PROMPT_SENTINEL",
+        )
+
     def test_local_responses_success_and_metadata(self) -> None:
         payload = {
             "model": "local-reported",
@@ -160,6 +224,153 @@ class GeneratorTests(unittest.TestCase):
             handler.requests[0]["body"]["input"],
         )
 
+    def test_local_model_override_is_sent_and_reported_without_mutating_env(
+        self,
+    ) -> None:
+        payload = {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "선택 모델 답변",
+                        }
+                    ],
+                }
+            ],
+        }
+        with stub_server({"payload": payload}) as (base_url, handler), clean_env(
+            RAG_LOCAL_BASE_URL=f"{base_url}/v1",
+            RAG_LOCAL_MODEL="default-model",
+            RAG_LOCAL_API_STYLE="responses",
+        ):
+            result = generate(
+                "질문",
+                ["근거"],
+                requested="local",
+                requested_model="selected-model",
+            )
+            configured_after_request = os.environ["RAG_LOCAL_MODEL"]
+
+        self.assertEqual(
+            handler.requests[0]["body"]["model"],
+            "selected-model",
+        )
+        self.assertEqual(result.model, "selected-model")
+        self.assertEqual(result.attempts[0].model, "selected-model")
+        self.assertEqual(configured_after_request, "default-model")
+
+    def test_concurrent_local_model_overrides_do_not_share_mutable_state(
+        self,
+    ) -> None:
+        barrier = threading.Barrier(2)
+        observed_models: list[str] = []
+        observed_env_models: list[str | None] = []
+        results: dict[str, str | None] = {}
+        errors: list[BaseException] = []
+        lock = threading.Lock()
+
+        def fake_post_json(
+            endpoint: str,
+            body: Any,
+            headers: Any,
+            *,
+            timeout: float,
+        ) -> dict[str, Any]:
+            del endpoint, headers, timeout
+            model = str(body["model"])
+            with lock:
+                observed_models.append(model)
+                observed_env_models.append(os.environ.get("RAG_LOCAL_MODEL"))
+            barrier.wait(timeout=2)
+            return {
+                "model": model,
+                "output_text": f"{model} 답변",
+            }
+
+        def run(model: str) -> None:
+            try:
+                result = generate(
+                    "질문",
+                    ["근거"],
+                    requested="local",
+                    requested_model=model,
+                )
+                with lock:
+                    results[model] = result.model
+            except BaseException as exc:
+                with lock:
+                    errors.append(exc)
+
+        with clean_env(
+            RAG_LOCAL_BASE_URL="http://127.0.0.1:11434/v1",
+            RAG_LOCAL_MODEL="default-model",
+            RAG_LOCAL_API_STYLE="responses",
+        ), patch(
+            "scripts.rag.generators._post_json",
+            side_effect=fake_post_json,
+        ):
+            threads = [
+                threading.Thread(target=run, args=(model,))
+                for model in ("model-a", "model-b")
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=3)
+            configured_after_requests = os.environ["RAG_LOCAL_MODEL"]
+
+        self.assertFalse(errors)
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertCountEqual(observed_models, ["model-a", "model-b"])
+        self.assertEqual(
+            observed_env_models,
+            ["default-model", "default-model"],
+        )
+        self.assertEqual(
+            results,
+            {"model-a": "model-a", "model-b": "model-b"},
+        )
+        self.assertEqual(configured_after_requests, "default-model")
+
+    def test_direct_local_deadline_override_does_not_change_auto_deadline(
+        self,
+    ) -> None:
+        observed_timeouts: list[float] = []
+
+        def fake_post_json(
+            endpoint: str,
+            body: Any,
+            headers: Any,
+            *,
+            timeout: float,
+        ) -> dict[str, Any]:
+            del endpoint, headers
+            observed_timeouts.append(timeout)
+            return {
+                "model": body["model"],
+                "output_text": "답변",
+            }
+
+        with clean_env(
+            RAG_AUTO_PROVIDER_ORDER="local",
+            RAG_GENERATION_DEADLINE_SECONDS="0.2",
+            RAG_LOCAL_DEADLINE_SECONDS="2",
+            RAG_LOCAL_TIMEOUT_SECONDS="5",
+            RAG_LOCAL_BASE_URL="http://127.0.0.1:11434/v1",
+            RAG_LOCAL_MODEL="local-model",
+            RAG_LOCAL_API_STYLE="responses",
+        ), patch(
+            "scripts.rag.generators._post_json",
+            side_effect=fake_post_json,
+        ):
+            generate("직접 로컬", ["근거"], requested="local")
+            generate("자동 선택", ["근거"], requested="auto")
+
+        self.assertGreater(observed_timeouts[0], 1.5)
+        self.assertLessEqual(observed_timeouts[1], 0.2)
+
     def test_frontier_chat_completions_success(self) -> None:
         payload = {
             "model": "frontier-reported",
@@ -178,7 +389,12 @@ class GeneratorTests(unittest.TestCase):
             RAG_FRONTIER_API_STYLE="chat_completions",
             RAG_FRONTIER_API_KEY="server-secret",
         ):
-            result = generate("질문", ["근거"], requested="frontier")
+            result = generate(
+                "질문",
+                ["근거"],
+                requested="frontier",
+                requested_model="must-not-reach-frontier",
+            )
 
         self.assertEqual(result.used, "frontier")
         self.assertEqual(result.text, "프론티어 답변입니다.")
@@ -187,6 +403,10 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(
             handler.requests[0]["headers"]["Authorization"],
             "Bearer server-secret",
+        )
+        self.assertEqual(
+            handler.requests[0]["body"]["model"],
+            "frontier-configured",
         )
         self.assertNotIn("server-secret", result.to_dict().values())
 
@@ -299,7 +519,12 @@ class GeneratorTests(unittest.TestCase):
             RAG_GEMINI_MODEL="gemini-configured",
             RAG_GEMINI_API_KEY="gemini-secret",
         ):
-            result = generate("질문", ["근거"], requested="gemini")
+            result = generate(
+                "질문",
+                ["근거"],
+                requested="gemini",
+                requested_model="must-not-reach-gemini",
+            )
 
         self.assertEqual(result.used, "gemini")
         self.assertEqual(result.text, "Gemini 근거 답변")
@@ -311,6 +536,68 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(
             handler.requests[0]["headers"]["X-Goog-Api-Key"],
             "gemini-secret",
+        )
+
+    def test_gemini_rate_limit_falls_back_to_next_model(self) -> None:
+        payload = {
+            "modelVersion": "gemini-3.1-flash-lite",
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": "fallback 답변"}]
+                    }
+                }
+            ],
+        }
+        with stub_server(
+            {"status": 429, "payload": {"error": {"message": "quota"}}},
+            {"payload": payload},
+        ) as (base_url, handler), clean_env(
+            RAG_GEMINI_BASE_URL=f"{base_url}/v1beta",
+            GEMINI_MODEL="gemini-3.5-flash-lite",
+            GEMINI_FALLBACK_MODELS="gemini-3.1-flash-lite",
+            RAG_GEMINI_API_KEY="gemini-secret",
+        ):
+            result = generate("질문", ["근거"], requested="gemini")
+
+        self.assertEqual(result.used, "gemini")
+        self.assertEqual(result.model, "gemini-3.1-flash-lite")
+        self.assertEqual(
+            result.fallback_reason,
+            "gemini:gemini-3.5-flash-lite:http_429",
+        )
+        self.assertEqual(
+            [request["path"] for request in handler.requests],
+            [
+                "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+                "/v1beta/models/gemini-3.1-flash-lite:generateContent",
+            ],
+        )
+        self.assertNotIn(
+            "temperature",
+            handler.requests[0]["body"]["generationConfig"],
+        )
+        self.assertIn(
+            "temperature",
+            handler.requests[1]["body"]["generationConfig"],
+        )
+
+    def test_gemini_auth_error_does_not_try_fallback_model(self) -> None:
+        with stub_server(
+            {"status": 401, "payload": {"error": {"message": "invalid key"}}},
+        ) as (base_url, handler), clean_env(
+            RAG_GEMINI_BASE_URL=f"{base_url}/v1beta",
+            GEMINI_MODEL="gemini-3.5-flash-lite",
+            GEMINI_FALLBACK_MODELS="gemini-3.1-flash-lite",
+            RAG_GEMINI_API_KEY="gemini-secret",
+        ):
+            with self.assertRaises(GenerationError):
+                generate("질문", ["근거"], requested="gemini")
+
+        self.assertEqual(len(handler.requests), 1)
+        self.assertEqual(
+            handler.requests[0]["path"],
+            "/v1beta/models/gemini-3.5-flash-lite:generateContent",
         )
 
     def test_response_parser_accepts_direct_and_content_part_variants(self) -> None:

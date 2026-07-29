@@ -1,7 +1,9 @@
 export const GENERATION_PROVIDERS = ['auto', 'local', 'frontier'] as const
+export const PARSER_PROFILES = ['baseline', 'challenger', 'cascade'] as const
 
 export type GenerationProvider = (typeof GENERATION_PROVIDERS)[number]
 export type ConcreteProvider = Exclude<GenerationProvider, 'auto'>
+export type ParserProfile = (typeof PARSER_PROFILES)[number]
 
 export type CitationLocation = {
   block_id?: string | null
@@ -25,6 +27,14 @@ export type Claim = {
   source_ids?: string[]
   source_numbers?: number[]
   citations?: ClaimCitation[]
+  validation_reason?:
+    | 'supported'
+    | 'model_abstention'
+    | 'critical_value_mismatch'
+    | 'low_lexical_overlap'
+    | string
+  missing_critical_values?: string[]
+  best_score?: number
 }
 
 export type SearchResult = {
@@ -37,7 +47,13 @@ export type SearchResult = {
   file_name?: string
   source_path?: string
   relative_path?: string
+  source_title?: string | null
   source_url?: string | null
+  download_url?: string | null
+  source_host?: string | null
+  fetched_at?: string | null
+  published_at?: string | null
+  category?: string | null
   char_count?: number
   score?: number
   preview?: string
@@ -93,6 +109,8 @@ export type ChatRequest = {
   institution?: string
   top_k?: number
   provider: GenerationProvider
+  model?: string
+  parser_profile: ParserProfile
 }
 
 export type ChatResponse = {
@@ -105,6 +123,7 @@ export type ChatResponse = {
   trace?: ChatTrace
   retrieval?: Record<string, unknown>
   request_id?: string
+  parser_profile?: ParserProfile
 }
 
 export type PipelineStage = {
@@ -120,6 +139,27 @@ export type ProviderCapability = {
   available: boolean
   state: string
   model?: string
+  defaultModel?: string
+  models?: ProviderModelCapability[]
+  reason?: string
+}
+
+export type ProviderModelCapability = {
+  id: string
+  label: string
+  available: boolean
+  reason?: string
+}
+
+export type ParserProfileCapability = {
+  id: ParserProfile
+  label: string
+  ready: boolean
+  chunkCount?: number
+  documentCount?: number
+  runId?: string
+  corpusRevision?: string
+  denseReady?: boolean
   reason?: string
 }
 
@@ -134,6 +174,8 @@ export type HealthResponse = {
   generation_mode?: string
   gemini_configured?: boolean
   gemini_model?: string
+  default_parser_profile?: ParserProfile
+  parser_profiles?: unknown
   [key: string]: unknown
 }
 
@@ -271,13 +313,104 @@ export function getResultLocations(result: SearchResult): CitationLocation[] {
 
 const providerLabels: Record<ConcreteProvider, string> = {
   local: '로컬 LLM',
-  frontier: '프론티어 API',
+  frontier: '프론티어 AI (Gemini)',
+}
+
+const parserProfileLabels: Record<ParserProfile, string> = {
+  baseline: 'Baseline · 기본 파서',
+  challenger: 'Challenger · 대체 파서',
+  cascade: 'Cascade · 품질 기반 선택',
+}
+
+const parserProfileCompactLabels: Record<ParserProfile, string> = {
+  baseline: 'Baseline',
+  challenger: 'Challenger',
+  cascade: 'Cascade',
+}
+
+function parserProfileId(value: unknown): ParserProfile | null {
+  const profile = optionalString(value)?.toLowerCase()
+  return PARSER_PROFILES.includes(profile as ParserProfile)
+    ? (profile as ParserProfile)
+    : null
+}
+
+export function parserProfileDisplayName(
+  profile: ParserProfile,
+  compact = false,
+) {
+  return compact
+    ? parserProfileCompactLabels[profile]
+    : parserProfileLabels[profile]
+}
+
+export function getParserProfileCapabilities(
+  health: HealthResponse | null,
+): ParserProfileCapability[] {
+  const found = new Map<ParserProfile, ParserProfileCapability>()
+  const values = health?.parser_profiles
+  if (Array.isArray(values)) {
+    for (const value of values) {
+      if (!isRecord(value)) {
+        continue
+      }
+      const id = parserProfileId(value.id) ?? parserProfileId(value.profile)
+      if (!id) {
+        continue
+      }
+      found.set(id, {
+        id,
+        label: optionalString(value.label) ?? parserProfileLabels[id],
+        ready:
+          optionalBoolean(value.ready) ??
+          optionalString(value.status)?.toLowerCase() === 'ready',
+        chunkCount: optionalInteger(value.chunk_count),
+        documentCount: optionalInteger(value.document_count),
+        runId: optionalString(value.run_id),
+        corpusRevision: optionalString(value.corpus_revision),
+        denseReady: optionalBoolean(value.dense_ready),
+        reason:
+          optionalString(value.reason) ??
+          optionalString(value.error) ??
+          optionalString(value.message),
+      })
+    }
+  }
+
+  if (!found.size && health) {
+    const fallbackId =
+      parserProfileId(health.default_parser_profile) ??
+      parserProfileId(health.profile) ??
+      'cascade'
+    found.set(fallbackId, {
+      id: fallbackId,
+      label: parserProfileLabels[fallbackId],
+      ready: health.ready,
+      chunkCount: optionalInteger(health.chunk_count),
+      documentCount: optionalInteger(health.document_count),
+      runId: optionalString(health.run_id),
+      corpusRevision: optionalString(health.corpus_revision),
+      denseReady: optionalBoolean(health.dense_ready),
+    })
+  }
+
+  return PARSER_PROFILES.map(
+    (id) =>
+      found.get(id) ?? {
+        id,
+        label: parserProfileLabels[id],
+        ready: false,
+        reason: health
+          ? `${parserProfileLabels[id]} 인덱스가 서버에 등록되지 않았습니다.`
+          : 'API 상태를 확인한 뒤 선택할 수 있습니다.',
+      },
+  )
 }
 
 export function providerDisplayName(provider: string) {
   if (provider === 'auto') return '자동 선택'
   if (provider === 'local') return providerLabels.local
-  if (provider === 'frontier') return providerLabels.frontier
+  if (provider === 'frontier' || provider === 'gemini') return providerLabels.frontier
   if (provider === 'extractive') return '검색 근거 요약'
   return provider
 }
@@ -299,6 +432,34 @@ function providerAvailability(record: Record<string, unknown>) {
   return false
 }
 
+function providerModels(value: unknown): ProviderModelCapability[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const normalized = new Map<string, ProviderModelCapability>()
+  for (const item of value) {
+    const record = isRecord(item) ? item : {}
+    const id =
+      optionalString(item) ??
+      optionalString(record.id) ??
+      optionalString(record.model)
+    if (!id) {
+      continue
+    }
+    normalized.set(id, {
+      id,
+      label: optionalString(record.label) ?? id,
+      available: optionalBoolean(record.available) ?? true,
+      reason:
+        optionalString(record.reason) ??
+        optionalString(record.error) ??
+        optionalString(record.message),
+    })
+  }
+  return [...normalized.values()]
+}
+
 function providerRecord(
   id: ConcreteProvider,
   value: unknown,
@@ -309,6 +470,24 @@ function providerRecord(
       ? { state: value }
       : {}
   const available = typeof value === 'boolean' ? value : providerAvailability(record)
+  const model = optionalString(record.model) ?? optionalString(record.model_name)
+  const defaultModel =
+    optionalString(record.default_model) ??
+    optionalString(record.defaultModel) ??
+    model
+  const models = id === 'local' ? providerModels(record.models) : []
+  for (const configuredModel of [defaultModel, model]) {
+    if (
+      configuredModel &&
+      !models.some((candidate) => candidate.id === configuredModel)
+    ) {
+      models.push({
+        id: configuredModel,
+        label: configuredModel,
+        available: true,
+      })
+    }
+  }
   const state =
     optionalString(record.state) ??
     optionalString(record.status) ??
@@ -318,7 +497,9 @@ function providerRecord(
     label: optionalString(record.label) ?? providerLabels[id],
     available,
     state,
-    model: optionalString(record.model) ?? optionalString(record.model_name),
+    model,
+    defaultModel,
+    models: id === 'local' ? models : undefined,
     reason:
       optionalString(record.reason) ??
       optionalString(record.error) ??
@@ -674,11 +855,19 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
     )
       ? (payload.default_provider as GenerationProvider)
       : undefined,
+    default_parser_profile:
+      parserProfileId(payload.default_parser_profile) ?? undefined,
   }
 }
 
-export async function getInstitutions(signal?: AbortSignal): Promise<string[]> {
-  const payload = await requestJson('/institutions', { signal })
+export async function getInstitutions(
+  parserProfile?: ParserProfile,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const query = parserProfile
+    ? `?parser_profile=${encodeURIComponent(parserProfile)}`
+    : ''
+  const payload = await requestJson(`/institutions${query}`, { signal })
   if (!isRecord(payload) || !Array.isArray(payload.institutions)) {
     return []
   }

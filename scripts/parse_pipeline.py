@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import site
 import stat
@@ -22,10 +23,11 @@ import sys
 import tempfile
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Set, Tuple
+from urllib.parse import urlsplit
 
 
 # Running ``python scripts/parse_pipeline.py`` puts scripts/, rather than the
@@ -35,7 +37,13 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.document_parsing.adapters import sniff_source
-from scripts.document_parsing.core import Attempt, ParseResult, SourceDocument, assess_quality
+from scripts.document_parsing.core import (
+    Attempt,
+    ParseResult,
+    SourceDocument,
+    assess_quality,
+    normalize_relative_path,
+)
 from scripts.document_parsing.output import (
     verify_profile_run,
     write_profile_run,
@@ -53,6 +61,27 @@ from scripts.document_parsing.runtime import doctor, prepare
 PROFILE_CHOICES = tuple(PROFILES) + ("all",)
 DEFAULT_WORKERS = max(1, min(4, (os.cpu_count() or 2) - 1))
 MAX_WORKERS = 32
+CORPUS_MANIFEST_REQUIRED_FIELDS = frozenset(
+    {"input_relative_path", "sha256", "size_bytes"}
+)
+CORPUS_MANIFEST_SOURCE_FIELDS = frozenset(
+    {
+        "source_title",
+        "source_url",
+        "download_url",
+        "source_host",
+        "fetched_at",
+        "published_at",
+        "category",
+        "include_reason",
+        "source_aliases",
+        "crawl_storage_path",
+    }
+)
+CORPUS_MANIFEST_FIELDS = (
+    CORPUS_MANIFEST_REQUIRED_FIELDS | CORPUS_MANIFEST_SOURCE_FIELDS
+)
+SHA256_PATTERN = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 def _isolate_python_import_environment() -> None:
@@ -147,6 +176,279 @@ def _path_is_within(path: Path, parent: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+@dataclass(frozen=True)
+class CorpusManifestSelection:
+    """Verified, deterministic parser inputs selected by a JSONL manifest."""
+
+    sources: Tuple[SourceDocument, ...]
+    source_manifest_sha256: str
+    selection_counts: Mapping[str, int]
+
+
+def _validate_http_url(value: Any, field: str, line_number: int) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or value.strip() != value
+        or any(character.isspace() for character in value)
+    ):
+        raise ValueError(
+            "corpus manifest line {} {} must be a non-empty HTTP(S) URL".format(
+                line_number, field
+            )
+        )
+    parsed = urlsplit(value)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        raise ValueError(
+            "corpus manifest line {} {} must be an HTTP(S) URL".format(
+                line_number, field
+            )
+        )
+    try:
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(
+            "corpus manifest line {} {} is invalid: {}".format(
+                line_number, field, exc
+            )
+        ) from exc
+    if (
+        not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or port is not None
+        and not (1 <= port <= 65535)
+    ):
+        raise ValueError(
+            "corpus manifest line {} {} must contain a valid host "
+            "without credentials".format(line_number, field)
+        )
+    return value
+
+
+def _manifest_source_metadata(
+    record: Mapping[str, Any],
+    line_number: int,
+) -> Dict[str, Any]:
+    metadata: Dict[str, Any] = {}
+    for field in sorted(CORPUS_MANIFEST_SOURCE_FIELDS - {"source_aliases"}):
+        if field not in record:
+            continue
+        value = record[field]
+        if value is not None and not isinstance(value, str):
+            raise ValueError(
+                "corpus manifest line {} {} must be null or a string".format(
+                    line_number, field
+                )
+            )
+        metadata[field] = value
+
+    for field in ("source_url", "download_url"):
+        value = metadata.get(field)
+        if value is not None:
+            metadata[field] = _validate_http_url(
+                value, field, line_number
+            )
+
+    aliases = record.get("source_aliases", [])
+    if aliases is None:
+        aliases = []
+    if not isinstance(aliases, list) or any(
+        not isinstance(value, str) for value in aliases
+    ):
+        raise ValueError(
+            "corpus manifest line {} source_aliases must be a list of "
+            "HTTP(S) URLs".format(line_number)
+        )
+    metadata["source_aliases"] = tuple(
+        _validate_http_url(value, "source_aliases", line_number)
+        for value in aliases
+    )
+    return metadata
+
+
+def load_corpus_manifest(
+    manifest_path: Path,
+    input_root: Path,
+    profile: str,
+    repo_root: Optional[Path] = None,
+) -> CorpusManifestSelection:
+    """Load and verify an authoritative JSONL inclusion manifest.
+
+    Each entry names one regular file below ``input_root`` and pins its byte
+    size and SHA-256. No directory discovery or suffix filtering is performed.
+    """
+
+    root = Path(input_root).expanduser().resolve()
+    if not root.is_dir():
+        raise ValueError("input directory does not exist: {}".format(root))
+    requested_manifest = Path(manifest_path).expanduser()
+    if requested_manifest.is_symlink():
+        raise ValueError("corpus manifest must not be a symlink")
+    manifest = requested_manifest.resolve()
+    if not manifest.is_file():
+        raise ValueError("corpus manifest does not exist: {}".format(manifest))
+    data = manifest.read_bytes()
+    manifest_sha256 = hashlib.sha256(data).hexdigest()
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError("corpus manifest must be UTF-8 JSONL") from exc
+
+    sources: List[SourceDocument] = []
+    seen_relative_paths: Set[str] = set()
+    entry_count = 0
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            continue
+        entry_count += 1
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                "corpus manifest line {} is invalid JSON: {}".format(
+                    line_number, exc
+                )
+            ) from exc
+        if not isinstance(record, dict):
+            raise ValueError(
+                "corpus manifest line {} must contain an object".format(
+                    line_number
+                )
+            )
+
+        has_canonical_path = "input_relative_path" in record
+        has_legacy_path = "relative_path" in record
+        if has_canonical_path and has_legacy_path:
+            raise ValueError(
+                "corpus manifest line {} must not contain both "
+                "input_relative_path and relative_path".format(line_number)
+            )
+        allowed_fields = set(CORPUS_MANIFEST_FIELDS)
+        if has_legacy_path and not has_canonical_path:
+            allowed_fields.add("relative_path")
+        unexpected = sorted(set(record) - allowed_fields)
+        if unexpected:
+            raise ValueError(
+                "corpus manifest line {} has unsupported fields: {}".format(
+                    line_number, ", ".join(unexpected)
+                )
+            )
+
+        path_value = record.get(
+            "input_relative_path",
+            record.get("relative_path"),
+        )
+        if not isinstance(path_value, str):
+            raise ValueError(
+                "corpus manifest line {} input_relative_path must be a "
+                "string".format(line_number)
+            )
+        try:
+            relative_path = normalize_relative_path(path_value)
+        except ValueError as exc:
+            raise ValueError(
+                "corpus manifest line {} has invalid input_relative_path: "
+                "{}".format(line_number, exc)
+            ) from exc
+        if relative_path in seen_relative_paths:
+            raise ValueError(
+                "corpus manifest contains duplicate input_relative_path: "
+                "{}".format(relative_path)
+            )
+        seen_relative_paths.add(relative_path)
+
+        expected_sha256 = record.get("sha256")
+        if (
+            not isinstance(expected_sha256, str)
+            or not SHA256_PATTERN.fullmatch(expected_sha256)
+        ):
+            raise ValueError(
+                "corpus manifest line {} sha256 must be a 64-character "
+                "hex digest".format(line_number)
+            )
+        expected_sha256 = expected_sha256.lower()
+        expected_size = record.get("size_bytes")
+        if (
+            isinstance(expected_size, bool)
+            or not isinstance(expected_size, int)
+            or expected_size < 0
+        ):
+            raise ValueError(
+                "corpus manifest line {} size_bytes must be a non-negative "
+                "integer".format(line_number)
+            )
+
+        candidate = root / Path(relative_path)
+        if candidate.is_symlink():
+            raise ValueError(
+                "corpus manifest input must not be a symlink: {}".format(
+                    relative_path
+                )
+            )
+        try:
+            resolved = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise ValueError(
+                "corpus manifest input does not exist: {}".format(
+                    relative_path
+                )
+            ) from exc
+        if not _path_is_within(resolved, root):
+            raise ValueError(
+                "corpus manifest input escapes --input: {}".format(
+                    relative_path
+                )
+            )
+        if not resolved.is_file():
+            raise ValueError(
+                "corpus manifest input is not a regular file: {}".format(
+                    relative_path
+                )
+            )
+
+        actual_size = resolved.stat().st_size
+        if actual_size != expected_size:
+            raise ValueError(
+                "corpus manifest size mismatch for {}: expected {}, got "
+                "{}".format(relative_path, expected_size, actual_size)
+            )
+        source = build_source_document(
+            resolved,
+            root,
+            profile,
+            repo_root=repo_root,
+            source_metadata=_manifest_source_metadata(
+                record, line_number
+            ),
+        )
+        if source.relative_path != relative_path:
+            raise ValueError(
+                "corpus manifest path resolves to a different input path: "
+                "{}".format(relative_path)
+            )
+        if source.source_sha256 != expected_sha256:
+            raise ValueError(
+                "corpus manifest SHA-256 mismatch for {}".format(
+                    relative_path
+                )
+            )
+        sources.append(source)
+
+    if not sources:
+        raise ValueError("corpus manifest contains no input entries")
+    sources.sort(key=lambda source: source.relative_path)
+    return CorpusManifestSelection(
+        sources=tuple(sources),
+        source_manifest_sha256=manifest_sha256,
+        selection_counts={
+            "manifest_entries": entry_count,
+            "selected_files": len(sources),
+        },
+    )
 
 
 def discover_input_files(
@@ -530,6 +832,8 @@ def command_run(args: argparse.Namespace) -> int:
     profiles = _profile_names(args.profile)
     institutions = set(args.institution or ()) or None
     extensions = _normalize_extensions(args.extensions)
+    source_manifest_sha256: Optional[str] = None
+    selection_counts: Dict[str, int]
 
     runtime_report = doctor(args.profile, tools_dir)
     profile_runtime_reports = {
@@ -594,32 +898,58 @@ def command_run(args: argparse.Namespace) -> int:
                 )
             )
 
-    files = discover_input_files(
-        input_root,
-        institutions=institutions,
-        extensions=extensions,
-        excluded_roots=(output_root, tools_dir),
-        limit=args.limit,
-    )
-    if not files:
-        raise ValueError("no input files matched the selected filters")
-
-    print(
-        "discovered {} files; profiles={}; workers={}".format(
-            len(files), ",".join(profiles), args.workers
-        ),
-        file=sys.stderr,
-    )
-    # Hash and identify each source once; profile is not part of document_id.
-    base_sources = [
-        build_source_document(
-            path,
+    if args.corpus_manifest:
+        if institutions or extensions or args.limit is not None:
+            raise ValueError(
+                "--corpus-manifest is authoritative and cannot be combined "
+                "with --institution, --extensions, or --limit"
+            )
+        selection = load_corpus_manifest(
+            Path(args.corpus_manifest),
             input_root,
             profiles[0],
             repo_root=REPO_ROOT,
         )
-        for path in files
-    ]
+        base_sources = list(selection.sources)
+        files = [source.path for source in base_sources]
+        source_manifest_sha256 = selection.source_manifest_sha256
+        selection_counts = dict(selection.selection_counts)
+    else:
+        discovered_files = discover_input_files(
+            input_root,
+            institutions=institutions,
+            extensions=extensions,
+            excluded_roots=(output_root, tools_dir),
+            limit=None,
+        )
+        files = (
+            discovered_files
+            if args.limit is None
+            else discovered_files[: args.limit]
+        )
+        if not files:
+            raise ValueError("no input files matched the selected filters")
+        # Hash and identify each source once; profile is not part of document_id.
+        base_sources = [
+            build_source_document(
+                path,
+                input_root,
+                profiles[0],
+                repo_root=REPO_ROOT,
+            )
+            for path in files
+        ]
+        selection_counts = {
+            "discovered_files": len(discovered_files),
+            "selected_files": len(files),
+        }
+
+    print(
+        "selected {} files; profiles={}; workers={}".format(
+            len(files), ",".join(profiles), args.workers
+        ),
+        file=sys.stderr,
+    )
 
     output_root.mkdir(parents=True, exist_ok=True)
     with _run_claim(output_root, run_id) as final_run_dir:
@@ -680,6 +1010,8 @@ def command_run(args: argparse.Namespace) -> int:
                         chunk_chars=args.chunk_chars,
                         chunk_overlap=args.chunk_overlap,
                         published_output_dir=final_run_dir / profile,
+                        source_manifest_sha256=source_manifest_sha256,
+                        selection_counts=selection_counts,
                     )
                 finally:
                     close_outcomes = getattr(outcomes, "close", None)
@@ -726,6 +1058,8 @@ def command_run(args: argparse.Namespace) -> int:
         "input": str(input_root),
         "output": str(final_run_dir),
         "file_count": len(files),
+        "source_manifest_sha256": source_manifest_sha256,
+        "selection_counts": selection_counts,
         "profiles": list(profiles),
         "summaries": summaries,
         "verification": verification,
@@ -811,6 +1145,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--input",
         default=_default_path("src/data"),
         help="Root containing institution document folders.",
+    )
+    run_parser.add_argument(
+        "--corpus-manifest",
+        help=(
+            "Authoritative UTF-8 JSONL inclusion list. Each "
+            "input_relative_path is resolved below --input and pinned by "
+            "sha256 and size_bytes."
+        ),
     )
     run_parser.add_argument(
         "--output",

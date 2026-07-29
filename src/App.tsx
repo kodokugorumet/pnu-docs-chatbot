@@ -25,19 +25,23 @@ import {
   chat as requestChat,
   getHealth,
   getInstitutions,
+  getParserProfileCapabilities,
   getPipelineStages,
   getProviderCapabilities,
   getResultLocations,
   normalizeGeneration,
+  parserProfileDisplayName,
   providerDisplayName,
   RagApiError,
 } from './api/rag'
 import type {
+  ChatRequest,
   ChatTrace,
   Claim,
   GenerationInfo,
   GenerationProvider,
   HealthResponse,
+  ParserProfile,
   SearchResult,
 } from './api/rag'
 import CitationLocation from './components/CitationLocation'
@@ -59,16 +63,22 @@ type Message = {
   generation?: GenerationInfo
   trace?: ChatTrace
   retrieval?: Record<string, unknown>
+  parserProfile?: ParserProfile
   error?: {
     code: string
     retryable: boolean
     requestId?: string
   }
-  request?: {
-    question: string
-    institution?: string
-    provider: GenerationProvider
-  }
+  request?: ChatRequest
+}
+
+type SubmitQuestionOptions = {
+  institution?: string
+  provider?: GenerationProvider
+  topK?: number
+  model?: string | null
+  parserProfile?: ParserProfile
+  appendUser?: boolean
 }
 
 function envNumber(value: unknown, fallback: number) {
@@ -81,6 +91,25 @@ const MAX_SOURCE_LOCATIONS = 3
 const MAX_DETAIL_LOCATIONS = 8
 const sanjiniSrc = '/sanjini.webp'
 const allInstitutions = '전체 기관'
+const evidenceScopePresets = [
+  {
+    value: 4,
+    label: '정밀',
+    detail: '관련성이 높은 근거에 집중합니다.',
+  },
+  {
+    value: 8,
+    label: '균형',
+    detail: '정확도와 검색 범위의 균형을 맞춥니다.',
+  },
+  {
+    value: 12,
+    label: '확장',
+    detail: '여러 규정과 문서를 폭넓게 살핍니다.',
+  },
+] as const
+type EvidenceTopK = (typeof evidenceScopePresets)[number]['value']
+const defaultEvidenceTopK: EvidenceTopK = 8
 const defaultInstitutions = [
   allInstitutions,
   '금융감독원',
@@ -164,6 +193,29 @@ function resultLocationSummary(result: SearchResult, limit: number) {
   }
 }
 
+function uniqueDocumentCount(results?: SearchResult[]) {
+  if (!results?.length) {
+    return 0
+  }
+  return new Set(
+    results.map((result) => {
+      const stableId = [
+        result.document_id,
+        result.doc_id,
+        result.relative_path,
+        result.source_path,
+      ].find((value) => typeof value === 'string' && value.trim())
+      if (stableId) {
+        return stableId
+      }
+      if (result.file_name) {
+        return `${result.institution ?? ''}:${result.file_name}`
+      }
+      return result.chunk_id
+    }),
+  ).size
+}
+
 function retrievalSummary(retrieval?: Record<string, unknown>) {
   if (!retrieval) {
     return null
@@ -176,6 +228,77 @@ function retrievalSummary(retrieval?: Record<string, unknown>) {
   const resultCount = [retrieval.result_count, retrieval.results, retrieval.top_k]
     .find((value) => typeof value === 'number')
   return typeof resultCount === 'number' ? `검색 결과 ${resultCount}개` : null
+}
+
+function contextDeduplicationSummary(retrieval?: Record<string, unknown>) {
+  const value = retrieval?.context_deduplication
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null
+  }
+
+  const diagnostics = value as Record<string, unknown>
+  const removedCount = diagnostics.removed_count
+  const keptCount = diagnostics.kept_count
+  if (typeof removedCount !== 'number' || typeof keptCount !== 'number') {
+    return null
+  }
+  return `중복 근거 ${removedCount}개 제거 · 최종 ${keptCount}개`
+}
+
+function criticalValueLabel(value: string) {
+  const [kind, ...parts] = value.split(':')
+  const normalized = parts.join(':')
+  if (kind === 'academic_year') return `${normalized}학년도`
+  if (kind === 'semester') return `${normalized}학기`
+  if (kind === 'round') return `${normalized}차`
+  if (kind === 'date') return normalized
+  if (kind === 'month_day') {
+    const [month, day] = normalized.split('-').map(Number)
+    return Number.isFinite(month) && Number.isFinite(day)
+      ? `${month}월 ${day}일`
+      : normalized
+  }
+  if (kind === 'time_minutes') {
+    const minutes = Number(normalized)
+    if (Number.isFinite(minutes)) {
+      const hour = Math.floor(minutes / 60)
+      const minute = minutes % 60
+      return `${hour.toString().padStart(2, '0')}:${minute
+        .toString()
+        .padStart(2, '0')}`
+    }
+  }
+  if (kind === 'amount_krw') {
+    const amount = Number(normalized)
+    return Number.isFinite(amount)
+      ? `${amount.toLocaleString('ko-KR')}원`
+      : `${normalized}원`
+  }
+  if (kind === 'percent') return `${normalized}%`
+  if (kind === 'quantity') return normalized.replace(':', '')
+  if (kind === 'phone') return `전화번호 ${normalized}`
+  return value
+}
+
+function claimValidationLabel(claim: Claim) {
+  if (claim.supported) {
+    return '근거 확인'
+  }
+  if (claim.validation_reason === 'model_abstention') {
+    return '모델이 근거 부족으로 답변 보류'
+  }
+  if (claim.validation_reason === 'critical_value_mismatch') {
+    const missing = (claim.missing_critical_values ?? [])
+      .map(criticalValueLabel)
+      .join(', ')
+    return missing
+      ? `핵심 값을 근거에서 확인하지 못함 · ${missing}`
+      : '핵심 값을 근거에서 확인하지 못함'
+  }
+  if (claim.validation_reason === 'low_lexical_overlap') {
+    return '검색 근거와 연결 부족'
+  }
+  return '근거 부족'
 }
 
 function traceSummary(trace?: ChatTrace) {
@@ -195,7 +318,18 @@ function traceSummary(trace?: ChatTrace) {
 
 function requestStageClass(state: string) {
   const normalized = state.toLowerCase()
-  if (['ready', 'healthy', 'available', 'configured', 'complete'].includes(normalized)) {
+  if (
+    [
+      'ready',
+      'healthy',
+      'available',
+      'configured',
+      'complete',
+      'external',
+      'disabled',
+      'single_lane',
+    ].includes(normalized)
+  ) {
     return 'is-done'
   }
   if (['building', 'loading', 'running', 'pending', 'checking'].includes(normalized)) {
@@ -280,16 +414,32 @@ function getSupportedClaimCount(message: Message) {
   return message.claims?.filter((claim) => claim.supported).length ?? 0
 }
 
-function isWeakAnswer(message: Message) {
+function weakAnswerHint(message: Message) {
   if (message.status === 'error') {
-    return false
+    return null
   }
 
   const claimCount = message.claims?.length ?? 0
   const supportedCount = getSupportedClaimCount(message)
   const sourceCount = message.results?.length ?? 0
 
-  return sourceCount === 0 || (claimCount > 0 && supportedCount < Math.ceil(claimCount * 0.6))
+  if (sourceCount === 0) {
+    return '검색된 근거가 없습니다. 기관 범위나 질문 표현을 바꿔 다시 검색해 보세요.'
+  }
+  if (
+    claimCount === 0 ||
+    supportedCount >= Math.ceil(claimCount * 0.6)
+  ) {
+    return null
+  }
+  if (
+    message.claims?.every(
+      (claim) => claim.validation_reason === 'model_abstention',
+    )
+  ) {
+    return '모델이 제공된 검색 근거만으로 답하기 어렵다고 판단했습니다. 검증 탭에서 판정 내용을 확인할 수 있습니다.'
+  }
+  return '모델 초안 중 근거가 부족한 문장은 최종 답변에서 제외했습니다. 검증 탭에서 판정 이유를 확인할 수 있습니다.'
 }
 
 function App() {
@@ -298,7 +448,12 @@ function App() {
   const [institution, setInstitution] = useState(allInstitutions)
   const [institutions, setInstitutions] = useState(defaultInstitutions)
   const [provider, setProvider] = useState<GenerationProvider>('auto')
+  const [parserProfile, setParserProfile] = useState<ParserProfile>('cascade')
+  const [localModelPreference, setLocalModelPreference] = useState<string | null>(null)
+  const [topK, setTopK] = useState<EvidenceTopK>(defaultEvidenceTopK)
   const [pendingProvider, setPendingProvider] = useState<GenerationProvider | null>(null)
+  const [pendingParserProfile, setPendingParserProfile] =
+    useState<ParserProfile | null>(null)
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
   const [isHealthRefreshing, setIsHealthRefreshing] = useState(true)
@@ -309,12 +464,52 @@ function App() {
   const messageStreamRef = useRef<HTMLDivElement | null>(null)
   const activeRequestRef = useRef<AbortController | null>(null)
   const defaultProviderAppliedRef = useRef(false)
+  const defaultParserProfileAppliedRef = useRef(false)
 
   const assistantMessages = messages.filter((message) => message.role === 'assistant')
   const providerCapabilities = useMemo(
     () => getProviderCapabilities(health),
     [health],
   )
+  const parserProfileCapabilities = useMemo(
+    () => getParserProfileCapabilities(health),
+    [health],
+  )
+  const selectedParserProfileCapability = useMemo(
+    () =>
+      parserProfileCapabilities.find(
+        (capability) => capability.id === parserProfile,
+      ),
+    [parserProfile, parserProfileCapabilities],
+  )
+  const selectedParserProfileReady =
+    health?.ready === true &&
+    selectedParserProfileCapability?.ready === true
+  const localProviderCapability = useMemo(
+    () => providerCapabilities.find((capability) => capability.id === 'local'),
+    [providerCapabilities],
+  )
+  const selectedLocalModel = useMemo(() => {
+    const models = localProviderCapability?.models ?? []
+    const preferred = localModelPreference
+      ? models.find(
+          (model) => model.id === localModelPreference && model.available,
+        )
+      : undefined
+    if (preferred) {
+      return preferred.id
+    }
+
+    const configured =
+      localProviderCapability?.defaultModel ?? localProviderCapability?.model
+    const configuredModel = configured
+      ? models.find((model) => model.id === configured)
+      : undefined
+    if (configured && (!configuredModel || configuredModel.available)) {
+      return configured
+    }
+    return models.find((model) => model.available)?.id ?? ''
+  }, [localModelPreference, localProviderCapability])
   const pipelineStages = useMemo(() => getPipelineStages(health), [health])
   const availableSuggestedQuestions = useMemo(
     () =>
@@ -342,7 +537,7 @@ function App() {
     setIsHealthRefreshing(true)
     const [healthResult, institutionResult] = await Promise.allSettled([
       getHealth(signal),
-      getInstitutions(signal),
+      getInstitutions(parserProfile, signal),
     ])
     if (signal?.aborted) {
       return
@@ -379,6 +574,30 @@ function App() {
             : 'auto',
         )
       }
+      const nextParserProfiles = getParserProfileCapabilities(nextHealth)
+      const preferredParserProfile =
+        nextHealth.default_parser_profile ?? 'cascade'
+      if (!defaultParserProfileAppliedRef.current) {
+        const preferredCapability = nextParserProfiles.find(
+          (capability) =>
+            capability.id === preferredParserProfile && capability.ready,
+        )
+        setParserProfile(
+          preferredCapability?.id ??
+            nextParserProfiles.find((capability) => capability.ready)?.id ??
+            preferredParserProfile,
+        )
+        defaultParserProfileAppliedRef.current = true
+      } else {
+        setParserProfile((current) =>
+          nextParserProfiles.some(
+            (capability) => capability.id === current && capability.ready,
+          )
+            ? current
+            : nextParserProfiles.find((capability) => capability.ready)?.id ??
+              preferredParserProfile,
+        )
+      }
     } else {
       setHealth(null)
       setHealthError(
@@ -398,7 +617,7 @@ function App() {
       ])
     }
     setIsHealthRefreshing(false)
-  }, [])
+  }, [parserProfile])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -436,12 +655,32 @@ function App() {
 
   async function submitQuestion(
     question: string,
-    institutionOverride = activeInstitution,
-    providerOverride = provider,
-    appendUser = true,
+    options: SubmitQuestionOptions = {},
   ) {
+    const institutionOverride = Object.prototype.hasOwnProperty.call(
+      options,
+      'institution',
+    )
+      ? options.institution
+      : activeInstitution
+    const providerOverride = options.provider ?? provider
+    const topKOverride = options.topK ?? topK
+    const parserProfileOverride =
+      options.parserProfile ?? parserProfile
+    const modelOverride = Object.prototype.hasOwnProperty.call(options, 'model')
+      ? options.model
+      : selectedLocalModel
+    const appendUser = options.appendUser ?? true
     const trimmed = question.trim()
-    if (!trimmed || activeRequestRef.current || health?.ready !== true) {
+    if (
+      !trimmed ||
+      activeRequestRef.current ||
+      health?.ready !== true ||
+      !parserProfileCapabilities.some(
+        (capability) =>
+          capability.id === parserProfileOverride && capability.ready,
+      )
+    ) {
       return
     }
     if (trimmed.length > MAX_QUESTION_CHARS) {
@@ -461,10 +700,16 @@ function App() {
       return
     }
 
-    const request = {
+    const normalizedModel = modelOverride?.trim()
+    const request: ChatRequest = {
       question: trimmed,
       institution: institutionOverride,
       provider: providerOverride,
+      top_k: topKOverride,
+      parser_profile: parserProfileOverride,
+      ...(providerOverride === 'local' && normalizedModel
+        ? { model: normalizedModel }
+        : {}),
     }
 
     if (appendUser) {
@@ -478,18 +723,13 @@ function App() {
     setInput('')
     setIsLoading(true)
     setPendingProvider(providerOverride)
+    setPendingParserProfile(parserProfileOverride)
 
     const controller = new AbortController()
     activeRequestRef.current = controller
 
     try {
-      const data = await requestChat(
-        {
-          ...request,
-          top_k: 8,
-        },
-        controller.signal,
-      )
+      const data = await requestChat(request, controller.signal)
       const answer: Message = {
         id: makeId(),
         role: 'assistant',
@@ -500,6 +740,7 @@ function App() {
         generation: normalizeGeneration(data, providerOverride),
         trace: data.trace,
         retrieval: data.retrieval,
+        parserProfile: data.parser_profile ?? parserProfileOverride,
         request,
       }
       setMessages((current) => [...current, answer])
@@ -525,6 +766,7 @@ function App() {
           requestId: apiError.requestId,
         },
         request,
+        parserProfile: parserProfileOverride,
       }
       setMessages((current) => [...current, answer])
       setSelectedMessageId(answer.id)
@@ -534,6 +776,7 @@ function App() {
         activeRequestRef.current = null
         setIsLoading(false)
         setPendingProvider(null)
+        setPendingParserProfile(null)
       }
     }
   }
@@ -550,6 +793,7 @@ function App() {
   const selectedSupportedCount = selectedAnswer ? getSupportedClaimCount(selectedAnswer) : 0
   const selectedClaimCount = selectedAnswer?.claims?.length ?? 0
   const selectedSourceCount = selectedAnswer?.results?.length ?? 0
+  const selectedDocumentCount = uniqueDocumentCount(selectedAnswer?.results)
   const selectedUnsupportedCount = Math.max(selectedClaimCount - selectedSupportedCount, 0)
 
   return (
@@ -614,9 +858,12 @@ function App() {
             파이프라인 상태
           </div>
           <PipelineStatus
+            chunkCount={selectedParserProfileCapability?.chunkCount}
             error={healthError}
             health={health}
             onRefresh={() => void refreshStatus()}
+            profileLabel={parserProfileDisplayName(parserProfile, true)}
+            profileReady={selectedParserProfileCapability?.ready}
             refreshing={isHealthRefreshing}
           />
         </section>
@@ -629,11 +876,13 @@ function App() {
           <div className="conversation-list">
             {availableRecentQueries.map((item) => (
               <button
-                disabled={isLoading || health?.ready !== true}
+                disabled={isLoading || !selectedParserProfileReady}
                 key={item.label}
                 onClick={() => {
                   setInstitution(item.institution)
-                  void submitQuestion(item.label, item.institution)
+                  void submitQuestion(item.label, {
+                    institution: item.institution,
+                  })
                 }}
                 type="button"
               >
@@ -670,7 +919,9 @@ function App() {
           </div>
 
           <div className="header-actions">
-            <span className="scope-pill">{institution}</span>
+            <span className="scope-pill">
+              {institution} · {parserProfileDisplayName(parserProfile, true)}
+            </span>
             <button
               aria-label="근거 패널 열기"
               className="icon-button mobile-only"
@@ -689,7 +940,7 @@ function App() {
               <span>
                 {isHealthRefreshing && !health
                   ? '검색 파이프라인 확인 중'
-                  : health?.ready
+                  : selectedParserProfileReady
                     ? '검색 파이프라인 준비 완료'
                     : '검색 파이프라인 준비 필요'}
               </span>
@@ -697,11 +948,13 @@ function App() {
               <div className="suggestion-grid">
                 {availableSuggestedQuestions.map((item) => (
                   <button
-                    disabled={isLoading || health?.ready !== true}
+                    disabled={isLoading || !selectedParserProfileReady}
                     key={item.question}
                     onClick={() => {
                       setInstitution(item.institution)
-                      void submitQuestion(item.question, item.institution)
+                      void submitQuestion(item.question, {
+                        institution: item.institution,
+                      })
                     }}
                     type="button"
                   >
@@ -720,9 +973,12 @@ function App() {
                 const supportedClaimCount = getSupportedClaimCount(message)
                 const claimCount = message.claims?.length ?? 0
                 const sourceCount = message.results?.length ?? 0
+                const documentCount = uniqueDocumentCount(message.results)
                 const requestTrace = traceSummary(message.trace)
                 const retrieval = retrievalSummary(message.retrieval)
+                const deduplication = contextDeduplicationSummary(message.retrieval)
                 const hasFallback = Boolean(message.generation?.fallback_reason)
+                const weakAnswer = weakAnswerHint(message)
 
                 return (
                   <article
@@ -747,7 +1003,7 @@ function App() {
                               ? message.error?.code === 'cancelled'
                                 ? '요청 취소됨'
                                 : '요청 처리 실패'
-                              : `검증된 근거 ${supportedClaimCount}개`}
+                              : `검증된 문장 ${supportedClaimCount}개`}
                           </span>
                         </div>
                       )}
@@ -767,7 +1023,17 @@ function App() {
 
                       {message.role === 'assistant' && message.status !== 'error' && (
                         <div className="answer-stats">
-                          <span>근거 후보 {sourceCount}개</span>
+                          {message.parserProfile && (
+                            <span className="parser-profile-badge">
+                              파서{' '}
+                              {parserProfileDisplayName(
+                                message.parserProfile,
+                                true,
+                              )}
+                            </span>
+                          )}
+                          <span>근거 chunk {sourceCount}개</span>
+                          <span>고유 문서 {documentCount}개</span>
                           <span>검증 문장 {claimCount ? `${supportedClaimCount}/${claimCount}` : '0개'}</span>
                           {message.generation && (
                             <span>
@@ -776,6 +1042,7 @@ function App() {
                             </span>
                           )}
                           {retrieval && <span>{retrieval}</span>}
+                          {deduplication && <span>{deduplication}</span>}
                           {requestTrace && <span>{requestTrace}</span>}
                         </div>
                       )}
@@ -792,10 +1059,10 @@ function App() {
                         </div>
                       )}
 
-                      {message.role === 'assistant' && isWeakAnswer(message) && (
+                      {message.role === 'assistant' && weakAnswer && (
                         <div className="answer-hint">
                           <AlertTriangle size={15} />
-                          <span>근거가 약한 문장이 있을 수 있습니다. 오른쪽 검증 탭에서 확인하거나 기관을 좁혀 다시 질문해 보세요.</span>
+                          <span>{weakAnswer}</span>
                         </div>
                       )}
 
@@ -829,14 +1096,23 @@ function App() {
                             message.error?.retryable &&
                             message.request && (
                               <button
-                                disabled={isLoading || health?.ready !== true}
+                                disabled={isLoading || !selectedParserProfileReady}
                                 onClick={(event) => {
                                   event.stopPropagation()
                                   void submitQuestion(
                                     message.request?.question ?? '',
-                                    message.request?.institution,
-                                    message.request?.provider ?? 'auto',
-                                    false,
+                                    {
+                                      institution: message.request?.institution,
+                                      provider: message.request?.provider ?? 'auto',
+                                      topK:
+                                        message.request?.top_k ??
+                                        defaultEvidenceTopK,
+                                      model: message.request?.model ?? null,
+                                      parserProfile:
+                                        message.request?.parser_profile ??
+                                        'cascade',
+                                      appendUser: false,
+                                    },
                                   )
                                 }}
                                 type="button"
@@ -866,8 +1142,12 @@ function App() {
                       <span>질문 처리 중</span>
                     </div>
                     <p>
-                      {providerDisplayName(pendingProvider ?? provider)} 경로로 검색,
-                      답변 생성, 인용 검증을 요청했습니다.
+                      {parserProfileDisplayName(
+                        pendingParserProfile ?? parserProfile,
+                        true,
+                      )}{' '}
+                      파서와 {providerDisplayName(pendingProvider ?? provider)} 경로로
+                      검색, 답변 생성, 인용 검증을 요청했습니다.
                     </p>
                     {pipelineStages.length > 0 && (
                       <ol
@@ -903,10 +1183,39 @@ function App() {
           <div className="composer-options">
             <ProviderSelect
               disabled={isLoading}
+              model={selectedLocalModel}
               onChange={setProvider}
+              onModelChange={setLocalModelPreference}
               providers={providerCapabilities}
               value={provider}
             />
+            <label className="parser-profile-select">
+              <span>검색 파싱 버전</span>
+              <select
+                aria-label="검색 파싱 버전"
+                disabled={isLoading}
+                onChange={(event) =>
+                  setParserProfile(event.target.value as ParserProfile)
+                }
+                value={parserProfile}
+              >
+                {parserProfileCapabilities.map((capability) => (
+                  <option
+                    disabled={!capability.ready}
+                    key={capability.id}
+                    value={capability.id}
+                  >
+                    {capability.label}
+                  </option>
+                ))}
+              </select>
+              <small>
+                {selectedParserProfileCapability?.ready
+                  ? `${selectedParserProfileCapability.documentCount?.toLocaleString() ?? '-'}개 문서 · ${selectedParserProfileCapability.chunkCount?.toLocaleString() ?? '-'}개 chunk`
+                  : selectedParserProfileCapability?.reason ??
+                    '선택한 파서 인덱스를 확인할 수 없습니다.'}
+              </small>
+            </label>
             <label className="composer-institution">
               <span>검색 기관</span>
               <select
@@ -921,20 +1230,44 @@ function App() {
               </select>
             </label>
           </div>
-          {health?.ready !== true && (
+          <fieldset className="evidence-scope">
+            <legend>검색 근거 범위</legend>
+            <div className="evidence-scope-options">
+              {evidenceScopePresets.map((preset) => (
+                <button
+                  aria-pressed={topK === preset.value}
+                  className={topK === preset.value ? 'is-active' : ''}
+                  disabled={isLoading}
+                  key={preset.value}
+                  onClick={() => setTopK(preset.value)}
+                  title={preset.detail}
+                  type="button"
+                >
+                  <strong>{preset.label}</strong>
+                  <span>
+                    {preset.value}개
+                    {preset.value === defaultEvidenceTopK ? ' · 기본' : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          {!selectedParserProfileReady && (
             <div className="composer-notice" role="status">
               <AlertTriangle size={14} />
               <span>
                 {isHealthRefreshing
                   ? '검색 파이프라인 상태를 확인하고 있습니다.'
-                  : healthError ?? '검색 파이프라인이 준비되지 않았습니다.'}
+                  : selectedParserProfileCapability?.reason ??
+                    healthError ??
+                    '검색 파이프라인이 준비되지 않았습니다.'}
               </span>
             </div>
           )}
           <div className="input-row">
             <textarea
               aria-label="질문 입력"
-              disabled={isLoading || health?.ready !== true}
+              disabled={isLoading || !selectedParserProfileReady}
               maxLength={MAX_QUESTION_CHARS}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
@@ -952,7 +1285,7 @@ function App() {
               className="send-button"
               disabled={
                 isLoading ||
-                health?.ready !== true ||
+                !selectedParserProfileReady ||
                 input.trim().length === 0
               }
               type="submit"
@@ -984,9 +1317,10 @@ function App() {
             <div className="confidence-box">
               <ShieldCheck size={21} />
               <div>
-                <strong>{selectedSourceCount}개 후보</strong>
+                <strong>근거 chunk {selectedSourceCount}개</strong>
                 <span>
-                  검증 {selectedSupportedCount}/{selectedClaimCount || 0}
+                  고유 문서 {selectedDocumentCount}개 · 검증{' '}
+                  {selectedSupportedCount}/{selectedClaimCount || 0}
                   {selectedUnsupportedCount > 0 ? `, 근거 부족 ${selectedUnsupportedCount}` : ''}
                 </span>
               </div>
@@ -1034,7 +1368,7 @@ function App() {
                         <p>{claim.text}</p>
                         <div className="claim-meta">
                           <span className={claim.supported ? 'is-supported' : 'is-unsupported'}>
-                            {claim.supported ? '근거 확인' : '근거 부족'}
+                            {claimValidationLabel(claim)}
                           </span>
                           {(claim.source_numbers ?? []).map((sourceNumber) => (
                             <span className="source-badge" key={sourceNumber}>
@@ -1076,7 +1410,10 @@ function App() {
                         MAX_SOURCE_LOCATIONS,
                       )
                       const fileName =
-                        result.file_name ?? result.relative_path ?? '제목 없는 문서'
+                        result.source_title ??
+                        result.file_name ??
+                        result.relative_path ??
+                        '제목 없는 문서'
                       const sourcePath =
                         result.relative_path ?? result.source_path ?? ''
                       return (
@@ -1130,6 +1467,17 @@ function App() {
                               원문 열기
                             </a>
                           )}
+                          {result.download_url &&
+                            result.download_url !== result.source_url && (
+                              <a
+                                className="source-link"
+                                href={result.download_url}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                첨부 열기
+                              </a>
+                            )}
                         </article>
                       )
                     })}

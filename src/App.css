@@ -75,6 +75,7 @@ button {
 .institution-shortcuts button,
 .message-actions button,
 .source-tabs button,
+.evidence-scope-options button,
 .citation-card button {
   display: inline-flex;
   align-items: center;
@@ -509,6 +510,11 @@ button {
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 800;
+}
+
+.answer-stats .parser-profile-badge {
+  background: var(--blue-soft);
+  color: var(--pnu-blue);
 }
 
 .answer-hint {
@@ -1017,6 +1023,7 @@ button {
 .new-chat-button:disabled,
 .conversation-list button:disabled,
 .institution-shortcuts button:disabled,
+.evidence-scope-options button:disabled,
 .suggestion-grid button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -1161,9 +1168,24 @@ button {
 
 .provider-select {
   display: grid;
+  flex: 1 1 300px;
+  gap: 5px;
+  min-width: 0;
+}
+
+.provider-select-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.provider-select-control,
+.local-model-select {
+  display: grid;
   grid-template-columns: auto minmax(142px, 190px);
   align-items: center;
-  gap: 5px 9px;
+  gap: 9px;
   min-width: 0;
 }
 
@@ -1176,13 +1198,21 @@ button {
   font-weight: 800;
 }
 
+.local-model-select > span,
+.parser-profile-select > span,
+.composer-institution > span,
+.evidence-scope legend {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .provider-select select {
   width: 100%;
   max-width: none;
 }
 
 .provider-select small {
-  grid-column: 1 / -1;
   overflow: hidden;
   color: var(--text-muted);
   font-size: 11px;
@@ -1193,17 +1223,81 @@ button {
 
 .composer-options {
   align-items: end;
+  flex-wrap: wrap;
 }
 
 .composer-institution {
   display: grid;
+  flex: 0 1 170px;
   gap: 5px;
 }
 
-.composer-institution > span {
+.parser-profile-select {
+  display: grid;
+  flex: 0 1 220px;
+  gap: 5px;
+  min-width: 0;
+}
+
+.parser-profile-select select {
+  width: 100%;
+  max-width: none;
+}
+
+.parser-profile-select small {
+  overflow: hidden;
   color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidence-scope {
+  min-width: 0;
+  margin: 0 0 9px;
+  padding: 0;
+  border: 0;
+}
+
+.evidence-scope legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+.evidence-scope-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.evidence-scope-options button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  color: var(--text-muted);
+}
+
+.evidence-scope-options button strong,
+.evidence-scope-options button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidence-scope-options button strong {
+  color: inherit;
+  font-size: 13px;
+}
+
+.evidence-scope-options button span {
   font-size: 11px;
-  font-weight: 800;
+}
+
+.evidence-scope-options button.is-active {
+  border-color: rgba(0, 82, 156, 0.34);
+  background: var(--blue-soft);
+  color: var(--pnu-blue);
 }
 
 .composer-notice {
@@ -1474,17 +1568,31 @@ button {
   }
 
   .provider-select,
+  .parser-profile-select,
   .composer-institution {
+    flex: none;
     width: 100%;
   }
 
-  .provider-select {
+  .provider-select-controls {
+    display: grid;
+    width: 100%;
+  }
+
+  .provider-select-control,
+  .local-model-select {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
   .composer select {
     max-width: none;
     width: 100%;
+  }
+
+  .evidence-scope-options button {
+    flex-direction: column;
+    gap: 1px;
+    padding: 5px 4px;
   }
 
   .institution-shortcuts {

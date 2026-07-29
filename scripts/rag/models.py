@@ -12,6 +12,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
+from urllib.parse import urlsplit
 
 
 RETRIEVAL_STAGES = ("bm25", "dense", "rrf", "reranker")
@@ -30,6 +31,41 @@ def _optional_string(value: Any) -> Optional[str]:
         return None
     value = value.strip()
     return value or None
+
+
+def _optional_http_url(value: Any) -> Optional[str]:
+    normalized = _optional_string(value)
+    if normalized is None:
+        return None
+    try:
+        parts = urlsplit(normalized)
+        hostname = parts.hostname
+        port = parts.port
+    except ValueError:
+        return None
+    if (
+        parts.scheme.lower() not in {"http", "https"}
+        or not hostname
+        or parts.username is not None
+        or parts.password is not None
+        or port is not None
+        and not (1 <= port <= 65535)
+    ):
+        return None
+    return normalized
+
+
+def _http_url_tuple(value: Any) -> Tuple[str, ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return ()
+    result = []
+    seen = set()
+    for item in value:
+        normalized = _optional_http_url(item)
+        if normalized is not None and normalized not in seen:
+            seen.add(normalized)
+            result.append(normalized)
+    return tuple(result)
 
 
 def _optional_int(value: Any, *, minimum: int = 0) -> Optional[int]:
@@ -215,6 +251,16 @@ class SearchHit:
     relative_path: Optional[str] = None
     extension: Optional[str] = None
     parser: Optional[str] = None
+    source_title: Optional[str] = None
+    source_url: Optional[str] = None
+    download_url: Optional[str] = None
+    source_host: Optional[str] = None
+    fetched_at: Optional[str] = None
+    published_at: Optional[str] = None
+    category: Optional[str] = None
+    include_reason: Optional[str] = None
+    crawl_storage_path: Optional[str] = None
+    source_aliases: Tuple[str, ...] = ()
     locations: Tuple[Location, ...] = ()
     retrieval: RetrievalScores = field(default_factory=RetrievalScores)
     final_rank: Optional[int] = None
@@ -251,10 +297,24 @@ class SearchHit:
             "relative_path",
             "extension",
             "parser",
+            "source_title",
+            "source_host",
+            "fetched_at",
+            "published_at",
+            "category",
+            "include_reason",
+            "crawl_storage_path",
         ):
             object.__setattr__(
                 self, name, _optional_string(getattr(self, name))
             )
+        for name in ("source_url", "download_url"):
+            object.__setattr__(
+                self, name, _optional_http_url(getattr(self, name))
+            )
+        object.__setattr__(
+            self, "source_aliases", _http_url_tuple(self.source_aliases)
+        )
         normalized_locations = tuple(
             item
             if isinstance(item, Location)
@@ -314,6 +374,16 @@ class SearchHit:
             "relative_path": self.relative_path,
             "extension": self.extension,
             "parser": self.parser,
+            "source_title": self.source_title,
+            "source_url": self.source_url,
+            "download_url": self.download_url,
+            "source_host": self.source_host,
+            "fetched_at": self.fetched_at,
+            "published_at": self.published_at,
+            "category": self.category,
+            "include_reason": self.include_reason,
+            "crawl_storage_path": self.crawl_storage_path,
+            "source_aliases": list(self.source_aliases),
             "locations": [item.to_dict() for item in self.locations],
             "retrieval": self.retrieval.to_dict(),
             "final_rank": self.final_rank,
@@ -505,6 +575,35 @@ def normalize_search_hit(
                 row, metadata, "extension"
             ),
             parser=_value_from_row_or_metadata(row, metadata, "parser"),
+            source_title=_value_from_row_or_metadata(
+                row, metadata, "source_title"
+            ),
+            source_url=_value_from_row_or_metadata(
+                row, metadata, "source_url"
+            ),
+            download_url=_value_from_row_or_metadata(
+                row, metadata, "download_url"
+            ),
+            source_host=_value_from_row_or_metadata(
+                row, metadata, "source_host"
+            ),
+            fetched_at=_value_from_row_or_metadata(
+                row, metadata, "fetched_at"
+            ),
+            published_at=_value_from_row_or_metadata(
+                row, metadata, "published_at"
+            ),
+            category=_value_from_row_or_metadata(row, metadata, "category"),
+            include_reason=_value_from_row_or_metadata(
+                row, metadata, "include_reason"
+            ),
+            crawl_storage_path=_value_from_row_or_metadata(
+                row, metadata, "crawl_storage_path"
+            ),
+            source_aliases=_value_from_row_or_metadata(
+                row, metadata, "source_aliases"
+            )
+            or (),
             locations=locations_from_row(row),
             retrieval=RetrievalScores.from_mapping(row.get("retrieval")),
             final_rank=row.get("final_rank"),
@@ -560,6 +659,11 @@ class CitationV1:
     file_name: Optional[str] = None
     source_path: Optional[str] = None
     relative_path: Optional[str] = None
+    source_title: Optional[str] = None
+    source_url: Optional[str] = None
+    download_url: Optional[str] = None
+    fetched_at: Optional[str] = None
+    published_at: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -584,9 +688,16 @@ class CitationV1:
             "file_name",
             "source_path",
             "relative_path",
+            "source_title",
+            "fetched_at",
+            "published_at",
         ):
             object.__setattr__(
                 self, name, _optional_string(getattr(self, name))
+            )
+        for name in ("source_url", "download_url"):
+            object.__setattr__(
+                self, name, _optional_http_url(getattr(self, name))
             )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -601,6 +712,11 @@ class CitationV1:
             "file_name": self.file_name,
             "source_path": self.source_path,
             "relative_path": self.relative_path,
+            "source_title": self.source_title,
+            "source_url": self.source_url,
+            "download_url": self.download_url,
+            "fetched_at": self.fetched_at,
+            "published_at": self.published_at,
         }
 
 
@@ -653,4 +769,9 @@ def citation_from_hit(
         file_name=canonical.file_name,
         source_path=canonical.source_path,
         relative_path=canonical.relative_path,
+        source_title=canonical.source_title,
+        source_url=canonical.source_url,
+        download_url=canonical.download_url,
+        fetched_at=canonical.fetched_at,
+        published_at=canonical.published_at,
     )

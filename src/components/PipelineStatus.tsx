@@ -13,7 +13,10 @@ import {
 
 type PipelineStatusProps = {
   health: HealthResponse | null
+  chunkCount?: number
   error?: string | null
+  profileLabel?: string
+  profileReady?: boolean
   refreshing?: boolean
   onRefresh: () => void
 }
@@ -24,7 +27,18 @@ function normalizedState(stage: PipelineStage) {
 
 function stageClass(stage: PipelineStage) {
   const state = normalizedState(stage)
-  if (['ready', 'healthy', 'available', 'configured', 'complete'].includes(state)) {
+  if (
+    [
+      'ready',
+      'healthy',
+      'available',
+      'configured',
+      'complete',
+      'external',
+      'disabled',
+      'single_lane',
+    ].includes(state)
+  ) {
     return 'is-ready'
   }
   if (['building', 'loading', 'running', 'pending', 'checking'].includes(state)) {
@@ -38,6 +52,15 @@ function stageClass(stage: PipelineStage) {
 
 function stageLabel(stage: PipelineStage) {
   const state = normalizedState(stage)
+  if (state === 'external') {
+    return '산출물 사용'
+  }
+  if (state === 'disabled') {
+    return '선택 안 함'
+  }
+  if (state === 'single_lane') {
+    return 'BM25 단일'
+  }
   if (['ready', 'healthy', 'available', 'configured', 'complete'].includes(state)) {
     return '준비됨'
   }
@@ -55,12 +78,15 @@ function stageLabel(stage: PipelineStage) {
 
 export default function PipelineStatus({
   health,
+  chunkCount,
   error,
+  profileLabel,
+  profileReady,
   refreshing = false,
   onRefresh,
 }: PipelineStatusProps) {
   const stages = getPipelineStages(health)
-  const ready = health?.ready === true
+  const ready = health?.ready === true && profileReady !== false
   const degraded =
     ready &&
     (health?.status?.toLowerCase() === 'degraded' ||
@@ -100,12 +126,16 @@ export default function PipelineStatus({
                 ? '파이프라인 준비 안 됨'
                 : degraded
                   ? '제한적으로 사용 가능'
-                  : '검색 파이프라인 준비됨'}
+                  : profileLabel
+                    ? `${profileLabel} 검색 인덱스 준비됨`
+                    : '검색 파이프라인 준비됨'}
           </strong>
           <span>
             {error ??
-              (typeof health?.chunk_count === 'number'
-                ? `${health.chunk_count.toLocaleString()}개 chunk`
+              (typeof chunkCount === 'number'
+                ? `${chunkCount.toLocaleString()}개 chunk`
+                : typeof health?.chunk_count === 'number'
+                  ? `${health.chunk_count.toLocaleString()}개 chunk`
                 : '서버 상태 기준')}
           </span>
         </div>

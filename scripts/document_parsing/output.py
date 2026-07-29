@@ -79,6 +79,8 @@ def write_profile_run(
     chunk_chars: int = 1800,
     chunk_overlap: int = 250,
     published_output_dir: Optional[Path] = None,
+    source_manifest_sha256: Optional[str] = None,
+    selection_counts: Optional[Mapping[str, int]] = None,
 ) -> Dict[str, Any]:
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
@@ -205,6 +207,16 @@ def write_profile_run(
                     "file_name": source.file_name,
                     "extension": source.extension,
                     "parser": parser_value,
+                    "source_title": source.source_title,
+                    "source_url": source.source_url,
+                    "download_url": source.download_url,
+                    "source_host": source.source_host,
+                    "fetched_at": source.fetched_at,
+                    "published_at": source.published_at,
+                    "category": source.category,
+                    "include_reason": source.include_reason,
+                    "source_aliases": list(source.source_aliases),
+                    "crawl_storage_path": source.crawl_storage_path,
                 }
                 document_chunks = blocks_to_legacy_chunks(
                     document_blocks,
@@ -293,6 +305,34 @@ def write_profile_run(
         relative: sha256_path(root / relative)
         for relative in sorted(raw_artifact_paths)
     }
+    if source_manifest_sha256 is not None and not re.fullmatch(
+        r"[0-9a-f]{64}", source_manifest_sha256
+    ):
+        raise ValueError(
+            "source_manifest_sha256 must be a lowercase SHA-256 digest"
+        )
+    recorded_selection_counts = dict(selection_counts or {})
+    if not recorded_selection_counts:
+        recorded_selection_counts["selected_files"] = file_count
+    for name, value in recorded_selection_counts.items():
+        if (
+            not isinstance(name, str)
+            or not name
+            or isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 0
+        ):
+            raise ValueError(
+                "selection_counts must map non-empty strings to "
+                "non-negative integers"
+            )
+    if (
+        "selected_files" in recorded_selection_counts
+        and recorded_selection_counts["selected_files"] != file_count
+    ):
+        raise ValueError(
+            "selection_counts selected_files does not match parsed file_count"
+        )
     manifest = {
         "schema_version": 1,
         "block_schema_version": 1,
@@ -315,6 +355,8 @@ def write_profile_run(
             "chunk_overlap": chunk_overlap,
         },
         "runtime": dict(runtime_report or {}),
+        "source_manifest_sha256": source_manifest_sha256,
+        "selection_counts": recorded_selection_counts,
         "files": hashes,
         "raw_artifacts": raw_hashes,
     }

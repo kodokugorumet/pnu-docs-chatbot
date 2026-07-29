@@ -172,6 +172,16 @@ class SourceDocument:
     profile: str = ""
     selected_parser: Optional[str] = None
     quality: Optional[Mapping[str, Any]] = None
+    source_title: Optional[str] = None
+    source_url: Optional[str] = None
+    download_url: Optional[str] = None
+    source_host: Optional[str] = None
+    fetched_at: Optional[str] = None
+    published_at: Optional[str] = None
+    category: Optional[str] = None
+    include_reason: Optional[str] = None
+    source_aliases: Sequence[str] = field(default_factory=tuple)
+    crawl_storage_path: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "path", Path(self.path))
@@ -189,6 +199,27 @@ class SourceDocument:
             object.__setattr__(self, "extension", self.path.suffix.lower())
         if self.quality is not None:
             object.__setattr__(self, "quality", dict(self.quality))
+        optional_text_fields = (
+            "source_title",
+            "source_url",
+            "download_url",
+            "source_host",
+            "fetched_at",
+            "published_at",
+            "category",
+            "include_reason",
+            "crawl_storage_path",
+        )
+        for name in optional_text_fields:
+            value = getattr(self, name)
+            if value is not None and not isinstance(value, str):
+                raise TypeError("{} must be null or a string".format(name))
+        if isinstance(self.source_aliases, (str, bytes)):
+            raise TypeError("source_aliases must be a sequence of strings")
+        aliases = tuple(self.source_aliases)
+        if any(not isinstance(value, str) for value in aliases):
+            raise TypeError("source_aliases must contain only strings")
+        object.__setattr__(self, "source_aliases", aliases)
 
     @property
     def doc_id(self) -> str:
@@ -210,6 +241,16 @@ class SourceDocument:
             "profile": self.profile,
             "selected_parser": self.selected_parser,
             "quality": dict(self.quality) if self.quality is not None else None,
+            "source_title": self.source_title,
+            "source_url": self.source_url,
+            "download_url": self.download_url,
+            "source_host": self.source_host,
+            "fetched_at": self.fetched_at,
+            "published_at": self.published_at,
+            "category": self.category,
+            "include_reason": self.include_reason,
+            "source_aliases": list(self.source_aliases),
+            "crawl_storage_path": self.crawl_storage_path,
         }
 
 

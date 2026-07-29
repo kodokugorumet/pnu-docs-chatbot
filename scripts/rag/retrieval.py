@@ -476,6 +476,9 @@ class DenseIndex:
             section_path = decode(row.pop("section_path_json", None), None)
             table_ids = decode(row.pop("table_ids_json", None), [])
             block_ids = decode(row.pop("block_ids_json", None), [])
+            source_aliases = decode(
+                row.pop("source_aliases_json", None), []
+            )
             metadata = {
                 "corpus_revision": row.get("corpus_revision"),
                 "page_start": row.get("page_start"),
@@ -483,10 +486,21 @@ class DenseIndex:
                 "section_path": section_path,
                 "table_ids": table_ids,
                 "block_ids": block_ids,
+                "source_title": row.get("source_title"),
+                "source_url": row.get("source_url"),
+                "download_url": row.get("download_url"),
+                "source_host": row.get("source_host"),
+                "fetched_at": row.get("fetched_at"),
+                "published_at": row.get("published_at"),
+                "category": row.get("category"),
+                "include_reason": row.get("include_reason"),
+                "crawl_storage_path": row.get("crawl_storage_path"),
+                "source_aliases": source_aliases,
             }
             row.update(
                 {
                     "locations": locations,
+                    "source_aliases": source_aliases,
                     "metadata": metadata,
                     "preview": row.get("text", ""),
                 }
@@ -942,6 +956,8 @@ def lexical_fallback_score(
                     canonical.institution,
                     canonical.file_name,
                     canonical.relative_path,
+                    canonical.source_title,
+                    canonical.category,
                 )
                 if value
             )

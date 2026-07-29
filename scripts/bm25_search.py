@@ -77,6 +77,9 @@ def make_search_text(chunk: dict[str, Any]) -> str:
         metadata.get("file_name", ""),
         metadata.get("relative_path", ""),
         metadata.get("extension", ""),
+        metadata.get("source_title", ""),
+        metadata.get("source_host", ""),
+        metadata.get("category", ""),
         chunk.get("text", ""),
     ]
     tokens = tokenize("\n".join(str(field) for field in fields if field))
@@ -86,7 +89,11 @@ def make_search_text(chunk: dict[str, Any]) -> str:
 def open_index(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(str(path))
-    connection.execute("PRAGMA journal_mode=WAL")
+    # The database is built at a private temporary path and published only
+    # after close, so WAL adds no reader benefit.  DELETE mode leaves one
+    # self-contained file that can be opened with SQLite mode=ro immediately;
+    # a WAL-mode main file without its transient -shm sidecar cannot be.
+    connection.execute("PRAGMA journal_mode=DELETE")
     connection.execute("PRAGMA synchronous=NORMAL")
     connection.execute("PRAGMA temp_store=MEMORY")
     return connection
@@ -110,6 +117,16 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
           file_name TEXT,
           extension TEXT,
           parser TEXT,
+          source_title TEXT,
+          source_url TEXT,
+          download_url TEXT,
+          source_host TEXT,
+          fetched_at TEXT,
+          published_at TEXT,
+          category TEXT,
+          include_reason TEXT,
+          crawl_storage_path TEXT,
+          source_aliases_json TEXT NOT NULL DEFAULT '[]',
           char_count INTEGER,
           page_start INTEGER,
           page_end INTEGER,
@@ -229,10 +246,17 @@ def build_index(
                 INSERT INTO chunks (
                   chunk_id, doc_id, document_id, chunk_index, institution,
                   source_path, relative_path, file_name, extension, parser,
+                  source_title, source_url, download_url, source_host,
+                  fetched_at, published_at, category, include_reason,
+                  crawl_storage_path, source_aliases_json,
                   char_count, page_start, page_end, section_path_json,
                   table_ids_json, block_ids_json, locations_json,
                   corpus_revision, text
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (
+                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 chunk_rows,
             )
@@ -286,6 +310,16 @@ def build_index(
                         metadata.get("file_name", ""),
                         metadata.get("extension", ""),
                         metadata.get("parser", ""),
+                        metadata.get("source_title", ""),
+                        metadata.get("source_url", ""),
+                        metadata.get("download_url", ""),
+                        metadata.get("source_host", ""),
+                        metadata.get("fetched_at", ""),
+                        metadata.get("published_at", ""),
+                        metadata.get("category", ""),
+                        metadata.get("include_reason", ""),
+                        metadata.get("crawl_storage_path", ""),
+                        _json_text(metadata.get("source_aliases"), []),
                         int(chunk.get("char_count") or len(text)),
                         metadata.get("page_start"),
                         metadata.get("page_end"),
@@ -318,9 +352,27 @@ def build_index(
                 "run_id": gate.run_id,
                 "profile": gate.profile,
                 "manifest_sha256": gate.manifest_sha256,
+                "source_manifest_sha256": gate.source_manifest_sha256,
+                "selection_counts": gate.selection_counts,
             }
             for path, gate in sources
         ]
+        source_manifest_sha256s = sorted(
+            {
+                gate.source_manifest_sha256
+                for _, gate in sources
+                if gate.source_manifest_sha256 is not None
+            }
+        )
+        shared_source_manifest_sha256 = (
+            source_manifest_sha256s[0]
+            if len(source_manifest_sha256s) == 1
+            and all(
+                gate.source_manifest_sha256 is not None
+                for _, gate in sources
+            )
+            else ""
+        )
         metadata_rows = {
             "chunks_path": str(chunks_paths[0]) if len(chunks_paths) == 1 else "",
             "chunks_paths": json.dumps(
@@ -337,6 +389,15 @@ def build_index(
             "profile": single_gate.profile or "" if single_gate else "",
             "manifest_sha256": (
                 single_gate.manifest_sha256 if single_gate else ""
+            ),
+            "source_manifest_sha256": shared_source_manifest_sha256,
+            "source_manifest_sha256s": json.dumps(
+                source_manifest_sha256s,
+                ensure_ascii=False,
+            ),
+            "selection_counts": json.dumps(
+                single_gate.selection_counts if single_gate else {},
+                ensure_ascii=False,
             ),
             "excluded_document_count": str(
                 sum(len(gate.excluded_document_ids) for _, gate in sources)
@@ -367,6 +428,13 @@ def build_index(
             "created_at": created_at,
             "corpus_revision": corpus_revision,
             "verified_run": all(gate.is_verified_run for _, gate in sources),
+            "source_manifest_sha256": (
+                shared_source_manifest_sha256 or None
+            ),
+            "source_manifest_sha256s": source_manifest_sha256s,
+            "selection_counts": (
+                dict(single_gate.selection_counts) if single_gate else {}
+            ),
             "excluded_document_count": sum(
                 len(gate.excluded_document_ids) for _, gate in sources
             ),
@@ -425,7 +493,13 @@ def lexical_rerank_score(query: str, row: dict[str, Any], bm25_rank: int) -> flo
     text = str(row.get("text") or row.get("preview") or "")
     metadata_text = " ".join(
         str(row.get(field) or "")
-        for field in ("institution", "file_name", "relative_path")
+        for field in (
+            "institution",
+            "file_name",
+            "relative_path",
+            "source_title",
+            "category",
+        )
     )
     body_terms = set(tokenize(text, include_ngrams=False))
     metadata_terms = set(tokenize(metadata_text, include_ngrams=False))
@@ -470,6 +544,52 @@ def rerank_results(query: str, rows: list[dict[str, Any]], top_k: int) -> list[d
         row["score"] = row["rerank_score"]
         reranked.append(row)
     return reranked
+
+
+def select_document_diverse_results(
+    rows: Sequence[dict[str, Any]],
+    top_k: int,
+    *,
+    max_chunks_per_document: int = 2,
+) -> list[dict[str, Any]]:
+    """Keep BM25 order while preventing one document from crowding the result.
+
+    The lexical fallback remains available as an explicit experiment through
+    ``rerank_results``.  The production BM25 path is deliberately rank-safe:
+    exact title/path matches that FTS5 already places highly must not be
+    demoted by a second heuristic score.
+    """
+
+    limit = max(0, int(top_k))
+    if limit == 0:
+        return []
+    per_document = max(1, int(max_chunks_per_document))
+    document_counts: Counter[str] = Counter()
+    selected: list[dict[str, Any]] = []
+
+    for value in rows:
+        row = dict(value)
+        document_id = str(
+            row.get("document_id")
+            or row.get("doc_id")
+            or row.get("chunk_id")
+            or ""
+        )
+        if document_counts[document_id] >= per_document:
+            continue
+        document_counts[document_id] += 1
+
+        final_rank = len(selected) + 1
+        retrieval = dict(row.get("retrieval") or {})
+        retrieval["reranker"] = None
+        retrieval["final_rank"] = final_rank
+        row["retrieval"] = retrieval
+        row["score"] = row.get("bm25_score", row.get("score"))
+        selected.append(row)
+        if len(selected) >= limit:
+            break
+
+    return selected
 
 
 def _chunk_columns(connection: sqlite3.Connection) -> set[str]:
@@ -525,6 +645,16 @@ def search_bm25_candidates(
         "block_ids_json": "c.block_ids_json",
         "locations_json": "c.locations_json",
         "corpus_revision": "c.corpus_revision",
+        "source_title": "c.source_title",
+        "source_url": "c.source_url",
+        "download_url": "c.download_url",
+        "source_host": "c.source_host",
+        "fetched_at": "c.fetched_at",
+        "published_at": "c.published_at",
+        "category": "c.category",
+        "include_reason": "c.include_reason",
+        "crawl_storage_path": "c.crawl_storage_path",
+        "source_aliases_json": "c.source_aliases_json",
     }
     optional_selects = [
         f"{expression} AS {name}" if name in columns else f"NULL AS {name}"
@@ -573,6 +703,9 @@ def search_bm25_candidates(
         row["table_ids"] = _json_column(row.pop("table_ids_json", None), [])
         row["block_ids"] = _json_column(row.pop("block_ids_json", None), [])
         row["locations"] = _json_column(row.pop("locations_json", None), [])
+        row["source_aliases"] = _json_column(
+            row.pop("source_aliases_json", None), []
+        )
         row["location"] = {
             "page_start": row.pop("page_start", None),
             "page_end": row.pop("page_end", None),
@@ -582,6 +715,16 @@ def search_bm25_candidates(
         }
         row["metadata"] = {
             "corpus_revision": row.get("corpus_revision"),
+            "source_title": row.get("source_title"),
+            "source_url": row.get("source_url"),
+            "download_url": row.get("download_url"),
+            "source_host": row.get("source_host"),
+            "fetched_at": row.get("fetched_at"),
+            "published_at": row.get("published_at"),
+            "category": row.get("category"),
+            "include_reason": row.get("include_reason"),
+            "crawl_storage_path": row.get("crawl_storage_path"),
+            "source_aliases": row["source_aliases"],
             **row["location"],
         }
         row["score"] = row["bm25_score"]
@@ -606,7 +749,13 @@ def search_index(
     include_text: bool = False,
     candidate_multiplier: int = DEFAULT_RERANK_CANDIDATE_MULTIPLIER,
 ) -> list[dict[str, Any]]:
-    candidate_limit = max(top_k, top_k * max(1, int(candidate_multiplier)))
+    if top_k <= 0:
+        return []
+    candidate_limit = max(
+        20,
+        top_k,
+        top_k * max(1, int(candidate_multiplier)),
+    )
     rows = search_bm25_candidates(
         index_path,
         query,
@@ -615,7 +764,7 @@ def search_index(
         preview_chars=preview_chars,
         include_text=include_text,
     )
-    return rerank_results(query, rows, top_k)
+    return select_document_diverse_results(rows, top_k)
 
 
 def print_results(results: list[dict[str, Any]]) -> None:

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
@@ -38,12 +39,11 @@ class CorpusGateReport:
     profile: str | None
     manifest_sha256: str
     allowed_document_ids: frozenset[str] | None
+    source_manifest_sha256: str | None = None
+    selection_counts: dict[str, int] = field(default_factory=dict)
     excluded_document_ids: frozenset[str] = frozenset()
     excluded_chunk_ids: frozenset[str] = frozenset()
     block_locations: dict[str, dict[str, Any]] = field(default_factory=dict)
-    table_locations: dict[tuple[str, str], tuple[dict[str, Any], ...]] = field(
-        default_factory=dict
-    )
 
     @property
     def is_verified_run(self) -> bool:
@@ -59,15 +59,16 @@ class CorpusGateReport:
         return bool(str(chunk.get("text") or "").strip())
 
     def locations_for_chunk(self, chunk: dict[str, Any]) -> list[dict[str, Any]]:
-        """Return canonical block locations for a chunk.
+        """Return only locations for blocks explicitly referenced by a chunk.
 
-        A table chunk currently references its parent table block.  We expand
-        that parent to its canonical cells here so row/column citations are
-        retained while table-cell text remains excluded from retrieval.
+        A table chunk generally references its parent table block.  Expanding
+        that reference to every cell is both inaccurate (the chunk may contain
+        only a slice of the table text) and unbounded for large spreadsheets.
+        Cell coordinates remain available when a chunk explicitly lists a
+        table-cell block ID.
         """
 
         metadata = chunk.get("metadata") or {}
-        document_id = str(chunk.get("document_id") or chunk.get("doc_id") or "")
         locations: list[dict[str, Any]] = []
         seen: set[str] = set()
 
@@ -76,13 +77,6 @@ class CorpusGateReport:
             if location and block_id not in seen:
                 locations.append(dict(location))
                 seen.add(block_id)
-
-        for table_id in _string_list(metadata.get("table_ids")):
-            for location in self.table_locations.get((document_id, table_id), ()):
-                block_id = str(location.get("block_id") or "")
-                if block_id and block_id not in seen:
-                    locations.append(dict(location))
-                    seen.add(block_id)
 
         return locations
 
@@ -155,6 +149,44 @@ def _load_manifest(run_dir: Path) -> tuple[dict[str, Any], str]:
     return manifest, sha256_file(manifest_path)
 
 
+def _source_provenance(
+    manifest: dict[str, Any],
+) -> tuple[str | None, dict[str, int]]:
+    """Validate and expose the curated-corpus identity recorded by the parser."""
+
+    source_manifest_sha256 = manifest.get("source_manifest_sha256")
+    if source_manifest_sha256 is not None and (
+        not isinstance(source_manifest_sha256, str)
+        or re.fullmatch(r"[0-9a-f]{64}", source_manifest_sha256) is None
+    ):
+        raise RuntimeError(
+            "Run manifest source_manifest_sha256 must be a lowercase SHA-256 digest"
+        )
+
+    raw_counts = manifest.get("selection_counts")
+    if raw_counts is None:
+        selection_counts: dict[str, int] = {}
+    elif not isinstance(raw_counts, dict):
+        raise RuntimeError("Run manifest selection_counts must be an object")
+    else:
+        selection_counts = {}
+        for name, value in raw_counts.items():
+            if (
+                not isinstance(name, str)
+                or not name.strip()
+                or isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < 0
+            ):
+                raise RuntimeError(
+                    "Run manifest selection_counts must map non-empty strings "
+                    "to non-negative integers"
+                )
+            selection_counts[name] = value
+
+    return source_manifest_sha256, selection_counts
+
+
 def inspect_corpus(
     chunks_path: Path,
     *,
@@ -188,6 +220,7 @@ def inspect_corpus(
         )
 
     manifest, manifest_hash = _load_manifest(run_dir)
+    source_manifest_sha256, selection_counts = _source_provenance(manifest)
     allowed_documents: set[str] = set()
     excluded_documents: set[str] = set()
     for document in iter_jsonl(run_dir / "documents.jsonl"):
@@ -214,7 +247,6 @@ def inspect_corpus(
             from document_parsing.core.models import Block
 
     block_locations: dict[str, dict[str, Any]] = {}
-    table_locations_mutable: dict[tuple[str, str], list[dict[str, Any]]] = {}
     block_documents: dict[str, str] = {}
     for payload in iter_jsonl(run_dir / "blocks.jsonl"):
         block = Block.from_dict(payload)
@@ -223,10 +255,6 @@ def inspect_corpus(
         location = _canonical_location(block)
         block_locations[block.block_id] = location
         block_documents[block.block_id] = block.document_id
-        if block.table_id:
-            table_locations_mutable.setdefault(
-                (block.document_id, block.table_id), []
-            ).append(location)
 
     excluded_chunks: set[str] = set()
     for chunk in iter_jsonl(chunks_path):
@@ -249,18 +277,15 @@ def inspect_corpus(
 
     run_id = str(manifest.get("run_id") or run_dir.parent.name)
     profile = str(manifest.get("profile") or run_dir.name)
-    table_locations = {
-        key: tuple(sorted(values, key=lambda item: str(item["block_id"])))
-        for key, values in table_locations_mutable.items()
-    }
     return CorpusGateReport(
         corpus_revision=f"{run_id}:{profile}:{manifest_hash[:24]}",
         run_id=run_id,
         profile=profile,
         manifest_sha256=manifest_hash,
         allowed_document_ids=frozenset(allowed_documents),
+        source_manifest_sha256=source_manifest_sha256,
+        selection_counts=selection_counts,
         excluded_document_ids=frozenset(excluded_documents),
         excluded_chunk_ids=frozenset(excluded_chunks),
         block_locations=block_locations,
-        table_locations=table_locations,
     )

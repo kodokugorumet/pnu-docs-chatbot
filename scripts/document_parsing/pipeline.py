@@ -137,6 +137,7 @@ def build_source_document(
     input_root: Path,
     profile: str,
     repo_root: Optional[Path] = None,
+    source_metadata: Optional[Mapping[str, Any]] = None,
 ) -> SourceDocument:
     input_path = Path(path).resolve()
     root = Path(input_root).resolve()
@@ -151,6 +152,26 @@ def build_source_document(
             pass
     relative_parts = Path(relative).parts
     institution = relative_parts[0] if len(relative_parts) > 1 else ""
+    metadata = dict(source_metadata or {})
+    allowed_metadata = {
+        "source_title",
+        "source_url",
+        "download_url",
+        "source_host",
+        "fetched_at",
+        "published_at",
+        "category",
+        "include_reason",
+        "source_aliases",
+        "crawl_storage_path",
+    }
+    unexpected_metadata = sorted(set(metadata) - allowed_metadata)
+    if unexpected_metadata:
+        raise ValueError(
+            "unsupported source metadata fields: {}".format(
+                ", ".join(unexpected_metadata)
+            )
+        )
     return SourceDocument(
         path=input_path,
         document_id=make_document_id(relative, digest),
@@ -163,6 +184,7 @@ def build_source_document(
         institution=institution,
         mime_type=sniffed.mime_type,
         profile=profile,
+        **metadata,
     )
 
 
