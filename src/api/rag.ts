@@ -142,6 +142,10 @@ export type ProviderCapability = {
   defaultModel?: string
   models?: ProviderModelCapability[]
   reason?: string
+  runtimeState?: string
+  loadedModel?: string
+  unloadSupported?: boolean
+  workerRunning?: boolean
 }
 
 export type ProviderModelCapability = {
@@ -179,6 +183,13 @@ export type HealthResponse = {
   [key: string]: unknown
 }
 
+export type LocalModelUnloadResponse = {
+  ok: true
+  state: 'unloaded'
+  loadedModel?: string
+  released: boolean
+}
+
 type ApiErrorPayload = {
   error?: string
   message?: string
@@ -189,6 +200,7 @@ type ApiErrorPayload = {
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/+$/, '')
 const API_TOKEN = String(import.meta.env.VITE_RAG_API_TOKEN ?? '').trim()
 const HEALTH_TIMEOUT_MS = 8000
+const LOCAL_MODEL_CONTROL_TIMEOUT_MS = 30000
 
 function envNumber(value: unknown, fallback: number) {
   const parsed = Number(value)
@@ -500,8 +512,29 @@ function providerRecord(
     model,
     defaultModel,
     models: id === 'local' ? models : undefined,
+    runtimeState:
+      id === 'local'
+        ? optionalString(record.runtime_state) ??
+          optionalString(record.runtimeState)
+        : undefined,
+    loadedModel:
+      id === 'local'
+        ? optionalString(record.loaded_model) ??
+          optionalString(record.loadedModel)
+        : undefined,
+    unloadSupported:
+      id === 'local'
+        ? optionalBoolean(record.unload_supported) ??
+          optionalBoolean(record.unloadSupported)
+        : undefined,
+    workerRunning:
+      id === 'local'
+        ? optionalBoolean(record.worker_running) ??
+          optionalBoolean(record.workerRunning)
+        : undefined,
     reason:
       optionalString(record.reason) ??
+      optionalString(record.runtime_reason) ??
       optionalString(record.error) ??
       optionalString(record.message),
   }
@@ -766,6 +799,7 @@ async function requestJson(
   path: string,
   init: RequestInit = {},
   timeoutMs = HEALTH_TIMEOUT_MS,
+  timeoutMessage = '요청 처리 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
 ): Promise<unknown> {
   const controller = new AbortController()
   let timedOut = false
@@ -819,9 +853,7 @@ async function requestJson(
     }
     if (error instanceof Error && error.name === 'AbortError') {
       throw new RagApiError(
-        timedOut
-          ? '답변 생성 시간이 초과되었습니다. 질문 범위를 좁혀 다시 시도해 주세요.'
-          : '요청을 취소했습니다.',
+        timedOut ? timeoutMessage : '요청을 취소했습니다.',
         {
           code: timedOut ? 'timeout' : 'cancelled',
           retryable: timedOut,
@@ -860,6 +892,40 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   }
 }
 
+export async function unloadLocalModel(
+  signal?: AbortSignal,
+): Promise<LocalModelUnloadResponse> {
+  const payload = await requestJson(
+    '/local-model/unload',
+    {
+      method: 'POST',
+      body: '{}',
+      signal,
+    },
+    LOCAL_MODEL_CONTROL_TIMEOUT_MS,
+    '로컬 모델 종료 시간이 초과되었습니다. 서버 상태를 새로 확인해 주세요.',
+  )
+  if (
+    !isRecord(payload) ||
+    payload.ok !== true ||
+    payload.state !== 'unloaded' ||
+    typeof payload.released !== 'boolean'
+  ) {
+    throw new RagApiError('로컬 모델 언로드 응답 형식을 확인할 수 없습니다.', {
+      code: 'invalid_local_model_unload_response',
+      retryable: true,
+    })
+  }
+  return {
+    ok: true,
+    state: 'unloaded',
+    loadedModel:
+      optionalString(payload.loaded_model) ??
+      optionalString(payload.loadedModel),
+    released: payload.released === true,
+  }
+}
+
 export async function getInstitutions(
   parserProfile?: ParserProfile,
   signal?: AbortSignal,
@@ -888,6 +954,7 @@ export async function chat(
       signal,
     },
     CHAT_TIMEOUT_MS,
+    '답변 생성 시간이 초과되었습니다. 질문 범위를 좁혀 다시 시도해 주세요.',
   )
   if (!isRecord(payload) || typeof payload.answer !== 'string') {
     throw new RagApiError('답변 응답 형식을 확인할 수 없습니다.', {

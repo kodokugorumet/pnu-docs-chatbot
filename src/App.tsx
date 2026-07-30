@@ -33,6 +33,7 @@ import {
   parserProfileDisplayName,
   providerDisplayName,
   RagApiError,
+  unloadLocalModel,
 } from './api/rag'
 import type {
   ChatRequest,
@@ -457,12 +458,17 @@ function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
   const [isHealthRefreshing, setIsHealthRefreshing] = useState(true)
+  const [isLocalModelUnloading, setIsLocalModelUnloading] = useState(false)
+  const [localModelUnloadError, setLocalModelUnloadError] =
+    useState<string | null>(null)
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null)
   const [sourceTab, setSourceTab] = useState<SourceTab>('claims')
   const [isLoading, setIsLoading] = useState(false)
   const messageStreamRef = useRef<HTMLDivElement | null>(null)
   const activeRequestRef = useRef<AbortController | null>(null)
+  const localModelUnloadRequestRef = useRef(false)
+  const healthRefreshSequenceRef = useRef(0)
   const defaultProviderAppliedRef = useRef(false)
   const defaultParserProfileAppliedRef = useRef(false)
 
@@ -534,12 +540,17 @@ function App() {
   )
 
   const refreshStatus = useCallback(async (signal?: AbortSignal) => {
+    const sequence = healthRefreshSequenceRef.current + 1
+    healthRefreshSequenceRef.current = sequence
     setIsHealthRefreshing(true)
     const [healthResult, institutionResult] = await Promise.allSettled([
       getHealth(signal),
       getInstitutions(parserProfile, signal),
     ])
-    if (signal?.aborted) {
+    if (
+      signal?.aborted ||
+      sequence !== healthRefreshSequenceRef.current
+    ) {
       return
     }
 
@@ -552,6 +563,7 @@ function App() {
           : '검색 인덱스 또는 필수 파이프라인이 준비되지 않았습니다.',
       )
       const nextCapabilities = getProviderCapabilities(nextHealth)
+      setLocalModelUnloadError(null)
       if (!defaultProviderAppliedRef.current) {
         const preferred = nextHealth.default_provider ?? 'auto'
         const preferredCapability = nextCapabilities.find(
@@ -722,6 +734,9 @@ function App() {
     }
     setInput('')
     setIsLoading(true)
+    if (providerOverride === 'local' || providerOverride === 'auto') {
+      setLocalModelUnloadError(null)
+    }
     setPendingProvider(providerOverride)
     setPendingParserProfile(parserProfileOverride)
 
@@ -778,6 +793,36 @@ function App() {
         setPendingProvider(null)
         setPendingParserProfile(null)
       }
+      if (providerOverride === 'local' || providerOverride === 'auto') {
+        void refreshStatus()
+      }
+    }
+  }
+
+  async function handleLocalModelUnload() {
+    if (
+      isLoading ||
+      localModelUnloadRequestRef.current ||
+      isLocalModelUnloading
+    ) {
+      return
+    }
+    localModelUnloadRequestRef.current = true
+    setIsLocalModelUnloading(true)
+    setLocalModelUnloadError(null)
+    try {
+      await unloadLocalModel()
+      await refreshStatus()
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : '로컬 모델을 메모리에서 내리지 못했습니다.'
+      await refreshStatus()
+      setLocalModelUnloadError(message)
+    } finally {
+      localModelUnloadRequestRef.current = false
+      setIsLocalModelUnloading(false)
     }
   }
 
@@ -1182,11 +1227,15 @@ function App() {
         <form className="composer" onSubmit={handleSubmit}>
           <div className="composer-options">
             <ProviderSelect
+              activeRequestProvider={isLoading ? pendingProvider : null}
               disabled={isLoading}
               model={selectedLocalModel}
               onChange={setProvider}
               onModelChange={setLocalModelPreference}
+              onUnloadLocalModel={() => void handleLocalModelUnload()}
               providers={providerCapabilities}
+              unloadError={localModelUnloadError}
+              unloadingLocalModel={isLocalModelUnloading}
               value={provider}
             />
             <label className="parser-profile-select">

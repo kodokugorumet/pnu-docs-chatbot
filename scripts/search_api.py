@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import argparse
 import hmac
+import ipaddress
 import json
 import os
 import re
+import signal
 import sqlite3
 import threading
 import unicodedata
@@ -45,6 +47,13 @@ try:
         build_prompt as build_generation_prompt,
         generate,
     )
+    from .local_model_runtime import (
+        ExternalLocalModelRuntime,
+        LocalModelBusyError,
+        LocalModelRuntimeError,
+        LocalModelUnmanagedError,
+        build_local_model_runtime,
+    )
     from .rag.retrieval import DenseIndex, HybridRetriever
 except ImportError:  # Direct CLI execution: python scripts/search_api.py
     from bm25_search import (
@@ -59,6 +68,13 @@ except ImportError:  # Direct CLI execution: python scripts/search_api.py
         SYSTEM_INSTRUCTION as GENERATION_SYSTEM_INSTRUCTION,
         build_prompt as build_generation_prompt,
         generate,
+    )
+    from local_model_runtime import (
+        ExternalLocalModelRuntime,
+        LocalModelBusyError,
+        LocalModelRuntimeError,
+        LocalModelUnmanagedError,
+        build_local_model_runtime,
     )
     from rag.retrieval import DenseIndex, HybridRetriever
 
@@ -414,6 +430,98 @@ def local_default_model() -> str | None:
 def local_model_label(model: str) -> str:
     normalized = model.rstrip("/")
     return normalized.rsplit("/", 1)[-1] or model
+
+
+def is_loopback_bind_host(host: str) -> bool:
+    normalized = str(host or "").strip().strip("[]")
+    if normalized.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
+def generation_may_use_local(provider: str) -> bool:
+    if provider == "local":
+        return True
+    if provider != "auto":
+        return False
+    configured = [
+        value.strip().lower()
+        for value in os.environ.get(
+            "RAG_AUTO_PROVIDER_ORDER",
+            "local,frontier,gemini,extractive",
+        ).split(",")
+    ]
+    providers = [
+        value
+        for value in configured
+        if value in SUPPORTED_PROVIDERS and value != "auto"
+    ]
+    # The generator falls back to its default sequence when the configured
+    # order contains no valid provider. That default starts with local.
+    return "local" in providers if providers else True
+
+
+def local_attempt_model(
+    attempts: Any,
+    fallback_model: str | None = None,
+) -> str | None:
+    for attempt in reversed(tuple(attempts or ())):
+        provider = (
+            attempt.get("provider")
+            if isinstance(attempt, Mapping)
+            else getattr(attempt, "provider", None)
+        )
+        if provider != "local":
+            continue
+        status = (
+            attempt.get("status")
+            if isinstance(attempt, Mapping)
+            else getattr(attempt, "status", None)
+        )
+        if status != "success":
+            continue
+        model = (
+            attempt.get("model")
+            if isinstance(attempt, Mapping)
+            else getattr(attempt, "model", None)
+        )
+        return str(model or fallback_model or "").strip() or None
+    return None
+
+
+def with_local_runtime_failure(
+    metadata: Mapping[str, Any],
+    *,
+    code: str | None,
+    model: str | None,
+) -> dict[str, Any]:
+    public = dict(metadata)
+    normalized_code = str(code or "").strip()
+    if not normalized_code:
+        return public
+    failure_reason = f"local:{normalized_code}"
+    existing_reason = str(public.get("fallback_reason") or "").strip()
+    public["fallback_reason"] = (
+        f"{failure_reason},{existing_reason}"
+        if existing_reason
+        else failure_reason
+    )
+    attempts = list(public.get("attempts") or [])
+    attempts.insert(
+        0,
+        {
+            "provider": "local",
+            "model": model,
+            "status": "error",
+            "error": normalized_code,
+            "elapsed_ms": 0,
+        },
+    )
+    public["attempts"] = attempts
+    return public
 
 
 def validate_requested_model(
@@ -2057,6 +2165,7 @@ class SearchHandler(BaseHTTPRequestHandler):
     parser_targets: Mapping[str, ParserIndexTarget] = MappingProxyType({})
     generation_semaphore: threading.BoundedSemaphore = threading.BoundedSemaphore(DEFAULT_MAX_CONCURRENT_GENERATIONS)
     local_generation_semaphore: threading.BoundedSemaphore = threading.BoundedSemaphore(1)
+    local_model_runtime: Any = ExternalLocalModelRuntime()
 
     @classmethod
     def parser_target(
@@ -2170,6 +2279,13 @@ class SearchHandler(BaseHTTPRequestHandler):
                     return
                 target = self.parser_target(require_ready=False)
                 payload = index_stats(target.index_path, self.dense_path)
+                providers = payload.get("providers")
+                if isinstance(providers, dict):
+                    local_provider = providers.get("local")
+                    if isinstance(local_provider, dict):
+                        local_provider.update(
+                            self.local_model_runtime.public_status()
+                        )
                 payload["retriever_warning"] = target.warning
                 payload["default_parser_profile"] = self.default_parser_profile
                 payload["parser_profiles"] = parser_profile_summaries(
@@ -2235,6 +2351,36 @@ class SearchHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
 
         try:
+            if parsed.path == "/local-model/unload":
+                if not self.request_allowed(protected=True):
+                    return
+                self.read_json_body()
+                try:
+                    payload = self.local_model_runtime.unload()
+                except LocalModelBusyError:
+                    self.write_error(
+                        "local_model_busy",
+                        "로컬 모델이 답변을 생성 중이라 지금은 내릴 수 없습니다.",
+                        HTTPStatus.CONFLICT,
+                    )
+                    return
+                except LocalModelUnmanagedError:
+                    self.write_error(
+                        "local_model_unload_not_supported",
+                        "현재 로컬 모델 서버는 이 앱이 관리하지 않아 메모리에서 내릴 수 없습니다.",
+                        HTTPStatus.NOT_IMPLEMENTED,
+                    )
+                    return
+                except LocalModelRuntimeError:
+                    self.write_error(
+                        "local_model_unavailable",
+                        "로컬 모델을 메모리에서 내리는 중 문제가 발생했습니다.",
+                        HTTPStatus.SERVICE_UNAVAILABLE,
+                    )
+                    return
+                self.write_json(payload)
+                return
+
             if parsed.path != "/chat":
                 self.write_json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
                 return
@@ -2314,46 +2460,95 @@ class SearchHandler(BaseHTTPRequestHandler):
                         HTTPStatus.TOO_MANY_REQUESTS,
                     )
                     return
+                runtime_generation = None
+                runtime_generation_entered = False
+                runtime_model = requested_model or local_default_model()
+                runtime_failure_code = None
+                excluded_providers: tuple[str, ...] = ()
                 try:
-                    generated = generate(
-                        question,
-                        numbered_results,
-                        requested=generation_provider,
-                        extractive_fallback=extractive_fallback_answer,
-                        requested_model=requested_model,
-                    )
-                    draft_answer = strip_untrusted_citation_markers(generated.text)
-                    generation = public_generation_metadata(
-                        generated.metadata(),
-                        requested_provider=requested_provider,
-                    )
-                    generator = (
-                        f"{generated.used}:{generated.model}"
-                        if generated.model
-                        else generated.used
-                    )
-                except GenerationError as exc:
-                    # A deadline can expire before the normal extractive route.
-                    # Keep the service useful with an in-process safe fallback.
-                    draft_answer = extractive_fallback_answer(
-                        question, numbered_results
-                    )
-                    generation = public_generation_metadata(
-                        {
-                            "requested": generation_provider,
-                            "used": "extractive",
-                            "model": None,
-                            "fallback_reason": exc.code,
-                            "attempts": [
-                                attempt.to_dict() for attempt in exc.attempts
-                            ],
-                        },
-                        requested_provider=requested_provider,
-                    )
-                    generator = "extractive"
+                    if generation_may_use_local(generation_provider):
+                        try:
+                            runtime_generation = self.local_model_runtime.generation(
+                                runtime_model
+                            )
+                            runtime_generation.__enter__()
+                            runtime_generation_entered = True
+                        except LocalModelRuntimeError as exc:
+                            # Managed mode is fail-closed: never send retrieved
+                            # document context to an unexpected process that
+                            # happens to occupy the configured local port.
+                            runtime_generation = None
+                            runtime_failure_code = exc.code
+                            excluded_providers = ("local",)
+                    try:
+                        generated = generate(
+                            question,
+                            numbered_results,
+                            requested=generation_provider,
+                            extractive_fallback=extractive_fallback_answer,
+                            requested_model=requested_model,
+                            excluded_providers=excluded_providers,
+                        )
+                        draft_answer = strip_untrusted_citation_markers(generated.text)
+                        generation = public_generation_metadata(
+                            with_local_runtime_failure(
+                                generated.metadata(),
+                                code=runtime_failure_code,
+                                model=runtime_model,
+                            ),
+                            requested_provider=requested_provider,
+                        )
+                        loaded_model = local_attempt_model(
+                            getattr(generated, "attempts", ()),
+                            runtime_model,
+                        )
+                        if loaded_model:
+                            self.local_model_runtime.note_loaded(loaded_model)
+                        generator = (
+                            f"{generated.used}:{generated.model}"
+                            if generated.model
+                            else generated.used
+                        )
+                    except GenerationError as exc:
+                        loaded_model = local_attempt_model(
+                            exc.attempts,
+                            runtime_model,
+                        )
+                        if loaded_model:
+                            self.local_model_runtime.note_loaded(loaded_model)
+                        # A deadline can expire before the normal extractive route.
+                        # Keep the service useful with an in-process safe fallback.
+                        draft_answer = extractive_fallback_answer(
+                            question, numbered_results
+                        )
+                        generation = public_generation_metadata(
+                            with_local_runtime_failure(
+                                {
+                                    "requested": generation_provider,
+                                    "used": "extractive",
+                                    "model": None,
+                                    "fallback_reason": exc.code,
+                                    "attempts": [
+                                        attempt.to_dict()
+                                        for attempt in exc.attempts
+                                    ],
+                                },
+                                code=runtime_failure_code,
+                                model=runtime_model,
+                            ),
+                            requested_provider=requested_provider,
+                        )
+                        generator = "extractive"
                 finally:
-                    if generation_semaphore is not None:
-                        generation_semaphore.release()
+                    try:
+                        if (
+                            runtime_generation is not None
+                            and runtime_generation_entered
+                        ):
+                            runtime_generation.__exit__(None, None, None)
+                    finally:
+                        if generation_semaphore is not None:
+                            generation_semaphore.release()
 
             rag = build_rag_response(question, numbered_results, draft_answer, generator)
             self.write_json(
@@ -2436,6 +2631,16 @@ def main() -> int:
         max(1, get_env_int("RAG_MAX_CONCURRENT_GENERATIONS", DEFAULT_MAX_CONCURRENT_GENERATIONS))
     )
     SearchHandler.local_generation_semaphore = threading.BoundedSemaphore(1)
+    SearchHandler.local_model_runtime = build_local_model_runtime()
+    if (
+        getattr(SearchHandler.local_model_runtime, "managed", False)
+        and not is_loopback_bind_host(args.host)
+        and not api_token()
+    ):
+        raise SystemExit(
+            "RAG_API_TOKEN is required when a managed local runtime is "
+            "served on a non-loopback host."
+        )
     server = ThreadingHTTPServer((args.host, args.port), SearchHandler)
     print(f"Search API listening on http://{args.host}:{args.port}")
     print(f"Default parser profile: {default_parser_profile}")
@@ -2451,7 +2656,21 @@ def main() -> int:
     print(f"Gemini candidates: {', '.join(gemini_model_candidates())}")
     print(f"Allowed origins: {', '.join(allowed_origins())}")
     print(f"API token required: {bool(api_token())}")
-    server.serve_forever()
+    previous_sigterm_handler = signal.getsignal(signal.SIGTERM)
+
+    def stop_on_sigterm(_signum: int, _frame: Any) -> None:
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, stop_on_sigterm)
+    try:
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+    finally:
+        SearchHandler.local_model_runtime.close()
+        server.server_close()
+        signal.signal(signal.SIGTERM, previous_sigterm_handler)
     return 0
 
 

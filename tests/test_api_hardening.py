@@ -37,8 +37,11 @@ from search_api import (
     cors_origin_for,
     extract_critical_values,
     generation_provider_status,
+    generation_may_use_local,
+    is_loopback_bind_host,
     is_authorized,
     load_env_file,
+    local_attempt_model,
     local_models,
     normalize_retrieval_query,
     parse_top_k,
@@ -51,6 +54,11 @@ from search_api import (
     SearchHandler,
     validate_question,
     validate_requested_model,
+    with_local_runtime_failure,
+)
+from local_model_runtime import (
+    LocalModelBusyError,
+    LocalModelUnmanagedError,
 )
 from rag.generators import build_prompt as build_generation_prompt
 from rag.retrieval import lexical_fallback_rerank
@@ -58,6 +66,60 @@ from rag.retrieval import lexical_fallback_rerank
 
 class QuietSearchHandler(SearchHandler):
     def log_message(self, format: str, *args: object) -> None:
+        return
+
+
+class FakeLocalModelRuntime:
+    def __init__(
+        self,
+        *,
+        unload_error: Exception | None = None,
+        generation_error: Exception | None = None,
+    ) -> None:
+        self.unload_error = unload_error
+        self.generation_error = generation_error
+        self.generation_models: list[str | None] = []
+        self.loaded_models: list[str] = []
+        self.active = 0
+        self.unload_calls = 0
+
+    def public_status(self) -> dict[str, object]:
+        return {
+            "runtime_state": "loaded" if self.loaded_models else "unloaded",
+            "loaded_model": self.loaded_models[-1] if self.loaded_models else None,
+            "unload_supported": True,
+            "worker_running": bool(self.loaded_models),
+        }
+
+    @contextmanager
+    def generation(self, model: str | None = None):
+        self.generation_models.append(model)
+        if self.generation_error:
+            raise self.generation_error
+        self.active += 1
+        try:
+            yield
+        finally:
+            self.active -= 1
+
+    def note_loaded(self, model: str | None) -> None:
+        if model:
+            self.loaded_models.append(model)
+
+    def unload(self) -> dict[str, object]:
+        self.unload_calls += 1
+        if self.unload_error:
+            raise self.unload_error
+        released = bool(self.loaded_models)
+        self.loaded_models.clear()
+        return {
+            "ok": True,
+            "state": "unloaded",
+            "loaded_model": None,
+            "released": released,
+        }
+
+    def close(self) -> None:
         return
 
 
@@ -328,6 +390,184 @@ class ApiHardeningTests(unittest.TestCase):
         self.assertNotIn("base_url", status)
         self.assertNotIn("api_key", status)
 
+    def test_local_runtime_helpers_cover_auto_and_attempt_metadata(self) -> None:
+        self.assertTrue(is_loopback_bind_host("127.0.0.1"))
+        self.assertTrue(is_loopback_bind_host("::1"))
+        self.assertFalse(is_loopback_bind_host("0.0.0.0"))
+        with patched_env(RAG_AUTO_PROVIDER_ORDER="frontier,local,extractive"):
+            self.assertTrue(generation_may_use_local("auto"))
+        with patched_env(RAG_AUTO_PROVIDER_ORDER="frontier,extractive"):
+            self.assertFalse(generation_may_use_local("auto"))
+        with patched_env(RAG_AUTO_PROVIDER_ORDER=""):
+            self.assertTrue(generation_may_use_local("auto"))
+        with patched_env(RAG_AUTO_PROVIDER_ORDER="unknown,auto"):
+            self.assertTrue(generation_may_use_local("auto"))
+        self.assertTrue(generation_may_use_local("local"))
+        self.assertFalse(generation_may_use_local("gemini"))
+        self.assertEqual(
+            local_attempt_model(
+                [
+                    {"provider": "frontier", "model": "remote"},
+                    {
+                        "provider": "local",
+                        "model": "local/qwen",
+                        "status": "success",
+                    },
+                ]
+            ),
+            "local/qwen",
+        )
+        self.assertIsNone(
+            local_attempt_model(
+                [
+                    {
+                        "provider": "local",
+                        "model": "local/qwen",
+                        "status": "error",
+                    }
+                ]
+            )
+        )
+        runtime_failure = with_local_runtime_failure(
+            {
+                "requested": "local",
+                "used": "extractive",
+                "fallback_reason": None,
+                "attempts": [],
+            },
+            code="local_model_runtime_unmanaged",
+            model="local/qwen",
+        )
+        self.assertEqual(
+            runtime_failure["fallback_reason"],
+            "local:local_model_runtime_unmanaged",
+        )
+        self.assertEqual(
+            runtime_failure["attempts"][0]["error"],
+            "local_model_runtime_unmanaged",
+        )
+
+    def test_health_reports_runtime_separately_from_configured_model(self) -> None:
+        runtime = FakeLocalModelRuntime()
+        runtime.note_loaded("local/second")
+        previous_runtime = QuietSearchHandler.local_model_runtime
+        with tempfile.TemporaryDirectory() as tmp:
+            QuietSearchHandler.index_path = self.make_index(Path(tmp))
+            QuietSearchHandler.local_model_runtime = runtime
+            server = ThreadingHTTPServer(("127.0.0.1", 0), QuietSearchHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            port = server.server_address[1]
+
+            try:
+                with patched_env(
+                    RAG_API_TOKEN="",
+                    RAG_LOCAL_MODEL="local/default",
+                    RAG_LOCAL_MODELS="local/default,local/second",
+                ):
+                    connection = http.client.HTTPConnection(
+                        "127.0.0.1", port, timeout=5
+                    )
+                    connection.request("GET", "/health")
+                    response = connection.getresponse()
+                    payload = json.loads(response.read().decode("utf-8"))
+                    connection.close()
+
+                local = payload["providers"]["local"]
+                self.assertEqual(response.status, 200)
+                self.assertEqual(local["default_model"], "local/default")
+                self.assertEqual(local["loaded_model"], "local/second")
+                self.assertEqual(local["runtime_state"], "loaded")
+                self.assertTrue(local["unload_supported"])
+                self.assertNotIn("base_url", local)
+                self.assertNotIn("api_key", local)
+            finally:
+                QuietSearchHandler.local_model_runtime = previous_runtime
+                server.shutdown()
+                server.server_close()
+
+    def test_http_unloads_local_model_and_maps_busy_or_unmanaged_states(self) -> None:
+        previous_runtime = QuietSearchHandler.local_model_runtime
+        server = ThreadingHTTPServer(("127.0.0.1", 0), QuietSearchHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        port = server.server_address[1]
+
+        def request_unload() -> tuple[int, dict[str, object]]:
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            connection.request(
+                "POST",
+                "/local-model/unload",
+                body=b"{}",
+                headers={"Content-Type": "application/json"},
+            )
+            response = connection.getresponse()
+            payload = json.loads(response.read().decode("utf-8"))
+            connection.close()
+            return response.status, payload
+
+        try:
+            with patched_env(RAG_API_TOKEN=""):
+                ready = FakeLocalModelRuntime()
+                ready.note_loaded("local/qwen")
+                QuietSearchHandler.local_model_runtime = ready
+                status, payload = request_unload()
+                self.assertEqual(status, 200)
+                self.assertTrue(payload["released"])
+                self.assertEqual(ready.unload_calls, 1)
+
+                QuietSearchHandler.local_model_runtime = FakeLocalModelRuntime(
+                    unload_error=LocalModelBusyError()
+                )
+                status, payload = request_unload()
+                self.assertEqual(status, 409)
+                self.assertEqual(payload["error"], "local_model_busy")
+
+                QuietSearchHandler.local_model_runtime = FakeLocalModelRuntime(
+                    unload_error=LocalModelUnmanagedError()
+                )
+                status, payload = request_unload()
+                self.assertEqual(status, 501)
+                self.assertEqual(
+                    payload["error"],
+                    "local_model_unload_not_supported",
+                )
+        finally:
+            QuietSearchHandler.local_model_runtime = previous_runtime
+            server.shutdown()
+            server.server_close()
+
+    def test_local_model_unload_uses_existing_api_authentication(self) -> None:
+        previous_runtime = QuietSearchHandler.local_model_runtime
+        runtime = FakeLocalModelRuntime()
+        QuietSearchHandler.local_model_runtime = runtime
+        server = ThreadingHTTPServer(("127.0.0.1", 0), QuietSearchHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        port = server.server_address[1]
+
+        try:
+            with patched_env(RAG_API_TOKEN="secret"):
+                connection = http.client.HTTPConnection(
+                    "127.0.0.1", port, timeout=5
+                )
+                connection.request(
+                    "POST",
+                    "/local-model/unload",
+                    body=b"{}",
+                    headers={"Content-Type": "application/json"},
+                )
+                response = connection.getresponse()
+                response.read()
+                connection.close()
+
+            self.assertEqual(response.status, 401)
+            self.assertEqual(runtime.unload_calls, 0)
+        finally:
+            QuietSearchHandler.local_model_runtime = previous_runtime
+            server.shutdown()
+            server.server_close()
+
     def test_frontier_status_uses_gemini_configuration(self) -> None:
         with patched_env(
             RAG_GEMINI_API_KEY="gemini-secret",
@@ -502,19 +742,35 @@ class ApiHardeningTests(unittest.TestCase):
             requested="local",
             used="local",
             model="local/second",
+            attempts=(
+                SimpleNamespace(
+                    provider="local",
+                    model="local/second",
+                    status="success",
+                ),
+            ),
             metadata=lambda: {
                 "requested": "local",
                 "used": "local",
                 "model": "local/second",
                 "fallback_reason": None,
-                "attempts": [],
+                "attempts": [
+                    {
+                        "provider": "local",
+                        "model": "local/second",
+                        "status": "success",
+                    }
+                ],
             },
         )
+        runtime = FakeLocalModelRuntime()
+        previous_runtime = QuietSearchHandler.local_model_runtime
         with patched_env(
             RAG_API_TOKEN="",
             RAG_LOCAL_MODEL="local/default",
             RAG_LOCAL_MODELS="local/default,local/second",
         ):
+            QuietSearchHandler.local_model_runtime = runtime
             QuietSearchHandler.local_generation_semaphore = threading.BoundedSemaphore(1)
             server = ThreadingHTTPServer(("127.0.0.1", 0), QuietSearchHandler)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -543,9 +799,86 @@ class ApiHardeningTests(unittest.TestCase):
                     generate_mock.call_args.kwargs["requested_model"],
                     "local/second",
                 )
+                self.assertEqual(runtime.generation_models, ["local/second"])
+                self.assertEqual(runtime.loaded_models, ["local/second"])
+                self.assertEqual(runtime.active, 0)
             finally:
+                QuietSearchHandler.local_model_runtime = previous_runtime
                 server.shutdown()
                 server.server_close()
+
+    def test_managed_runtime_conflict_excludes_untrusted_local_endpoint(self) -> None:
+        result = {
+            "chunk_id": "doc#0000",
+            "doc_id": "doc",
+            "chunk_index": 0,
+            "text": "외부 프로세스에 보내면 안 되는 근거입니다.",
+            "preview": "외부 프로세스에 보내면 안 되는 근거입니다.",
+            "institution": "테스트",
+            "file_name": "test.pdf",
+            "locations": [],
+        }
+        generated = SimpleNamespace(
+            text="안전한 추출 답변입니다.",
+            requested="local",
+            used="extractive",
+            model=None,
+            attempts=(),
+            metadata=lambda: {
+                "requested": "local",
+                "used": "extractive",
+                "model": None,
+                "fallback_reason": None,
+                "attempts": [],
+            },
+        )
+        runtime = FakeLocalModelRuntime(
+            generation_error=LocalModelUnmanagedError()
+        )
+        previous_runtime = QuietSearchHandler.local_model_runtime
+        QuietSearchHandler.local_model_runtime = runtime
+        server = ThreadingHTTPServer(("127.0.0.1", 0), QuietSearchHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        port = server.server_address[1]
+
+        try:
+            with (
+                patched_env(
+                    RAG_API_TOKEN="",
+                    RAG_LOCAL_MODEL="local/default",
+                    RAG_LOCAL_MODELS="local/default",
+                ),
+                patch(
+                    "search_api.search_pipeline",
+                    return_value=([result], {"strategy": "test"}),
+                ),
+                patch("search_api.generate", return_value=generated) as generate_mock,
+            ):
+                status, payload = self.post_chat(
+                    port,
+                    {
+                        "question": "ragtestterm",
+                        "provider": "local",
+                        "model": "local/default",
+                    },
+                )
+
+            self.assertEqual(status, 200)
+            self.assertEqual(
+                generate_mock.call_args.kwargs["excluded_providers"],
+                ("local",),
+            )
+            self.assertEqual(runtime.loaded_models, [])
+            self.assertEqual(runtime.active, 0)
+            self.assertEqual(
+                payload["generation"]["fallback_reason"],
+                "local:local_model_unload_not_supported",
+            )
+        finally:
+            QuietSearchHandler.local_model_runtime = previous_runtime
+            server.shutdown()
+            server.server_close()
 
     def test_busy_direct_local_slot_does_not_block_gemini_slot(self) -> None:
         result = {

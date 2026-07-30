@@ -242,23 +242,42 @@ RAG_DENSE_INDEX=processed/index/dense.sqlite
 프론트엔드가 선택합니다.
 
 ```env
+RAG_LOCAL_RUNTIME=managed_mlx
 RAG_LOCAL_BASE_URL=http://127.0.0.1:8080/v1
 RAG_LOCAL_MODEL=mlx-community/Qwen3.6-35B-A3B-4bit
 RAG_LOCAL_MODELS=mlx-community/EXAONE-4.0.1-32B-MLX-Q4,mlx-community/Qwen3.6-35B-A3B-4bit,mlx-community/gemma-4-26b-a4b-it-4bit
 RAG_LOCAL_API_STYLE=chat_completions
+RAG_LOCAL_CHAT_TEMPLATE_ARGS={"enable_thinking":false}
 ```
 
-다운로드된 MLX 모델을 요청에 따라 하나씩 메모리에 올리는 서버는 다음과
-같이 실행합니다.
+`managed_mlx`에서는 별도의 모델 서버 명령을 실행하지 않습니다. RAG API가
+첫 로컬 또는 로컬을 포함한 자동 선택 질의 직전에 `mlx_lm.server` 자식
+프로세스를 실행합니다. 화면의 **메모리에서 내리기**를 누르면 앱이 직접
+실행한 자식만 종료하므로 모델 메모리가 운영체제에 반환됩니다. 다음 로컬
+질의에서는 서버와 선택 모델을 자동으로 다시 불러옵니다.
 
-```bash
-npm run local:serve
-```
+화면과 같은 동작을 API로 실행하려면 인증 설정을 그대로 사용해
+`POST /local-model/unload`를 호출합니다. 답변 생성 중에는 안전하게
+`409 local_model_busy`를 반환하며, 이미 내려간 상태에서 다시 호출해도
+성공합니다.
+
+예전에 `com.mlx-lm.server` LaunchAgent를 `KeepAlive`로 등록했다면 앱보다
+먼저 8080 포트를 차지하고 모델을 다시 올립니다. 관리형 모드로 전환할 때는
+한 번만 `launchctl disable gui/$(id -u)/com.mlx-lm.server`와
+`launchctl bootout gui/$(id -u)/com.mlx-lm.server`를 실행해 기존 상시 실행
+작업을 비활성화해야 합니다. plist 파일은 삭제되지 않습니다.
+
+기존처럼 모델 서버를 별도 실행해야 하는 경우에는
+`RAG_LOCAL_RUNTIME=external`로 설정한 뒤 `npm run local:serve`를 사용할 수
+있습니다. 외부 프로세스는 이 앱이 소유하지 않으므로 화면에서 강제 종료하지
+않습니다.
 
 Ollama를 사용할 때는 `ollama list`에 표시되는 정확한 모델명으로
-`RAG_LOCAL_MODEL`과 `RAG_LOCAL_MODELS`를 바꾸고 주소만 다음처럼 설정합니다.
+`RAG_LOCAL_MODEL`과 `RAG_LOCAL_MODELS`를 바꾸고 외부 관리 모드와 주소를
+다음처럼 설정합니다.
 
 ```env
+RAG_LOCAL_RUNTIME=external
 RAG_LOCAL_BASE_URL=http://127.0.0.1:11434/v1
 ```
 

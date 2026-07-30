@@ -123,6 +123,26 @@ def stub_server(
 
 
 class GeneratorTests(unittest.TestCase):
+    def test_excluded_local_provider_never_receives_auto_context(self) -> None:
+        with clean_env(
+            RAG_AUTO_PROVIDER_ORDER="local,extractive",
+            RAG_LOCAL_BASE_URL="http://127.0.0.1:1/v1",
+            RAG_LOCAL_MODEL="local/qwen",
+        ):
+            result = generate(
+                "질문",
+                [{"text": "외부 프로세스에 보내면 안 되는 문서 근거"}],
+                requested="auto",
+                extractive_fallback="안전한 로컬 추출 답변",
+                excluded_providers=("local",),
+            )
+
+        self.assertEqual(result.used, "extractive")
+        self.assertEqual(
+            [attempt.provider for attempt in result.attempts],
+            ["extractive"],
+        )
+
     def test_build_prompt_contains_answer_contract(self) -> None:
         prompt = build_prompt(
             "2026학년도 2학기 수료후연구생 신청 방법은?",

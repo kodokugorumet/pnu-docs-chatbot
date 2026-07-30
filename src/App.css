@@ -1221,6 +1221,73 @@ button {
   white-space: nowrap;
 }
 
+.local-model-runtime {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--input-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.local-model-runtime.is-loaded,
+.local-model-runtime.is-busy {
+  border-color: rgba(0, 82, 156, 0.22);
+  background: var(--blue-soft);
+  color: var(--pnu-blue);
+}
+
+.local-model-runtime.is-loading,
+.local-model-runtime.is-starting,
+.local-model-runtime.is-stopping {
+  border-color: rgba(168, 112, 0, 0.2);
+  background: #fffaf0;
+}
+
+.local-model-runtime > span {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.local-model-runtime button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 5px 8px;
+  border: 1px solid rgba(185, 28, 28, 0.22);
+  border-radius: 7px;
+  background: #fff;
+  color: #a51d1d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.local-model-runtime button:hover:not(:disabled) {
+  border-color: rgba(185, 28, 28, 0.42);
+  background: #fff5f5;
+}
+
+.local-model-runtime button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.provider-select .local-model-runtime-error {
+  color: #a51d1d;
+  text-overflow: initial;
+  white-space: normal;
+}
+
 .composer-options {
   align-items: end;
   flex-wrap: wrap;
@@ -1582,6 +1649,14 @@ button {
   .provider-select-control,
   .local-model-select {
     grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .local-model-runtime {
+    align-items: flex-start;
+  }
+
+  .local-model-runtime button {
+    min-height: 44px;
   }
 
   .composer select {

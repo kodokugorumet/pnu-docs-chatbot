@@ -169,6 +169,7 @@ def generate(
     extractive_fallback: ExtractiveFallback = None,
     *,
     requested_model: str | None = None,
+    excluded_providers: Sequence[str] = (),
 ) -> GenerationResult:
     """Generate an answer with a server-configured provider.
 
@@ -211,6 +212,14 @@ def generate(
         normalized_requested,
         extractive_fallback=extractive_fallback,
     )
+    excluded = {
+        str(provider).strip().lower()
+        for provider in excluded_providers
+        if str(provider).strip().lower() in SUPPORTED_PROVIDERS
+    }
+    providers = tuple(provider for provider in providers if provider not in excluded)
+    if not providers and extractive_fallback is not None:
+        providers = ("extractive",)
     attempts: list[GenerationAttempt] = []
 
     for provider in providers:
