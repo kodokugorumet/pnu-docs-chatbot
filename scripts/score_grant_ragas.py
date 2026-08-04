@@ -58,11 +58,18 @@ class RateLimiter:
 
 
 async def score_one(metrics, limiter, sample, attempts: int) -> tuple[str, float, str | None]:
-    """모델 후보를 순서대로 시도한다. 반환: (사용 모델, 점수, 실패 사유)."""
+    """한 라운드에서 모든 모델을 한 번씩 시도한다.
+
+    실패는 대부분 rate limit(429)이 아니라 특정 모델의 일시적 과부하(503)이고,
+    그럴 때 다른 모델은 즉시 응답한다. 그래서 모델별로 재시도를 소진하는 대신
+    라운드마다 모델을 한 바퀴 돌고, 그 라운드가 전부 실패했을 때만 백오프한다.
+
+    반환: (사용 모델, 점수, 실패 사유).
+    """
 
     last_error: str | None = None
-    for model, metric in metrics:
-        for attempt in range(attempts):
+    for attempt in range(attempts):
+        for model, metric in metrics:
             await limiter.wait()
             try:
                 result = await metric.ascore(
@@ -73,7 +80,7 @@ async def score_one(metrics, limiter, sample, attempts: int) -> tuple[str, float
                 return model, float(result.value), None
             except Exception as exc:  # noqa: BLE001
                 last_error = f"{type(exc).__name__}: {exc}"
-                await asyncio.sleep(3 * (attempt + 1))
+        await asyncio.sleep(3 * (attempt + 1))
     return "", float("nan"), last_error
 
 
@@ -119,11 +126,20 @@ async def run(args) -> None:
     limiter = RateLimiter(args.rpm)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     started = time.time()
+    # RateLimiter가 전역 호출 간격을 강제하므로 동시 실행을 올려도 한도를 넘지
+    # 않는다. 동시성은 그 한도를 실제로 다 쓰게 만드는 역할만 한다.
+    gate = asyncio.Semaphore(max(1, args.concurrency))
+    write_lock = asyncio.Lock()
+    completed = 0
+
     with args.out.open("a", encoding="utf-8") as sink:
-        for index, sample in enumerate(todo, start=1):
-            model, score, error = await score_one(
-                metrics, limiter, sample, args.attempts
-            )
+
+        async def worker(sample) -> None:
+            nonlocal completed
+            async with gate:
+                model, score, error = await score_one(
+                    metrics, limiter, sample, args.attempts
+                )
             record = {
                 "id": sample["id"],
                 "context_recall": None if score != score else score,
@@ -132,11 +148,21 @@ async def run(args) -> None:
                 "n_contexts": len(sample["retrieved_contexts"]),
                 "section": (sample.get("meta") or {}).get("section"),
             }
-            sink.write(json.dumps(record, ensure_ascii=False) + "\n")
-            sink.flush()
-            shown = "실패" if record["context_recall"] is None else f"{score:.3f}"
-            print(f"  [{index:>2d}/{len(todo)}] {sample['id']:<12s} {shown}"
-                  f"  ({time.time() - started:.0f}s)")
+            async with write_lock:
+                sink.write(json.dumps(record, ensure_ascii=False) + "\n")
+                sink.flush()
+                completed += 1
+                shown = "실패" if record["context_recall"] is None else f"{score:.3f}"
+                print(f"  [{completed:>2d}/{len(todo)}] {sample['id']:<12s} {shown}"
+                      f"  ({time.time() - started:.0f}s)", flush=True)
+
+        await asyncio.gather(*(worker(sample) for sample in todo))
+
+    elapsed = time.time() - started
+    if todo:
+        print(f"\n처리량: {len(todo)}문항 / {elapsed:.0f}초 = "
+              f"{elapsed / len(todo):.1f}초․문항, 실효 {len(todo) / elapsed * 60:.1f} RPM "
+              f"(상한 {args.rpm})")
 
     rows = [
         json.loads(line)
@@ -164,8 +190,11 @@ def main() -> None:
     ap.add_argument("--model", default=None, help="기본값은 .env의 GEMINI_MODEL")
     ap.add_argument("--rpm", type=float, default=10.0,
                     help="분당 호출 상한. 무료 등급 여유를 두고 낮게 잡는다")
+    ap.add_argument("--concurrency", type=int, default=6,
+                    help="동시 실행 수. rpm 상한은 RateLimiter가 따로 지키므로 "
+                         "이 값은 그 상한을 실제로 채우는 역할만 한다")
     ap.add_argument("--attempts", type=int, default=3,
-                    help="모델 하나당 재시도 횟수 (503/429 대응)")
+                    help="라운드 수. 라운드마다 모델 후보를 한 바퀴 시도한다")
     args = ap.parse_args()
 
     load_env(args.env_file)
