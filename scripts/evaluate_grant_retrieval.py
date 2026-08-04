@@ -77,11 +77,18 @@ def main() -> None:
     ap.add_argument("--retrieval-mode", choices=MODES, default="bm25")
     ap.add_argument("--dense-artifact", type=Path, default=None,
                     help="dense/hybrid 모드에서 쓸 learned dense 아티팩트 디렉터리")
+    ap.add_argument("--min-chars", type=int, default=0,
+                    help="이 길이 미만 청크 제외 (목차·별표 헤더·용지 규격 파편 제거)")
+    ap.add_argument("--no-diversify", action="store_true",
+                    help="문서 다양화 해제 (기본은 두 레인 모두 적용)")
     ap.add_argument("--json-out", type=Path, default=None)
     args = ap.parse_args()
 
     items = [json.loads(l) for l in args.eval_file.read_text(encoding="utf-8").splitlines() if l.strip()]
-    search = build_searcher(args.index, args.retrieval_mode, args.dense_artifact)
+    search = build_searcher(
+        args.index, args.retrieval_mode, args.dense_artifact,
+        diversify=not args.no_diversify, min_chars=args.min_chars,
+    )
 
     covered = uncovered = hits_at_k = 0
     rr_sum = 0.0
@@ -115,7 +122,8 @@ def main() -> None:
         results.append({"id": it["id"], "status": "hit" if rank else "miss", "rank": rank,
                         "section": it["section"], "query": it["query"]})
 
-    print(f"mode={args.retrieval_mode} routing={args.routing} index={args.index.name}")
+    print(f"mode={args.retrieval_mode} routing={args.routing} "
+          f"diversify={not args.no_diversify} min_chars={args.min_chars} index={args.index.name}")
     print(f"covered {covered} / uncovered {uncovered} (total {len(items)})")
     print(f"Hit@{args.top_k}: {hits_at_k}/{covered} = {hits_at_k/max(covered,1):.3f}")
     print(f"MRR: {rr_sum/max(covered,1):.4f}")
@@ -134,6 +142,8 @@ def main() -> None:
             "retrieval_mode": args.retrieval_mode,
             "dense_artifact": str(args.dense_artifact) if args.dense_artifact else None,
             "routing": args.routing,
+            "diversify": not args.no_diversify,
+            "min_chars": args.min_chars,
             "covered": covered, "uncovered": uncovered,
             "hit_at_k": hits_at_k, "mrr": rr_sum / max(covered, 1),
             "results": results,

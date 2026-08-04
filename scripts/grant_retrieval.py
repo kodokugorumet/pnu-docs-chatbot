@@ -16,9 +16,10 @@ from pathlib import Path
 from typing import Any, Callable, Sequence
 
 from bm25_search import (
+    DEFAULT_RERANK_CANDIDATE_MULTIPLIER,
     load_chunks_by_ids,
     search_bm25_candidates,
-    search_index,
+    select_document_diverse_results,
 )
 from rag.learned_dense import LearnedDenseIndex
 from rag.retrieval import HybridRetriever
@@ -29,29 +30,58 @@ MODES = ("bm25", "dense", "hybrid")
 Searcher = Callable[[str, int], list[dict[str, Any]]]
 
 
+def _candidate_limit(top_k: int) -> int:
+    """`search_index`가 쓰는 후보 폭과 같은 값."""
+
+    return max(20, top_k, top_k * DEFAULT_RERANK_CANDIDATE_MULTIPLIER)
+
+
 def build_searcher(
     index_path: Path,
     mode: str = "bm25",
     dense_artifact: Path | None = None,
     *,
     preview_chars: int = 700,
+    diversify: bool = True,
+    max_chunks_per_document: int = 2,
+    min_chars: int = 0,
 ) -> Searcher:
-    """검색 모드 하나를 `(query, top_k) -> list[dict]` 호출로 만들어 준다."""
+    """검색 모드 하나를 `(query, top_k) -> list[dict]` 호출로 만들어 준다.
+
+    `diversify`와 `min_chars`는 두 레인에 **같은 후처리**를 적용하기 위한 것이다.
+    BM25는 `search_index` 안에서 이미 문서 다양화를 하는데 dense 경로에는 그 단계가
+    없어서, 문서 단위 지표가 BM25에만 유리하게 기울어 있었다(2026-08-04 원인 분석).
+    `diversify=True`인 bm25 모드는 `search_index`와 동일한 동작이다.
+    """
 
     if mode not in MODES:
         raise ValueError(f"unknown retrieval mode: {mode} (expected {MODES})")
 
     index_path = Path(index_path)
+
+    def postprocess(rows: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+        if min_chars > 0:
+            rows = [
+                row for row in rows
+                if (row.get("char_count") or len(row.get("text") or "")) >= min_chars
+            ]
+        if diversify:
+            return select_document_diverse_results(
+                rows, top_k, max_chunks_per_document=max_chunks_per_document
+            )
+        return rows[:top_k]
+
     if mode == "bm25":
         def bm25_searcher(query: str, top_k: int) -> list[dict[str, Any]]:
-            return search_index(
+            rows = search_bm25_candidates(
                 index_path,
                 query,
-                top_k,
+                _candidate_limit(top_k),
                 None,
                 preview_chars=preview_chars,
                 include_text=True,
             )
+            return postprocess(rows, top_k)
 
         return bm25_searcher
 
@@ -95,7 +125,9 @@ def build_searcher(
         )
 
     def learned_searcher(query: str, top_k: int) -> list[dict[str, Any]]:
-        return _as_dicts(retriever.search(query, top_k=top_k).hits)
+        # 후처리로 걸러낼 몫을 감안해 BM25와 같은 폭으로 후보를 넉넉히 받는다.
+        width = _candidate_limit(top_k) if (diversify or min_chars > 0) else top_k
+        return postprocess(_as_dicts(retriever.search(query, top_k=width).hits), top_k)
 
     return learned_searcher
 
