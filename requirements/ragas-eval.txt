@@ -1,0 +1,9 @@
+# RAGAS 평가 전용 환경. langchain 계열 의존성이 무거워 별도 venv로 격리한다.
+#   uv venv .parser-tools/venvs/ragas --python 3.12
+#   uv pip install --python .parser-tools/venvs/ragas/bin/python -r requirements/ragas-eval.txt
+#
+# langchain-community는 0.4부터 chat_models.vertexai 경로를 제거했는데
+# ragas 0.4.3이 그 경로를 import하므로 0.3 계열로 고정해야 한다.
+ragas==0.4.3
+langchain-community<0.4
+openai
