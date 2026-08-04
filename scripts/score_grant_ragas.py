@@ -57,7 +57,22 @@ class RateLimiter:
             self._last = time.monotonic()
 
 
-async def score_one(metrics, limiter, sample, attempts: int) -> tuple[str, float, str | None]:
+class CallCounter:
+    """실제 API 호출 수. 무료 등급은 분당(RPM)뿐 아니라 하루(RPD) 한도도 있고,
+    503 재시도가 그 한도를 함께 소진하므로 문항 수가 아니라 호출 수를 세야 한다."""
+
+    def __init__(self) -> None:
+        self.total = 0
+        self.failed = 0
+
+    def record(self, ok: bool) -> None:
+        self.total += 1
+        if not ok:
+            self.failed += 1
+
+
+async def score_one(metrics, limiter, sample, attempts: int,
+                    counter: "CallCounter") -> tuple[str, float, str | None]:
     """한 라운드에서 모든 모델을 한 번씩 시도한다.
 
     실패는 대부분 rate limit(429)이 아니라 특정 모델의 일시적 과부하(503)이고,
@@ -77,8 +92,10 @@ async def score_one(metrics, limiter, sample, attempts: int) -> tuple[str, float
                     retrieved_contexts=sample["retrieved_contexts"],
                     reference=sample["reference"],
                 )
+                counter.record(True)
                 return model, float(result.value), None
             except Exception as exc:  # noqa: BLE001
+                counter.record(False)
                 last_error = f"{type(exc).__name__}: {exc}"
         await asyncio.sleep(3 * (attempt + 1))
     return "", float("nan"), last_error
@@ -89,21 +106,28 @@ async def run(args) -> None:
     from ragas.llms import llm_factory
     from ragas.metrics.collections import ContextRecall
 
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    local = args.base_url is not None
+    api_key = "local" if local else os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise SystemExit("GEMINI_API_KEY가 없습니다 (--env-file 확인)")
 
     client = AsyncOpenAI(
         api_key=api_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        base_url=args.base_url or "https://generativelanguage.googleapis.com/v1beta/openai/",
+        timeout=900 if local else 600,
     )
-    models = [args.model] + [
+    # 로컬은 폴백 후보가 없다. 그리고 스키마를 간결하게 지키지 못하는 모델이 있어
+    # (gemma는 잘림, Qwen3.6은 정상) 출력 한도를 넉넉히 준다.
+    models = [args.model] if local else [args.model] + [
         name.strip()
         for name in os.environ.get("GEMINI_FALLBACK_MODELS", "").split(",")
         if name.strip() and name.strip() != args.model
     ]
+    extra = {"max_tokens": args.max_tokens} if args.max_tokens else {}
     metrics = [
-        (name, ContextRecall(llm=llm_factory(name, provider="openai", client=client)))
+        (name, ContextRecall(
+            llm=llm_factory(name, provider="openai", client=client, **extra)
+        ))
         for name in models
     ]
 
@@ -112,6 +136,43 @@ async def run(args) -> None:
         for line in args.samples.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+    # 컨텍스트가 기준선과 똑같은 문항은 점수도 같다. 그대로 옮겨 적어 일일 한도를
+    # 아낀다. context recall은 순서를 보지 않으므로 집합 비교로 충분하다.
+    carried = 0
+    if args.carry_from_samples and args.carry_from_scores:
+        base_ctx = {
+            json.loads(line)["id"]: frozenset(json.loads(line)["retrieved_contexts"])
+            for line in args.carry_from_samples.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        base_score = {
+            json.loads(line)["id"]: json.loads(line)
+            for line in args.carry_from_scores.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        already = set()
+        if args.out.exists():
+            for line in args.out.read_text(encoding="utf-8").splitlines():
+                try:
+                    already.add(json.loads(line)["id"])
+                except Exception:  # noqa: BLE001
+                    pass
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        with args.out.open("a", encoding="utf-8") as sink:
+            for sample in samples:
+                qid = sample["id"]
+                if qid in already or qid not in base_ctx or qid not in base_score:
+                    continue
+                if frozenset(sample["retrieved_contexts"]) != base_ctx[qid]:
+                    continue
+                record = dict(base_score[qid])
+                record["carried_from"] = str(args.carry_from_scores)
+                sink.write(json.dumps(record, ensure_ascii=False) + "\n")
+                carried += 1
+        if carried:
+            print(f"컨텍스트가 동일해 기준선 점수를 그대로 옮긴 문항: {carried}개 "
+                  f"(그만큼 호출을 아낌)")
+
     done: set[str] = set()
     if args.out.exists():
         for line in args.out.read_text(encoding="utf-8").splitlines():
@@ -130,6 +191,7 @@ async def run(args) -> None:
     # 않는다. 동시성은 그 한도를 실제로 다 쓰게 만드는 역할만 한다.
     gate = asyncio.Semaphore(max(1, args.concurrency))
     write_lock = asyncio.Lock()
+    counter = CallCounter()
     completed = 0
 
     with args.out.open("a", encoding="utf-8") as sink:
@@ -138,7 +200,7 @@ async def run(args) -> None:
             nonlocal completed
             async with gate:
                 model, score, error = await score_one(
-                    metrics, limiter, sample, args.attempts
+                    metrics, limiter, sample, args.attempts, counter
                 )
             record = {
                 "id": sample["id"],
@@ -163,6 +225,8 @@ async def run(args) -> None:
         print(f"\n처리량: {len(todo)}문항 / {elapsed:.0f}초 = "
               f"{elapsed / len(todo):.1f}초․문항, 실효 {len(todo) / elapsed * 60:.1f} RPM "
               f"(상한 {args.rpm})")
+        print(f"API 호출: {counter.total}회 (실패 {counter.failed}회, "
+              f"문항당 {counter.total / len(todo):.2f}회) — 일일 한도 소진량")
 
     rows = [
         json.loads(line)
@@ -195,6 +259,14 @@ def main() -> None:
                          "이 값은 그 상한을 실제로 채우는 역할만 한다")
     ap.add_argument("--attempts", type=int, default=3,
                     help="라운드 수. 라운드마다 모델 후보를 한 바퀴 시도한다")
+    ap.add_argument("--carry-from-samples", type=Path, default=None,
+                    help="기준선 샘플 파일. 컨텍스트가 같은 문항은 채점하지 않는다")
+    ap.add_argument("--carry-from-scores", type=Path, default=None,
+                    help="기준선 채점 결과. --carry-from-samples와 함께 쓴다")
+    ap.add_argument("--base-url", default=None,
+                    help="OpenAI 호환 엔드포인트. 로컬 MLX는 http://127.0.0.1:8080/v1")
+    ap.add_argument("--max-tokens", type=int, default=None,
+                    help="로컬 모델에 필요. Qwen3.6은 8192면 충분, gemma는 스키마 미준수")
     args = ap.parse_args()
 
     load_env(args.env_file)
