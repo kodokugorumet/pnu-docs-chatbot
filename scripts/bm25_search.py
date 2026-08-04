@@ -739,6 +739,77 @@ def search_bm25_candidates(
     return candidates
 
 
+def load_chunks_by_ids(
+    index_path: Path,
+    chunk_ids: Sequence[str],
+) -> list[dict[str, Any]]:
+    """Load complete chunk rows in caller order for a secondary retriever.
+
+    Learned-dense indexes deliberately store only vectors and stable chunk IDs.
+    This keeps document text and citation metadata authoritative in the BM25
+    SQLite corpus instead of duplicating it in every embedding artifact.
+    """
+
+    ordered_ids = dedupe_keep_order(
+        str(value).strip() for value in chunk_ids if str(value).strip()
+    )
+    if not ordered_ids:
+        return []
+    if not index_path.is_file():
+        raise FileNotFoundError(f"Missing index DB: {index_path}")
+
+    connection = sqlite3.connect(str(index_path))
+    connection.row_factory = sqlite3.Row
+    try:
+        placeholders = ",".join("?" for _ in ordered_ids)
+        rows = connection.execute(
+            f"SELECT * FROM chunks WHERE chunk_id IN ({placeholders})",
+            ordered_ids,
+        ).fetchall()
+    finally:
+        connection.close()
+
+    found: dict[str, dict[str, Any]] = {}
+    for raw_row in rows:
+        row = dict(raw_row)
+        row["section_path"] = _json_column(
+            row.pop("section_path_json", None), None
+        )
+        row["table_ids"] = _json_column(
+            row.pop("table_ids_json", None), []
+        )
+        row["block_ids"] = _json_column(
+            row.pop("block_ids_json", None), []
+        )
+        row["locations"] = _json_column(
+            row.pop("locations_json", None), []
+        )
+        row["source_aliases"] = _json_column(
+            row.pop("source_aliases_json", None), []
+        )
+        row["preview"] = str(row.get("text") or "")
+        row["metadata"] = {
+            "corpus_revision": row.get("corpus_revision"),
+            "source_title": row.get("source_title"),
+            "source_url": row.get("source_url"),
+            "download_url": row.get("download_url"),
+            "source_host": row.get("source_host"),
+            "fetched_at": row.get("fetched_at"),
+            "published_at": row.get("published_at"),
+            "category": row.get("category"),
+            "include_reason": row.get("include_reason"),
+            "crawl_storage_path": row.get("crawl_storage_path"),
+            "source_aliases": row["source_aliases"],
+            "page_start": row.get("page_start"),
+            "page_end": row.get("page_end"),
+            "section_path": row["section_path"],
+            "table_ids": row["table_ids"],
+            "block_ids": row["block_ids"],
+        }
+        found[str(row["chunk_id"])] = row
+    return [found[chunk_id] for chunk_id in ordered_ids if chunk_id in found]
+
+
 def search_index(
     index_path: Path,
     query: str,

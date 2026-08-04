@@ -1,9 +1,17 @@
 export const GENERATION_PROVIDERS = ['auto', 'local', 'frontier'] as const
 export const PARSER_PROFILES = ['baseline', 'challenger', 'cascade'] as const
+export const RETRIEVAL_MODES = [
+  'bm25',
+  'kure_dense',
+  'kure_hybrid',
+  'snowflake_dense',
+  'snowflake_hybrid',
+] as const
 
 export type GenerationProvider = (typeof GENERATION_PROVIDERS)[number]
 export type ConcreteProvider = Exclude<GenerationProvider, 'auto'>
 export type ParserProfile = (typeof PARSER_PROFILES)[number]
+export type RetrievalMode = (typeof RETRIEVAL_MODES)[number]
 
 export type CitationLocation = {
   block_id?: string | null
@@ -79,6 +87,7 @@ export type GenerationAttempt = {
   model?: string | null
   status?: string
   error?: string | null
+  elapsed_ms?: number | null
   duration_ms?: number | null
 }
 
@@ -111,6 +120,7 @@ export type ChatRequest = {
   provider: GenerationProvider
   model?: string
   parser_profile: ParserProfile
+  retrieval_mode: RetrievalMode
 }
 
 export type ChatResponse = {
@@ -124,6 +134,7 @@ export type ChatResponse = {
   retrieval?: Record<string, unknown>
   request_id?: string
   parser_profile?: ParserProfile
+  retrieval_mode?: RetrievalMode
 }
 
 export type PipelineStage = {
@@ -164,6 +175,20 @@ export type ParserProfileCapability = {
   runId?: string
   corpusRevision?: string
   denseReady?: boolean
+  defaultRetrievalMode?: RetrievalMode
+  retrievalModes?: RetrievalModeCapability[]
+  reason?: string
+}
+
+export type RetrievalModeCapability = {
+  id: RetrievalMode
+  label: string
+  ready: boolean
+  model?: string
+  dimensions?: number
+  chunkCount?: number
+  modelLoaded?: boolean
+  device?: string
   reason?: string
 }
 
@@ -179,6 +204,8 @@ export type HealthResponse = {
   gemini_configured?: boolean
   gemini_model?: string
   default_parser_profile?: ParserProfile
+  default_retrieval_mode?: RetrievalMode
+  retrieval_modes?: unknown
   parser_profiles?: unknown
   [key: string]: unknown
 }
@@ -340,6 +367,62 @@ const parserProfileCompactLabels: Record<ParserProfile, string> = {
   cascade: 'Cascade',
 }
 
+const retrievalModeLabels: Record<RetrievalMode, string> = {
+  bm25: 'BM25 · 키워드 기준',
+  kure_dense: 'KURE Dense · 의미 기준',
+  kure_hybrid: 'BM25 + KURE · 하이브리드',
+  snowflake_dense: 'Snowflake Dense · 의미 기준',
+  snowflake_hybrid: 'BM25 + Snowflake · 하이브리드',
+}
+
+function retrievalModeId(value: unknown): RetrievalMode | null {
+  const mode = optionalString(value)?.toLowerCase()
+  return RETRIEVAL_MODES.includes(mode as RetrievalMode)
+    ? (mode as RetrievalMode)
+    : null
+}
+
+function retrievalModeCapabilities(value: unknown): RetrievalModeCapability[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const found = new Map<RetrievalMode, RetrievalModeCapability>()
+  for (const item of value) {
+    if (!isRecord(item)) {
+      continue
+    }
+    const id = retrievalModeId(item.id) ?? retrievalModeId(item.mode)
+    if (!id) {
+      continue
+    }
+    found.set(id, {
+      id,
+      label: optionalString(item.label) ?? retrievalModeLabels[id],
+      ready:
+        optionalBoolean(item.ready) ??
+        optionalString(item.status)?.toLowerCase() === 'ready',
+      model: optionalString(item.model),
+      dimensions: optionalInteger(item.dimensions),
+      chunkCount: optionalInteger(item.chunk_count),
+      modelLoaded: optionalBoolean(item.model_loaded),
+      device: optionalString(item.device),
+      reason:
+        optionalString(item.reason) ??
+        optionalString(item.error) ??
+        optionalString(item.message),
+    })
+  }
+  return RETRIEVAL_MODES.map(
+    (id) =>
+      found.get(id) ?? {
+        id,
+        label: retrievalModeLabels[id],
+        ready: false,
+        reason: '이 검색 인덱스가 서버에 등록되지 않았습니다.',
+      },
+  )
+}
+
 function parserProfileId(value: unknown): ParserProfile | null {
   const profile = optionalString(value)?.toLowerCase()
   return PARSER_PROFILES.includes(profile as ParserProfile)
@@ -381,6 +464,9 @@ export function getParserProfileCapabilities(
         runId: optionalString(value.run_id),
         corpusRevision: optionalString(value.corpus_revision),
         denseReady: optionalBoolean(value.dense_ready),
+        defaultRetrievalMode:
+          retrievalModeId(value.default_retrieval_mode) ?? undefined,
+        retrievalModes: retrievalModeCapabilities(value.retrieval_modes),
         reason:
           optionalString(value.reason) ??
           optionalString(value.error) ??
@@ -417,6 +503,23 @@ export function getParserProfileCapabilities(
           : 'API 상태를 확인한 뒤 선택할 수 있습니다.',
       },
   )
+}
+
+export function getRetrievalModeCapabilities(
+  health: HealthResponse | null,
+  parserProfile: ParserProfile,
+): RetrievalModeCapability[] {
+  const profile = getParserProfileCapabilities(health).find(
+    (capability) => capability.id === parserProfile,
+  )
+  if (profile?.retrievalModes?.length) {
+    return profile.retrievalModes
+  }
+  return retrievalModeCapabilities(health?.retrieval_modes)
+}
+
+export function retrievalModeDisplayName(mode: RetrievalMode) {
+  return retrievalModeLabels[mode]
 }
 
 export function providerDisplayName(provider: string) {
@@ -487,7 +590,7 @@ function providerRecord(
     optionalString(record.default_model) ??
     optionalString(record.defaultModel) ??
     model
-  const models = id === 'local' ? providerModels(record.models) : []
+  const models = providerModels(record.models)
   for (const configuredModel of [defaultModel, model]) {
     if (
       configuredModel &&
@@ -511,7 +614,7 @@ function providerRecord(
     state,
     model,
     defaultModel,
-    models: id === 'local' ? models : undefined,
+    models: models.length ? models : undefined,
     runtimeState:
       id === 'local'
         ? optionalString(record.runtime_state) ??
@@ -889,6 +992,8 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
       : undefined,
     default_parser_profile:
       parserProfileId(payload.default_parser_profile) ?? undefined,
+    default_retrieval_mode:
+      retrievalModeId(payload.default_retrieval_mode) ?? undefined,
   }
 }
 

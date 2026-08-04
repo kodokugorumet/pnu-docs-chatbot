@@ -28,10 +28,12 @@ import {
   getParserProfileCapabilities,
   getPipelineStages,
   getProviderCapabilities,
+  getRetrievalModeCapabilities,
   getResultLocations,
   normalizeGeneration,
   parserProfileDisplayName,
   providerDisplayName,
+  retrievalModeDisplayName,
   RagApiError,
   unloadLocalModel,
 } from './api/rag'
@@ -43,6 +45,7 @@ import type {
   GenerationProvider,
   HealthResponse,
   ParserProfile,
+  RetrievalMode,
   SearchResult,
 } from './api/rag'
 import CitationLocation from './components/CitationLocation'
@@ -71,6 +74,7 @@ type Message = {
     requestId?: string
   }
   request?: ChatRequest
+  durationMs?: number
 }
 
 type SubmitQuestionOptions = {
@@ -79,6 +83,7 @@ type SubmitQuestionOptions = {
   topK?: number
   model?: string | null
   parserProfile?: ParserProfile
+  retrievalMode?: RetrievalMode
   appendUser?: boolean
 }
 
@@ -443,6 +448,66 @@ function weakAnswerHint(message: Message) {
   return '모델 초안 중 근거가 부족한 문장은 최종 답변에서 제외했습니다. 검증 탭에서 판정 이유를 확인할 수 있습니다.'
 }
 
+function generationModelDisplayName(model?: string | null) {
+  const labels: Record<string, string> = {
+    'gemini-3.1-flash-lite': 'Gemini 3.1 Flash Lite',
+    'gemini-3.5-flash-lite': 'Gemini 3.5 Flash Lite',
+  }
+  return model ? labels[model] ?? model : '안전 응답'
+}
+
+function generationFallbackHint(generation?: GenerationInfo) {
+  const reason = generation?.fallback_reason ?? ''
+  const geminiFailure = reason.match(
+    /(?:^|,)gemini:([^,:]+):(timeout|network_error|http_\d+)/,
+  )
+  if (!geminiFailure) {
+    return '요청한 생성 경로를 사용할 수 없어 다른 경로로 답변했습니다.'
+  }
+
+  const failedModel = generationModelDisplayName(geminiFailure[1])
+  const usedModel = generationModelDisplayName(generation?.model)
+  const failure = geminiFailure[2]
+  if (failure === 'timeout') {
+    return `${failedModel} 응답이 설정된 제한 시간 안에 오지 않아 ${usedModel}(으)로 자동 전환했습니다.`
+  }
+  if (failure === 'http_429') {
+    return `${failedModel} 무료 API 요청 한도에 도달해 ${usedModel}(으)로 자동 전환했습니다.`
+  }
+  if (failure === 'network_error') {
+    return `${failedModel} 연결이 불안정해 ${usedModel}(으)로 자동 전환했습니다.`
+  }
+  return `${failedModel} 호출에 실패해 ${usedModel}(으)로 자동 전환했습니다.`
+}
+
+function requestProgressMessage(
+  elapsedSeconds: number,
+  provider: GenerationProvider,
+  model?: string | null,
+) {
+  if (elapsedSeconds < 2) {
+    return '문서를 검색하고 관련 근거를 선별하고 있습니다.'
+  }
+  if (provider === 'frontier') {
+    const modelName = generationModelDisplayName(model)
+    if (elapsedSeconds < 20) {
+      return `${modelName}에 근거를 전달하고 답변을 기다리고 있습니다.`
+    }
+    if (elapsedSeconds < 30) {
+      return `${modelName} 응답이 평소보다 늦어지고 있습니다. 요청은 정상적으로 진행 중입니다.`
+    }
+    return '1차 Gemini 응답이 지연되어 대체 모델 또는 안전 응답 전환을 준비하고 있습니다.'
+  }
+  if (provider === 'auto') {
+    return elapsedSeconds < 20
+      ? '서버가 사용 가능한 모델을 선택해 답변을 생성하고 있습니다.'
+      : '선택된 모델 응답이 지연되어 대체 생성 경로를 확인하고 있습니다.'
+  }
+  return elapsedSeconds < 20
+    ? '로컬 모델이 검색 근거를 바탕으로 답변을 생성하고 있습니다.'
+    : '로컬 모델 응답이 평소보다 늦어지고 있습니다. 취소 후 다른 모델을 선택할 수도 있습니다.'
+}
+
 function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -450,9 +515,13 @@ function App() {
   const [institutions, setInstitutions] = useState(defaultInstitutions)
   const [provider, setProvider] = useState<GenerationProvider>('auto')
   const [parserProfile, setParserProfile] = useState<ParserProfile>('cascade')
+  const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>('bm25')
   const [localModelPreference, setLocalModelPreference] = useState<string | null>(null)
+  const [frontierModelPreference, setFrontierModelPreference] =
+    useState<string | null>(null)
   const [topK, setTopK] = useState<EvidenceTopK>(defaultEvidenceTopK)
   const [pendingProvider, setPendingProvider] = useState<GenerationProvider | null>(null)
+  const [pendingModel, setPendingModel] = useState<string | null>(null)
   const [pendingParserProfile, setPendingParserProfile] =
     useState<ParserProfile | null>(null)
   const [health, setHealth] = useState<HealthResponse | null>(null)
@@ -465,12 +534,14 @@ function App() {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null)
   const [sourceTab, setSourceTab] = useState<SourceTab>('claims')
   const [isLoading, setIsLoading] = useState(false)
+  const [requestElapsedSeconds, setRequestElapsedSeconds] = useState(0)
   const messageStreamRef = useRef<HTMLDivElement | null>(null)
   const activeRequestRef = useRef<AbortController | null>(null)
   const localModelUnloadRequestRef = useRef(false)
   const healthRefreshSequenceRef = useRef(0)
   const defaultProviderAppliedRef = useRef(false)
   const defaultParserProfileAppliedRef = useRef(false)
+  const defaultRetrievalModeAppliedRef = useRef(false)
 
   const assistantMessages = messages.filter((message) => message.role === 'assistant')
   const providerCapabilities = useMemo(
@@ -491,8 +562,25 @@ function App() {
   const selectedParserProfileReady =
     health?.ready === true &&
     selectedParserProfileCapability?.ready === true
+  const retrievalModeCapabilities = useMemo(
+    () => getRetrievalModeCapabilities(health, parserProfile),
+    [health, parserProfile],
+  )
+  const selectedRetrievalModeCapability = useMemo(
+    () =>
+      retrievalModeCapabilities.find(
+        (capability) => capability.id === retrievalMode,
+      ),
+    [retrievalMode, retrievalModeCapabilities],
+  )
+  const selectedRetrievalModeReady =
+    selectedRetrievalModeCapability?.ready === true
   const localProviderCapability = useMemo(
     () => providerCapabilities.find((capability) => capability.id === 'local'),
+    [providerCapabilities],
+  )
+  const frontierProviderCapability = useMemo(
+    () => providerCapabilities.find((capability) => capability.id === 'frontier'),
     [providerCapabilities],
   )
   const selectedLocalModel = useMemo(() => {
@@ -516,6 +604,27 @@ function App() {
     }
     return models.find((model) => model.available)?.id ?? ''
   }, [localModelPreference, localProviderCapability])
+  const selectedFrontierModel = useMemo(() => {
+    const models = frontierProviderCapability?.models ?? []
+    const preferred = frontierModelPreference
+      ? models.find(
+          (model) => model.id === frontierModelPreference && model.available,
+        )
+      : undefined
+    if (preferred) {
+      return preferred.id
+    }
+
+    const configured =
+      frontierProviderCapability?.defaultModel ?? frontierProviderCapability?.model
+    const configuredModel = configured
+      ? models.find((model) => model.id === configured)
+      : undefined
+    if (configured && (!configuredModel || configuredModel.available)) {
+      return configured
+    }
+    return models.find((model) => model.available)?.id ?? ''
+  }, [frontierModelPreference, frontierProviderCapability])
   const pipelineStages = useMemo(() => getPipelineStages(health), [health])
   const availableSuggestedQuestions = useMemo(
     () =>
@@ -632,6 +741,40 @@ function App() {
   }, [parserProfile])
 
   useEffect(() => {
+    if (!health) {
+      return
+    }
+    const preferred =
+      selectedParserProfileCapability?.defaultRetrievalMode ??
+      health?.default_retrieval_mode ??
+      'bm25'
+    const available = retrievalModeCapabilities.filter(
+      (capability) => capability.ready,
+    )
+    if (!defaultRetrievalModeAppliedRef.current) {
+      setRetrievalMode(
+        available.some((capability) => capability.id === preferred)
+          ? preferred
+          : available[0]?.id ?? 'bm25',
+      )
+      defaultRetrievalModeAppliedRef.current = true
+      return
+    }
+    setRetrievalMode((current) =>
+      available.some((capability) => capability.id === current)
+        ? current
+        : available.find((capability) => capability.id === 'bm25')?.id ??
+          available[0]?.id ??
+          'bm25',
+    )
+  }, [
+    health,
+    health?.default_retrieval_mode,
+    retrievalModeCapabilities,
+    selectedParserProfileCapability?.defaultRetrievalMode,
+  ])
+
+  useEffect(() => {
     const controller = new AbortController()
     const initialTimer = window.setTimeout(
       () => void refreshStatus(controller.signal),
@@ -651,6 +794,17 @@ function App() {
     },
     [],
   )
+
+  useEffect(() => {
+    if (!isLoading) {
+      return
+    }
+    const timer = window.setInterval(
+      () => setRequestElapsedSeconds((current) => current + 1),
+      1000,
+    )
+    return () => window.clearInterval(timer)
+  }, [isLoading])
 
   useEffect(() => {
     const stream = messageStreamRef.current
@@ -679,9 +833,14 @@ function App() {
     const topKOverride = options.topK ?? topK
     const parserProfileOverride =
       options.parserProfile ?? parserProfile
+    const retrievalModeOverride = options.retrievalMode ?? retrievalMode
     const modelOverride = Object.prototype.hasOwnProperty.call(options, 'model')
       ? options.model
-      : selectedLocalModel
+      : providerOverride === 'local'
+        ? selectedLocalModel
+        : providerOverride === 'frontier'
+          ? selectedFrontierModel
+          : null
     const appendUser = options.appendUser ?? true
     const trimmed = question.trim()
     if (
@@ -691,6 +850,10 @@ function App() {
       !parserProfileCapabilities.some(
         (capability) =>
           capability.id === parserProfileOverride && capability.ready,
+      ) ||
+      !getRetrievalModeCapabilities(health, parserProfileOverride).some(
+        (capability) =>
+          capability.id === retrievalModeOverride && capability.ready,
       )
     ) {
       return
@@ -719,9 +882,11 @@ function App() {
       provider: providerOverride,
       top_k: topKOverride,
       parser_profile: parserProfileOverride,
-      ...(providerOverride === 'local' && normalizedModel
-        ? { model: normalizedModel }
-        : {}),
+      retrieval_mode: retrievalModeOverride,
+      ...((providerOverride === 'local' || providerOverride === 'frontier') &&
+        normalizedModel
+          ? { model: normalizedModel }
+          : {}),
     }
 
     if (appendUser) {
@@ -732,12 +897,15 @@ function App() {
       }
       setMessages((current) => [...current, userMessage])
     }
+    const requestStartedAt = window.performance.now()
     setInput('')
+    setRequestElapsedSeconds(0)
     setIsLoading(true)
     if (providerOverride === 'local' || providerOverride === 'auto') {
       setLocalModelUnloadError(null)
     }
     setPendingProvider(providerOverride)
+    setPendingModel(normalizedModel ?? null)
     setPendingParserProfile(parserProfileOverride)
 
     const controller = new AbortController()
@@ -757,6 +925,7 @@ function App() {
         retrieval: data.retrieval,
         parserProfile: data.parser_profile ?? parserProfileOverride,
         request,
+        durationMs: window.performance.now() - requestStartedAt,
       }
       setMessages((current) => [...current, answer])
       setSelectedMessageId(answer.id)
@@ -782,6 +951,7 @@ function App() {
         },
         request,
         parserProfile: parserProfileOverride,
+        durationMs: window.performance.now() - requestStartedAt,
       }
       setMessages((current) => [...current, answer])
       setSelectedMessageId(answer.id)
@@ -791,6 +961,7 @@ function App() {
         activeRequestRef.current = null
         setIsLoading(false)
         setPendingProvider(null)
+        setPendingModel(null)
         setPendingParserProfile(null)
       }
       if (providerOverride === 'local' || providerOverride === 'auto') {
@@ -921,7 +1092,11 @@ function App() {
           <div className="conversation-list">
             {availableRecentQueries.map((item) => (
               <button
-                disabled={isLoading || !selectedParserProfileReady}
+                disabled={
+                  isLoading ||
+                  !selectedParserProfileReady ||
+                  !selectedRetrievalModeReady
+                }
                 key={item.label}
                 onClick={() => {
                   setInstitution(item.institution)
@@ -985,7 +1160,7 @@ function App() {
               <span>
                 {isHealthRefreshing && !health
                   ? '검색 파이프라인 확인 중'
-                  : selectedParserProfileReady
+                  : selectedParserProfileReady && selectedRetrievalModeReady
                     ? '검색 파이프라인 준비 완료'
                     : '검색 파이프라인 준비 필요'}
               </span>
@@ -993,7 +1168,11 @@ function App() {
               <div className="suggestion-grid">
                 {availableSuggestedQuestions.map((item) => (
                   <button
-                    disabled={isLoading || !selectedParserProfileReady}
+                    disabled={
+                      isLoading ||
+                      !selectedParserProfileReady ||
+                      !selectedRetrievalModeReady
+                    }
                     key={item.question}
                     onClick={() => {
                       setInstitution(item.institution)
@@ -1077,14 +1256,26 @@ function App() {
                               )}
                             </span>
                           )}
+                          {message.request?.retrieval_mode && (
+                            <span>
+                              {retrievalModeDisplayName(
+                                message.request.retrieval_mode,
+                              )}
+                            </span>
+                          )}
                           <span>근거 chunk {sourceCount}개</span>
                           <span>고유 문서 {documentCount}개</span>
                           <span>검증 문장 {claimCount ? `${supportedClaimCount}/${claimCount}` : '0개'}</span>
                           {message.generation && (
                             <span>
                               {providerDisplayName(message.generation.used)}
-                              {message.generation.model ? ` · ${message.generation.model}` : ''}
+                              {message.generation.model
+                                ? ` · ${generationModelDisplayName(message.generation.model)}`
+                                : ''}
                             </span>
+                          )}
+                          {typeof message.durationMs === 'number' && (
+                            <span>총 {(message.durationMs / 1000).toFixed(1)}초</span>
                           )}
                           {retrieval && <span>{retrieval}</span>}
                           {deduplication && <span>{deduplication}</span>}
@@ -1095,12 +1286,7 @@ function App() {
                       {message.role === 'assistant' && hasFallback && (
                         <div className="answer-hint generation-fallback">
                           <AlertTriangle size={15} />
-                          <span>
-                            요청한 생성 경로를 사용할 수 없어 다른 경로로 답변했습니다.
-                            {message.generation?.fallback_reason
-                              ? ` (${message.generation.fallback_reason})`
-                              : ''}
-                          </span>
+                          <span>{generationFallbackHint(message.generation)}</span>
                         </div>
                       )}
 
@@ -1141,7 +1327,11 @@ function App() {
                             message.error?.retryable &&
                             message.request && (
                               <button
-                                disabled={isLoading || !selectedParserProfileReady}
+                                disabled={
+                                  isLoading ||
+                                  !selectedParserProfileReady ||
+                                  !selectedRetrievalModeReady
+                                }
                                 onClick={(event) => {
                                   event.stopPropagation()
                                   void submitQuestion(
@@ -1156,6 +1346,9 @@ function App() {
                                       parserProfile:
                                         message.request?.parser_profile ??
                                         'cascade',
+                                      retrievalMode:
+                                        message.request?.retrieval_mode ??
+                                        'bm25',
                                       appendUser: false,
                                     },
                                   )
@@ -1184,34 +1377,50 @@ function App() {
                   <div className="message-bubble loading-bubble">
                     <div className="answer-meta">
                       <LoaderCircle className="loading-icon" size={16} />
-                      <span>질문 처리 중</span>
+                      <span>질문 처리 중 · {requestElapsedSeconds}초</span>
                     </div>
-                    <p>
+                    <div
+                      className={`request-progress ${requestElapsedSeconds >= 20 ? 'is-delayed' : ''}`}
+                    >
+                      <Clock3 size={16} />
+                      <span>
+                        {requestProgressMessage(
+                          requestElapsedSeconds,
+                          pendingProvider ?? provider,
+                          pendingModel,
+                        )}
+                      </span>
+                    </div>
+                    <small className="loading-route">
                       {parserProfileDisplayName(
                         pendingParserProfile ?? parserProfile,
                         true,
                       )}{' '}
-                      파서와 {providerDisplayName(pendingProvider ?? provider)} 경로로
-                      검색, 답변 생성, 인용 검증을 요청했습니다.
-                    </p>
+                      파서 · {providerDisplayName(pendingProvider ?? provider)}
+                      {pendingModel
+                        ? ` · ${generationModelDisplayName(pendingModel)} 우선`
+                        : ''}
+                    </small>
                     {pipelineStages.length > 0 && (
                       <ol
                         aria-label="서버가 보고한 파이프라인 상태"
                         className="loading-steps"
                       >
                         {pipelineStages.map((stage) => (
-                        <li
+                          <li
                             className={requestStageClass(stage.state)}
                             key={stage.id}
                             title={stage.detail}
-                        >
+                          >
                             {stage.label}
-                        </li>
-                      ))}
+                          </li>
+                        ))}
                       </ol>
                     )}
                     <div className="loading-footer">
-                      <small>표시는 서버의 현재 준비 상태이며 요청별 완료 상태는 응답 후 반영됩니다.</small>
+                      <small>
+                        한 번에 하나의 질문만 전송하며, 응답 지연 시 서버가 대체 모델을 시도합니다.
+                      </small>
                       <button onClick={cancelRequest} type="button">
                         <X size={14} />
                         취소
@@ -1229,8 +1438,10 @@ function App() {
             <ProviderSelect
               activeRequestProvider={isLoading ? pendingProvider : null}
               disabled={isLoading}
+              frontierModel={selectedFrontierModel}
               model={selectedLocalModel}
               onChange={setProvider}
+              onFrontierModelChange={setFrontierModelPreference}
               onModelChange={setLocalModelPreference}
               onUnloadLocalModel={() => void handleLocalModelUnload()}
               providers={providerCapabilities}
@@ -1263,6 +1474,39 @@ function App() {
                   ? `${selectedParserProfileCapability.documentCount?.toLocaleString() ?? '-'}개 문서 · ${selectedParserProfileCapability.chunkCount?.toLocaleString() ?? '-'}개 chunk`
                   : selectedParserProfileCapability?.reason ??
                     '선택한 파서 인덱스를 확인할 수 없습니다.'}
+              </small>
+            </label>
+            <label className="retrieval-mode-select">
+              <span>검색 방식</span>
+              <select
+                aria-label="검색 방식"
+                disabled={isLoading}
+                onChange={(event) =>
+                  setRetrievalMode(event.target.value as RetrievalMode)
+                }
+                value={retrievalMode}
+              >
+                {retrievalModeCapabilities.map((capability) => (
+                  <option
+                    disabled={!capability.ready}
+                    key={capability.id}
+                    value={capability.id}
+                  >
+                    {capability.label}
+                  </option>
+                ))}
+              </select>
+              <small>
+                {selectedRetrievalModeCapability?.ready
+                  ? selectedRetrievalModeCapability.id === 'bm25'
+                    ? '키워드 일치 기반 비교 기준선'
+                    : `${selectedRetrievalModeCapability.dimensions ?? '-'}차원 · ${
+                        selectedRetrievalModeCapability.modelLoaded
+                          ? `${selectedRetrievalModeCapability.device ?? 'device'} 로드됨`
+                          : '최초 검색 시 모델 로드'
+                      }`
+                  : selectedRetrievalModeCapability?.reason ??
+                    '선택한 검색 인덱스를 확인할 수 없습니다.'}
               </small>
             </label>
             <label className="composer-institution">
@@ -1313,10 +1557,23 @@ function App() {
               </span>
             </div>
           )}
+          {selectedParserProfileReady && !selectedRetrievalModeReady && (
+            <div className="composer-notice" role="status">
+              <AlertTriangle size={14} />
+              <span>
+                {selectedRetrievalModeCapability?.reason ??
+                  '선택한 검색 방식이 준비되지 않았습니다.'}
+              </span>
+            </div>
+          )}
           <div className="input-row">
             <textarea
               aria-label="질문 입력"
-              disabled={isLoading || !selectedParserProfileReady}
+              disabled={
+                isLoading ||
+                !selectedParserProfileReady ||
+                !selectedRetrievalModeReady
+              }
               maxLength={MAX_QUESTION_CHARS}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
@@ -1335,6 +1592,7 @@ function App() {
               disabled={
                 isLoading ||
                 !selectedParserProfileReady ||
+                !selectedRetrievalModeReady ||
                 input.trim().length === 0
               }
               type="submit"

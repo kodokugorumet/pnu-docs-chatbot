@@ -23,7 +23,7 @@ import threading
 import unicodedata
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from http import HTTPStatus
@@ -36,6 +36,7 @@ from urllib.parse import parse_qs, urlparse
 try:
     from .bm25_search import (
         DEFAULT_INDEX,
+        load_chunks_by_ids,
         search_bm25_candidates,
         search_index,
         tokenize,
@@ -55,9 +56,11 @@ try:
         build_local_model_runtime,
     )
     from .rag.retrieval import DenseIndex, HybridRetriever
+    from .rag.learned_dense import LearnedDenseIndex
 except ImportError:  # Direct CLI execution: python scripts/search_api.py
     from bm25_search import (
         DEFAULT_INDEX,
+        load_chunks_by_ids,
         search_bm25_candidates,
         search_index,
         tokenize,
@@ -77,6 +80,7 @@ except ImportError:  # Direct CLI execution: python scripts/search_api.py
         build_local_model_runtime,
     )
     from rag.retrieval import DenseIndex, HybridRetriever
+    from rag.learned_dense import LearnedDenseIndex
 
 
 DEFAULT_HOST = "127.0.0.1"
@@ -121,6 +125,7 @@ RETRIEVAL_REQUEST_TERMS = frozenset(
 )
 DEFAULT_ENV_FILE = Path(".env")
 DEFAULT_DENSE_INDEX = Path("processed/index/dense.sqlite")
+DEFAULT_LEARNED_DENSE_ROOT = Path("processed/index/learned-dense")
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_GEMINI_FALLBACK_MODELS = (
     "gemini-3.1-flash-lite",
@@ -133,6 +138,18 @@ PARSER_PROFILE_LABELS = {
     "cascade": "Cascade · 품질 기반 선택",
 }
 PARSER_PROFILE_ORDER = ("baseline", "challenger", "cascade")
+RETRIEVAL_MODE_LABELS = {
+    "bm25": "BM25 · 키워드 기준",
+    "kure_dense": "KURE Dense · 의미 기준",
+    "kure_hybrid": "BM25 + KURE · 하이브리드",
+    "snowflake_dense": "Snowflake Dense · 의미 기준",
+    "snowflake_hybrid": "BM25 + Snowflake · 하이브리드",
+}
+RETRIEVAL_MODE_ORDER = tuple(RETRIEVAL_MODE_LABELS)
+LEARNED_DENSE_ARTIFACTS = {
+    "kure": "kure-v1",
+    "snowflake": "snowflake-arctic-l-v2-ko",
+}
 
 
 def json_bytes(payload: Any) -> bytes:
@@ -148,11 +165,29 @@ class ApiError(Exception):
 
 
 @dataclass(frozen=True)
+class RetrievalModeState:
+    id: str
+    label: str
+    retriever: HybridRetriever | None
+    warning: str | None = None
+    learned_index: LearnedDenseIndex | None = None
+
+    @property
+    def ready(self) -> bool:
+        return self.warning is None and (
+            self.id == "bm25" or self.retriever is not None
+        )
+
+
+@dataclass(frozen=True)
 class ParserIndexTarget:
     profile: str
     index_path: Path
     retriever: HybridRetriever | None
     warning: str | None
+    retrieval_modes: Mapping[str, RetrievalModeState] = field(
+        default_factory=dict
+    )
 
 
 def load_env_file(path: Path, *, override: bool = False) -> None:
@@ -432,6 +467,14 @@ def local_model_label(model: str) -> str:
     return normalized.rsplit("/", 1)[-1] or model
 
 
+def gemini_model_label(model: str) -> str:
+    labels = {
+        "gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite",
+        "gemini-3.5-flash-lite": "Gemini 3.5 Flash Lite",
+    }
+    return labels.get(model, model)
+
+
 def is_loopback_bind_host(host: str) -> bool:
     normalized = str(host or "").strip().strip("[]")
     if normalized.lower() == "localhost":
@@ -528,23 +571,35 @@ def validate_requested_model(
     provider: str,
     value: Any = REQUEST_MODEL_MISSING,
 ) -> str | None:
-    """Resolve a local model without allowing callers to select other providers' models."""
+    """Resolve a provider model against its server-configured allowlist."""
 
     if value is REQUEST_MODEL_MISSING:
         return local_default_model() if provider == "local" else None
-    if provider != "local":
-        raise ApiError(
-            HTTPStatus.BAD_REQUEST,
-            "model_not_allowed_for_provider",
-            "model은 provider가 local일 때만 선택할 수 있습니다.",
-        )
-    if not isinstance(value, str) or not value or value not in local_models():
-        raise ApiError(
-            HTTPStatus.BAD_REQUEST,
-            "invalid_local_model",
-            "허용된 로컬 모델을 선택해 주세요.",
-        )
-    return value
+    if provider == "local":
+        if not isinstance(value, str) or not value or value not in local_models():
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "invalid_local_model",
+                "허용된 로컬 모델을 선택해 주세요.",
+            )
+        return value
+    if provider in {"frontier", "gemini"}:
+        if (
+            not isinstance(value, str)
+            or not value
+            or value not in gemini_model_candidates()
+        ):
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "invalid_gemini_model",
+                "허용된 Gemini 모델을 선택해 주세요.",
+            )
+        return value
+    raise ApiError(
+        HTTPStatus.BAD_REQUEST,
+        "model_not_allowed_for_provider",
+        "model은 로컬 LLM 또는 프론티어 AI를 직접 선택했을 때만 지정할 수 있습니다.",
+    )
 
 
 def generation_provider_status() -> dict[str, dict[str, Any]]:
@@ -576,6 +631,15 @@ def generation_provider_status() -> dict[str, dict[str, Any]]:
             "configured": bool(gemini_api_key()),
             "label": "프론티어 AI (Gemini)",
             "model": gemini_model(),
+            "default_model": gemini_model(),
+            "models": [
+                {
+                    "id": model,
+                    "label": gemini_model_label(model),
+                    "available": True,
+                }
+                for model in gemini_model_candidates()
+            ],
             "implementation": "gemini",
         },
         "gemini": {
@@ -734,6 +798,53 @@ def dense_index_path() -> Path:
     return Path(value) if value else DEFAULT_DENSE_INDEX
 
 
+def learned_dense_root_path() -> Path:
+    value = os.environ.get("RAG_LEARNED_DENSE_ROOT", "").strip()
+    return Path(value) if value else DEFAULT_LEARNED_DENSE_ROOT
+
+
+def learned_dense_artifact_path(
+    learned_root: Path,
+    profile: str,
+    directory_name: str,
+) -> Path:
+    """Resolve one model artifact without mixing parser-profile corpora.
+
+    New multi-profile artifacts live below ``<root>/<profile>/``.  The original
+    single-profile layout remains a Cascade-only fallback so existing builds do
+    not need to be copied or rebuilt.
+    """
+
+    profile_path = learned_root / profile / directory_name
+    if profile_path.is_dir():
+        return profile_path
+    if profile == "cascade":
+        legacy_path = learned_root / directory_name
+        if legacy_path.is_dir():
+            return legacy_path
+    return profile_path
+
+
+def share_learned_dense_embedder(
+    learned_index: LearnedDenseIndex,
+    cache: dict[tuple[Any, ...], Any],
+) -> None:
+    """Reuse one lazy query model across parser-profile vector matrices."""
+
+    key = (
+        learned_index.model_id,
+        learned_index.model_revision,
+        learned_index.query_prefix,
+        learned_index.embedder.max_sequence_length,
+    )
+    learned_index.embedder = cache.setdefault(key, learned_index.embedder)
+
+
+def configured_retrieval_mode() -> str:
+    value = os.environ.get("RAG_RETRIEVAL_MODE", "bm25").strip().lower()
+    return value if value in RETRIEVAL_MODE_LABELS else "bm25"
+
+
 def dense_index_metadata(path: Path) -> dict[str, str]:
     if not path.is_file():
         return {}
@@ -868,6 +979,11 @@ def parser_profile_summaries(
     summaries: list[dict[str, Any]] = []
     for profile, target in targets.items():
         stats = index_stats(target.index_path, dense_path)
+        retrieval_modes = retrieval_mode_summaries(target)
+        learned_dense_ready = any(
+            item.get("ready") is True and item.get("id") != "bm25"
+            for item in retrieval_modes
+        )
         summaries.append(
             {
                 "id": profile,
@@ -878,7 +994,11 @@ def parser_profile_summaries(
                 "run_id": stats.get("run_id"),
                 "profile": stats.get("profile"),
                 "corpus_revision": stats.get("corpus_revision"),
-                "dense_ready": stats.get("dense_ready") is True,
+                "dense_ready": (
+                    stats.get("dense_ready") is True or learned_dense_ready
+                ),
+                "default_retrieval_mode": default_retrieval_mode(target),
+                "retrieval_modes": retrieval_modes,
                 "retriever_warning": target.warning,
                 "reason": (
                     None
@@ -2064,6 +2184,198 @@ def create_hybrid_retriever(
     )
 
 
+def create_retrieval_modes(
+    index_path: Path,
+    learned_root: Path,
+    profile: str,
+    *,
+    query_embedder_cache: dict[tuple[Any, ...], Any] | None = None,
+) -> Mapping[str, RetrievalModeState]:
+    """Build independently selectable BM25, dense, and hybrid lanes."""
+
+    modes: dict[str, RetrievalModeState] = {
+        "bm25": RetrievalModeState(
+            id="bm25",
+            label=RETRIEVAL_MODE_LABELS["bm25"],
+            retriever=None,
+        )
+    }
+
+    def bm25_lane(
+        *,
+        query: str,
+        top_k: int,
+        institution: str | None,
+    ) -> list[dict[str, Any]]:
+        return search_bm25_candidates(
+            index_path,
+            query,
+            top_k,
+            institution,
+            preview_chars=source_chars(),
+            include_text=True,
+        )
+
+    for family, directory_name in LEARNED_DENSE_ARTIFACTS.items():
+        artifact_dir = learned_dense_artifact_path(
+            learned_root,
+            profile,
+            directory_name,
+        )
+        learned_index = None
+        warning = None
+        if not artifact_dir.is_dir():
+            warning = "learned_dense_index_missing"
+        else:
+            try:
+                learned_index = LearnedDenseIndex(
+                    artifact_dir,
+                    source_index=index_path,
+                    row_loader=lambda chunk_ids, source=index_path: (
+                        load_chunks_by_ids(source, chunk_ids)
+                    ),
+                )
+                if query_embedder_cache is not None:
+                    share_learned_dense_embedder(
+                        learned_index,
+                        query_embedder_cache,
+                    )
+            except Exception as exc:
+                warning = f"learned_dense_load_failed:{type(exc).__name__}:{exc}"
+
+        dense_id = f"{family}_dense"
+        hybrid_id = f"{family}_hybrid"
+        dense_retriever = (
+            HybridRetriever(
+                bm25_search=None,
+                dense_index=learned_index,
+                candidate_multiplier=1,
+                reranker=None,
+            )
+            if learned_index is not None
+            else None
+        )
+        hybrid_retriever = (
+            HybridRetriever(
+                bm25_search=bm25_lane,
+                dense_index=learned_index,
+            )
+            if learned_index is not None
+            else None
+        )
+        modes[dense_id] = RetrievalModeState(
+            id=dense_id,
+            label=RETRIEVAL_MODE_LABELS[dense_id],
+            retriever=dense_retriever,
+            warning=warning,
+            learned_index=learned_index,
+        )
+        modes[hybrid_id] = RetrievalModeState(
+            id=hybrid_id,
+            label=RETRIEVAL_MODE_LABELS[hybrid_id],
+            retriever=hybrid_retriever,
+            warning=warning,
+            learned_index=learned_index,
+        )
+    return MappingProxyType(modes)
+
+
+def default_retrieval_mode(target: ParserIndexTarget) -> str:
+    requested = configured_retrieval_mode()
+    state = target.retrieval_modes.get(requested)
+    if state is not None and state.ready:
+        return requested
+    return "bm25"
+
+
+def resolve_retrieval_mode(
+    target: ParserIndexTarget,
+    value: Any = None,
+) -> RetrievalModeState:
+    """Validate a request mode and fail closed when its artifact is stale."""
+
+    if not target.retrieval_modes:
+        if value not in (None, "", "bm25"):
+            raise ApiError(
+                HTTPStatus.BAD_REQUEST,
+                "invalid_retrieval_mode",
+                "이 서버에는 선택형 검색 방식이 구성되지 않았습니다.",
+            )
+        return RetrievalModeState(
+            id="legacy_hybrid" if target.retriever is not None else "bm25",
+            label=(
+                "Legacy hybrid"
+                if target.retriever is not None
+                else RETRIEVAL_MODE_LABELS["bm25"]
+            ),
+            retriever=target.retriever,
+            warning=target.warning,
+        )
+
+    if value is None or (isinstance(value, str) and not value.strip()):
+        mode = default_retrieval_mode(target)
+    elif isinstance(value, str):
+        mode = value.strip().lower()
+    else:
+        raise ApiError(
+            HTTPStatus.BAD_REQUEST,
+            "invalid_retrieval_mode",
+            "retrieval_mode 형식이 올바르지 않습니다.",
+        )
+    state = target.retrieval_modes.get(mode)
+    if state is None:
+        choices = ", ".join(RETRIEVAL_MODE_ORDER)
+        raise ApiError(
+            HTTPStatus.BAD_REQUEST,
+            "invalid_retrieval_mode",
+            f"retrieval_mode은 {choices} 중 하나를 선택해 주세요.",
+        )
+    if not state.ready:
+        raise ApiError(
+            HTTPStatus.SERVICE_UNAVAILABLE,
+            "retrieval_mode_unavailable",
+            f"{state.label} 검색 인덱스를 사용할 수 없습니다. ({state.warning})",
+        )
+    return state
+
+
+def retrieval_mode_summaries(
+    target: ParserIndexTarget,
+) -> list[dict[str, Any]]:
+    modes = target.retrieval_modes
+    if not modes:
+        modes = {
+            "bm25": RetrievalModeState(
+                id="bm25",
+                label=RETRIEVAL_MODE_LABELS["bm25"],
+                retriever=None,
+            )
+        }
+    summaries: list[dict[str, Any]] = []
+    for mode in RETRIEVAL_MODE_ORDER:
+        state = modes.get(mode)
+        if state is None:
+            summaries.append(
+                {
+                    "id": mode,
+                    "label": RETRIEVAL_MODE_LABELS[mode],
+                    "ready": False,
+                    "reason": "not_configured",
+                }
+            )
+            continue
+        summary = {
+            "id": state.id,
+            "label": state.label,
+            "ready": state.ready,
+            "reason": state.warning,
+        }
+        if state.learned_index is not None:
+            summary.update(state.learned_index.public_status())
+        summaries.append(summary)
+    return summaries
+
+
 def _stage_score(row: dict[str, Any]) -> float | None:
     retrieval = row.get("retrieval")
     if not isinstance(retrieval, dict):
@@ -2083,6 +2395,7 @@ def search_pipeline(
     institution: str | None,
     *,
     include_text: bool,
+    retrieval_mode: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return backward-compatible rows plus an explicit retrieval trace."""
 
@@ -2098,6 +2411,7 @@ def search_pipeline(
         )
         return rows, {
             "strategy": "BM25 (document-diverse)",
+            "mode": retrieval_mode or "bm25",
             "retrieval_query": retrieval_query,
             "result_count": len(rows),
             "lanes": {
@@ -2143,13 +2457,23 @@ def search_pipeline(
         if isinstance(trace.get("lanes"), dict)
         else None
     )
+    strategies = {
+        "kure_dense": "KURE Dense (cosine)",
+        "kure_hybrid": "BM25 + KURE + RRF",
+        "snowflake_dense": "Snowflake Dense (cosine)",
+        "snowflake_hybrid": "BM25 + Snowflake + RRF",
+    }
     trace.update(
         {
             "strategy": (
-                "BM25 + Dense + RRF"
-                if dense_status == "ok"
-                else "BM25 single-lane + RRF"
+                strategies.get(retrieval_mode)
+                or (
+                    "BM25 + Dense + RRF"
+                    if dense_status == "ok"
+                    else "BM25 single-lane + RRF"
+                )
             ),
+            "mode": retrieval_mode or "legacy_hybrid",
             "result_count": len(rows),
         }
     )
@@ -2288,6 +2612,27 @@ class SearchHandler(BaseHTTPRequestHandler):
                         )
                 payload["retriever_warning"] = target.warning
                 payload["default_parser_profile"] = self.default_parser_profile
+                mode_summaries = retrieval_mode_summaries(target)
+                payload["default_retrieval_mode"] = default_retrieval_mode(
+                    target
+                )
+                payload["retrieval_modes"] = mode_summaries
+                learned_ready = any(
+                    item.get("ready") is True and item.get("id") != "bm25"
+                    for item in mode_summaries
+                )
+                pipeline = payload.get("pipeline")
+                if learned_ready and isinstance(pipeline, dict):
+                    pipeline["dense"] = {
+                        "status": "ready",
+                        "modes": [
+                            item["id"]
+                            for item in mode_summaries
+                            if item.get("ready") is True
+                            and str(item.get("id", "")).endswith("_dense")
+                        ],
+                    }
+                    pipeline["rrf"] = {"status": "ready"}
                 payload["parser_profiles"] = parser_profile_summaries(
                     self.parser_targets
                     or {self.default_parser_profile: target},
@@ -2319,21 +2664,27 @@ class SearchHandler(BaseHTTPRequestHandler):
                 target = self.parser_target(
                     query.get("parser_profile", [None])[0]
                 )
+                retrieval_state = resolve_retrieval_mode(
+                    target,
+                    query.get("retrieval_mode", [None])[0],
+                )
                 results, retrieval = search_pipeline(
                     target.index_path,
-                    target.retriever,
+                    retrieval_state.retriever,
                     question,
                     top_k,
                     institution,
                     include_text=False,
+                    retrieval_mode=retrieval_state.id,
                 )
                 retrieval["parser_profile"] = target.profile
-                retrieval["retriever_warning"] = target.warning
+                retrieval["retriever_warning"] = retrieval_state.warning
                 self.write_json(
                     {
                         "query": question,
                         "institution": institution,
                         "parser_profile": target.profile,
+                        "retrieval_mode": retrieval_state.id,
                         "retrieval": retrieval,
                         "results": public_results(results),
                     }
@@ -2392,6 +2743,9 @@ class SearchHandler(BaseHTTPRequestHandler):
             institution = str(body.get("institution", "")).strip() or None
             top_k = parse_top_k(body.get("top_k", DEFAULT_TOP_K))
             target = self.parser_target(body.get("parser_profile"))
+            retrieval_state = resolve_retrieval_mode(
+                target, body.get("retrieval_mode")
+            )
             requested_provider = public_provider_name(
                 validate_provider(body.get("provider"))
             )
@@ -2404,11 +2758,12 @@ class SearchHandler(BaseHTTPRequestHandler):
             candidate_limit = chat_candidate_limit(top_k)
             results, retrieval = search_pipeline(
                 target.index_path,
-                target.retriever,
+                retrieval_state.retriever,
                 question,
                 candidate_limit,
                 institution,
                 include_text=True,
+                retrieval_mode=retrieval_state.id,
             )
             results, neighbor_expansion = (
                 replace_with_adjacent_temporal_contexts(
@@ -2431,7 +2786,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                 "candidate_limit": candidate_limit,
             }
             retrieval["parser_profile"] = target.profile
-            retrieval["retriever_warning"] = target.warning
+            retrieval["retriever_warning"] = retrieval_state.warning
             numbered_results = number_sources(results)
             draft_answer = None
             generator = "extractive"
@@ -2556,6 +2911,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     "question": question,
                     "institution": institution,
                     "parser_profile": target.profile,
+                    "retrieval_mode": retrieval_state.id,
                     "answer": rag["answer"],
                     "cited_answer": rag["cited_answer"],
                     "claims": rag["claims"],
@@ -2590,6 +2946,14 @@ def parse_args() -> argparse.Namespace:
         help="Default profile when a request omits parser_profile.",
     )
     parser.add_argument("--dense-index", type=Path)
+    parser.add_argument(
+        "--learned-dense-root",
+        type=Path,
+        help=(
+            "Directory containing profile/model learned-dense artifacts; "
+            "legacy model-only artifacts are used for Cascade."
+        ),
+    )
     parser.add_argument("--env-file", type=Path, default=DEFAULT_ENV_FILE)
     parser.add_argument("--override-env", action="store_true", help="Allow values from --env-file to override existing environment variables.")
     return parser.parse_args()
@@ -2608,6 +2972,8 @@ def main() -> int:
         raise SystemExit(f"Parser index configuration error: {exc}") from exc
 
     SearchHandler.dense_path = args.dense_index or dense_index_path()
+    learned_root = args.learned_dense_root or learned_dense_root_path()
+    query_embedder_cache: dict[tuple[Any, ...], Any] = {}
     targets: dict[str, ParserIndexTarget] = {}
     for profile, index_path in parser_indexes.items():
         retriever, warning = create_hybrid_retriever(
@@ -2619,6 +2985,12 @@ def main() -> int:
             index_path=index_path,
             retriever=retriever,
             warning=warning,
+            retrieval_modes=create_retrieval_modes(
+                index_path,
+                learned_root,
+                profile,
+                query_embedder_cache=query_embedder_cache,
+            ),
         )
 
     SearchHandler.default_parser_profile = default_parser_profile
@@ -2650,6 +3022,16 @@ def main() -> int:
             f"(retriever warning: {target.warning})"
         )
     print(f"Dense index: {SearchHandler.dense_path.resolve()}")
+    print(f"Learned dense root: {learned_root.resolve()}")
+    print(
+        "Default retrieval mode: "
+        f"{default_retrieval_mode(default_target)}"
+    )
+    for mode in retrieval_mode_summaries(default_target):
+        print(
+            f"Retrieval mode [{mode['id']}]: "
+            f"{'ready' if mode.get('ready') else mode.get('reason')}"
+        )
     print(f"Generation mode: {generation_mode()}")
     print(f"Gemini configured: {bool(gemini_api_key())}")
     print(f"Gemini model: {gemini_model()}")

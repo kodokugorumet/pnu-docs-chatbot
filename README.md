@@ -16,6 +16,7 @@
 - SQLite FTS5 기반 BM25 문서 다양성 검색과 선택형 로컬 hashing Dense 검색
 - Dense를 사용할 때 reciprocal-rank fusion(RRF)과 hybrid reranking
 - 로컬 OpenAI 호환 API, 프론티어 AI(Gemini API), 추출형 fallback 답변 생성
+  - Gemini 3.1/3.5 직접 선택과 선택 모델 우선 fallback
 - claim 단위 근거 검증 및 출처 번호 표시
 - React + Vite + TypeScript 프론트엔드
 - 답변 생성 단계 표시
@@ -287,9 +288,51 @@ VPN 주소를 사용합니다. Ollama API 포트는 공인 인터넷에 직접 �
 
 ### 4. RAG API 서버 실행
 
+BM25만 사용할 때는 기존 표준 라이브러리 실행 경로를 그대로 사용할 수 있습니다.
+
 ```bash
 python3 scripts/search_api.py --host 127.0.0.1 --port 8000 --env-file .env
 ```
+
+KURE·Snowflake 학습형 Dense 검색을 사용할 때는 임베딩 의존성이 설치된
+격리 환경으로 실행합니다. 질의 모델은 해당 검색 방식을 처음 선택할 때만
+로드되며, 문서 벡터 행렬은 `processed/index/learned-dense/`에서 읽습니다.
+
+여러 파싱 버전을 함께 등록할 때 Dense artifact는 파싱 결과별로 분리합니다.
+Baseline과 Challenger는 각각 `learned-dense/<profile>/<model>/`을 사용하고,
+기존 Cascade artifact의 `learned-dense/<model>/` 경로도 계속 지원합니다.
+
+```text
+processed/index/learned-dense/
+├── baseline/{kure-v1,snowflake-arctic-l-v2-ko}/
+├── challenger/{kure-v1,snowflake-arctic-l-v2-ko}/
+├── kure-v1/                         # Cascade 호환 경로
+└── snowflake-arctic-l-v2-ko/        # Cascade 호환 경로
+```
+
+```bash
+python3 -m venv .parser-tools/venvs/embedding
+.parser-tools/venvs/embedding/bin/pip install -r requirements/embedding-benchmark.txt
+
+.parser-tools/venvs/embedding/bin/python scripts/search_api.py \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --env-file .env \
+  --index processed/index/pnu-20260725-curated-cascade-v5-allow-suspect.sqlite \
+  --profile-index baseline=processed/index/pnu-20260725-curated-baseline-v5-allow-suspect.sqlite \
+  --profile-index challenger=processed/index/pnu-20260725-curated-challenger-v5-allow-suspect.sqlite \
+  --default-parser-profile cascade
+```
+
+화면의 **검색 방식**에서 다음 다섯 경로를 같은 질문으로 비교할 수 있습니다.
+
+- `bm25`: 기존 키워드 검색 기준선
+- `kure_dense`, `snowflake_dense`: 학습형 Dense 코사인 검색
+- `kure_hybrid`, `snowflake_hybrid`: BM25와 Dense 후보를 RRF로 결합
+
+서버 기본 검색 방식을 바꾸려면 `.env`에 예를 들어
+`RAG_RETRIEVAL_MODE=kure_hybrid`를 설정합니다. artifact의 corpus revision이나
+chunk 순서가 현재 BM25 인덱스와 다르면 해당 방식은 자동 비활성화됩니다.
 
 정상 실행 여부는 다음 주소에서 확인합니다.
 
@@ -488,7 +531,8 @@ BM25/Dense/RRF/reranker 실행 trace가 포함됩니다.
 
 - 기관별 검색 범위 선택
 - 질문 입력 및 답변 생성
-- 답변 생성 중 단계 표시
+- 답변 생성 중 경과시간·지연·대체 모델 전환 상태 표시
+- 동일 브라우저의 동시 질문 전송 차단과 진행 중 요청 취소
 - 답변 내 출처 번호 배지 표시
 - claim별 근거 확인 여부 표시
 - 검색된 문서 chunk 미리보기

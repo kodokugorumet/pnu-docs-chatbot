@@ -11,6 +11,8 @@ type ProviderSelectProps = {
   onChange: (provider: GenerationProvider) => void
   model: string
   onModelChange: (model: string) => void
+  frontierModel: string
+  onFrontierModelChange: (model: string) => void
   onUnloadLocalModel: () => void
   unloadingLocalModel?: boolean
   unloadError?: string | null
@@ -24,6 +26,8 @@ export default function ProviderSelect({
   onChange,
   model,
   onModelChange,
+  frontierModel,
+  onFrontierModelChange,
   onUnloadLocalModel,
   unloadingLocalModel = false,
   unloadError = null,
@@ -32,9 +36,17 @@ export default function ProviderSelect({
 }: ProviderSelectProps) {
   const selected = providers.find((provider) => provider.id === value)
   const localProvider = providers.find((provider) => provider.id === 'local')
+  const frontierProvider = providers.find((provider) => provider.id === 'frontier')
   const localModels = localProvider?.models ?? []
+  const frontierModels = frontierProvider?.models ?? []
   const hasAvailableLocalModel = localModels.some((candidate) => candidate.available)
+  const hasAvailableFrontierModel = frontierModels.some(
+    (candidate) => candidate.available,
+  )
   const selectedModel = localModels.find((candidate) => candidate.id === model)
+  const selectedFrontierModel = frontierModels.find(
+    (candidate) => candidate.id === frontierModel,
+  )
   const runtimeState = localProvider?.runtimeState ?? 'unknown'
   const loadedModel = localProvider?.loadedModel
   const loadedModelLabel =
@@ -81,6 +93,8 @@ export default function ProviderSelect({
       : selected?.reason ??
         localModels.find((candidate) => candidate.reason)?.reason ??
         '서버에서 사용 가능한 로컬 모델을 확인하지 못했습니다.'
+  } else if (value === 'frontier' && selectedFrontierModel) {
+    detail = `${selected?.label ?? providerDisplayName(value)} · ${selectedFrontierModel.label} 우선, 지연 시 다른 Gemini 모델로 전환`
   } else if (selected?.model) {
     detail = `${selected.label} · ${selected.model}`
   }
@@ -114,7 +128,7 @@ export default function ProviderSelect({
           </select>
         </label>
         {value === 'local' && (
-          <label className="local-model-select">
+          <label className="provider-model-select">
             <span>로컬 모델</span>
             <select
               aria-describedby="provider-select-detail"
@@ -133,6 +147,41 @@ export default function ProviderSelect({
                     </option>
                   )}
                   {localModels.map((candidate) => (
+                    <option
+                      disabled={!candidate.available}
+                      key={candidate.id}
+                      title={candidate.reason}
+                      value={candidate.id}
+                    >
+                      {candidate.label}
+                      {!candidate.available ? ' (사용 불가)' : ''}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </label>
+        )}
+        {value === 'frontier' && (
+          <label className="provider-model-select">
+            <span>Gemini 모델</span>
+            <select
+              aria-describedby="provider-select-detail"
+              aria-label="Gemini 모델"
+              disabled={disabled || !hasAvailableFrontierModel}
+              onChange={(event) => onFrontierModelChange(event.target.value)}
+              value={frontierModel}
+            >
+              {frontierModels.length === 0 ? (
+                <option value="">사용 가능한 모델 없음</option>
+              ) : (
+                <>
+                  {!frontierModel && (
+                    <option disabled value="">
+                      모델 선택
+                    </option>
+                  )}
+                  {frontierModels.map((candidate) => (
                     <option
                       disabled={!candidate.available}
                       key={candidate.id}

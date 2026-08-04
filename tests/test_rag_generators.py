@@ -543,7 +543,6 @@ class GeneratorTests(unittest.TestCase):
                 "질문",
                 ["근거"],
                 requested="gemini",
-                requested_model="must-not-reach-gemini",
             )
 
         self.assertEqual(result.used, "gemini")
@@ -556,6 +555,48 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(
             handler.requests[0]["headers"]["X-Goog-Api-Key"],
             "gemini-secret",
+        )
+
+    def test_selected_gemini_model_is_tried_first_with_configured_fallback(
+        self,
+    ) -> None:
+        fallback_payload = {
+            "modelVersion": "gemini-3.5-flash-lite",
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": "선택 모델 fallback 답변"}]
+                    }
+                }
+            ],
+        }
+        with stub_server(
+            {"status": 429, "payload": {"error": {"message": "quota"}}},
+            {"payload": fallback_payload},
+        ) as (base_url, handler), clean_env(
+            RAG_GEMINI_BASE_URL=f"{base_url}/v1beta",
+            GEMINI_MODEL="gemini-3.5-flash-lite",
+            GEMINI_FALLBACK_MODELS="gemini-3.1-flash-lite",
+            RAG_GEMINI_API_KEY="gemini-secret",
+        ):
+            result = generate(
+                "질문",
+                ["근거"],
+                requested="gemini",
+                requested_model="gemini-3.1-flash-lite",
+            )
+
+        self.assertEqual(
+            [request["path"] for request in handler.requests],
+            [
+                "/v1beta/models/gemini-3.1-flash-lite:generateContent",
+                "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+            ],
+        )
+        self.assertEqual(result.model, "gemini-3.5-flash-lite")
+        self.assertEqual(
+            result.fallback_reason,
+            "gemini:gemini-3.1-flash-lite:http_429",
         )
 
     def test_gemini_rate_limit_falls_back_to_next_model(self) -> None:

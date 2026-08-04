@@ -28,6 +28,7 @@ from bm25_search import (
 from search_api import (
     ApiError,
     ParserIndexTarget,
+    RetrievalModeState,
     attribute_claim,
     build_rag_response,
     build_gemini_prompt,
@@ -40,6 +41,7 @@ from search_api import (
     generation_may_use_local,
     is_loopback_bind_host,
     is_authorized,
+    learned_dense_artifact_path,
     load_env_file,
     local_attempt_model,
     local_models,
@@ -48,9 +50,11 @@ from search_api import (
     public_results,
     replace_with_adjacent_temporal_contexts,
     resolve_parser_target,
+    resolve_retrieval_mode,
     search_pipeline,
     select_answer_claims,
     select_distinct_contexts,
+    share_learned_dense_embedder,
     SearchHandler,
     validate_question,
     validate_requested_model,
@@ -195,6 +199,51 @@ class ApiHardeningTests(unittest.TestCase):
             load_env_file(env_file, override=True)
             self.assertEqual(os.environ["GEMINI_MODEL"], "from-file")
 
+    def test_learned_dense_artifacts_are_scoped_by_parser_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            legacy = root / "kure-v1"
+            baseline = root / "baseline" / "kure-v1"
+            legacy.mkdir(parents=True)
+
+            self.assertEqual(
+                learned_dense_artifact_path(root, "cascade", "kure-v1"),
+                legacy,
+            )
+            self.assertEqual(
+                learned_dense_artifact_path(root, "baseline", "kure-v1"),
+                baseline,
+            )
+
+            baseline.mkdir(parents=True)
+            self.assertEqual(
+                learned_dense_artifact_path(root, "baseline", "kure-v1"),
+                baseline,
+            )
+
+    def test_learned_dense_query_models_are_shared_across_profiles(self) -> None:
+        first_embedder = SimpleNamespace(max_sequence_length=512)
+        second_embedder = SimpleNamespace(max_sequence_length=512)
+        first = SimpleNamespace(
+            model_id="test/model",
+            model_revision="revision",
+            query_prefix="query: ",
+            embedder=first_embedder,
+        )
+        second = SimpleNamespace(
+            model_id="test/model",
+            model_revision="revision",
+            query_prefix="query: ",
+            embedder=second_embedder,
+        )
+        cache: dict[tuple[object, ...], object] = {}
+
+        share_learned_dense_embedder(first, cache)  # type: ignore[arg-type]
+        share_learned_dense_embedder(second, cache)  # type: ignore[arg-type]
+
+        self.assertIs(first.embedder, first_embedder)
+        self.assertIs(second.embedder, first_embedder)
+
     def test_top_k_is_clamped_to_safe_bounds(self) -> None:
         with patched_env(RAG_MAX_TOP_K="3"):
             self.assertEqual(parse_top_k("-1"), 1)
@@ -240,6 +289,45 @@ class ApiHardeningTests(unittest.TestCase):
 
         self.assertEqual(unknown.exception.error, "invalid_parser_profile")
         self.assertEqual(invalid_type.exception.error, "invalid_parser_profile")
+
+    def test_retrieval_mode_selection_is_explicit_and_fail_closed(self) -> None:
+        fake_retriever = object()
+        target = ParserIndexTarget(
+            "cascade",
+            Path("cascade.sqlite"),
+            None,
+            None,
+            {
+                "bm25": RetrievalModeState(
+                    "bm25", "BM25", None
+                ),
+                "kure_dense": RetrievalModeState(
+                    "kure_dense", "KURE Dense", fake_retriever  # type: ignore[arg-type]
+                ),
+                "snowflake_dense": RetrievalModeState(
+                    "snowflake_dense",
+                    "Snowflake Dense",
+                    None,
+                    "learned_dense_index_missing",
+                ),
+            },
+        )
+
+        self.assertEqual(resolve_retrieval_mode(target, "bm25").id, "bm25")
+        self.assertIs(
+            resolve_retrieval_mode(target, "kure_dense").retriever,
+            fake_retriever,
+        )
+        with self.assertRaises(ApiError) as unknown:
+            resolve_retrieval_mode(target, "unknown")
+        with self.assertRaises(ApiError) as unavailable:
+            resolve_retrieval_mode(target, "snowflake_dense")
+
+        self.assertEqual(unknown.exception.error, "invalid_retrieval_mode")
+        self.assertEqual(
+            unavailable.exception.error,
+            "retrieval_mode_unavailable",
+        )
 
     def test_parser_index_registry_rejects_profile_metadata_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -584,6 +672,11 @@ class ApiHardeningTests(unittest.TestCase):
         self.assertTrue(status["configured"])
         self.assertEqual(status["label"], "프론티어 AI (Gemini)")
         self.assertEqual(status["model"], "gemini-test")
+        self.assertEqual(status["default_model"], "gemini-test")
+        self.assertEqual(
+            [model["id"] for model in status["models"]],
+            ["gemini-test", "gemini-3.1-flash-lite"],
+        )
         self.assertEqual(status["implementation"], "gemini")
 
         with patched_env(
@@ -647,6 +740,7 @@ class ApiHardeningTests(unittest.TestCase):
                         {
                             "question": "ragtestterm",
                             "provider": "frontier",
+                            "model": "gemini-test",
                         },
                     )
 
@@ -655,6 +749,10 @@ class ApiHardeningTests(unittest.TestCase):
                     generate_mock.call_args.kwargs["requested"],
                     "gemini",
                 )
+                self.assertEqual(
+                    generate_mock.call_args.kwargs["requested_model"],
+                    "gemini-test",
+                )
                 self.assertEqual(payload["generation"]["requested"], "frontier")
                 self.assertEqual(payload["generation"]["used"], "frontier")
                 self.assertEqual(payload["generation"]["implementation"], "gemini")
@@ -662,7 +760,7 @@ class ApiHardeningTests(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
 
-    def test_local_model_validation_uses_default_and_exact_allowlist(self) -> None:
+    def test_provider_model_validation_uses_exact_allowlists(self) -> None:
         with patched_env(
             RAG_LOCAL_MODEL="local/default",
             RAG_LOCAL_MODELS="local/second,local/third",
@@ -677,13 +775,37 @@ class ApiHardeningTests(unittest.TestCase):
             with self.assertRaises(ApiError) as padded:
                 validate_requested_model("local", " local/second ")
             with self.assertRaises(ApiError) as wrong_provider:
-                validate_requested_model("gemini", "local/second")
+                validate_requested_model("auto", "local/second")
 
         self.assertEqual(unknown.exception.error, "invalid_local_model")
         self.assertEqual(padded.exception.error, "invalid_local_model")
         self.assertEqual(
             wrong_provider.exception.error,
             "model_not_allowed_for_provider",
+        )
+
+        with patched_env(
+            GEMINI_MODEL="gemini-3.5-flash-lite",
+            GEMINI_FALLBACK_MODELS="gemini-3.1-flash-lite",
+        ):
+            self.assertEqual(
+                validate_requested_model(
+                    "frontier", "gemini-3.1-flash-lite"
+                ),
+                "gemini-3.1-flash-lite",
+            )
+            self.assertEqual(
+                validate_requested_model(
+                    "gemini", "gemini-3.5-flash-lite"
+                ),
+                "gemini-3.5-flash-lite",
+            )
+            with self.assertRaises(ApiError) as unknown_gemini:
+                validate_requested_model("frontier", "gemini-unknown")
+
+        self.assertEqual(
+            unknown_gemini.exception.error,
+            "invalid_gemini_model",
         )
 
         with patched_env(

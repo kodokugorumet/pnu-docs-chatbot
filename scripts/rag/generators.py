@@ -176,8 +176,9 @@ def generate(
     Explicit network-provider requests try only that provider, followed by the
     supplied extractive fallback when present.  They never silently send
     contexts to a different network provider.  ``auto`` follows
-    ``RAG_AUTO_PROVIDER_ORDER``.  ``requested_model`` overrides only a local
-    OpenAI-compatible request and never mutates process environment state.
+    ``RAG_AUTO_PROVIDER_ORDER``.  ``requested_model`` overrides a local model
+    or makes one configured Gemini candidate the first attempt.  It never
+    mutates process environment state.
     """
 
     normalized_question = str(question or "").strip()
@@ -224,14 +225,14 @@ def generate(
 
     for provider in providers:
         started = time.monotonic()
-        local_model_override = (
+        model_override = (
             _normalized_model(requested_model)
-            if provider == "local"
+            if provider in {"local", "gemini"}
             else None
         )
         model = _configured_model(
             provider,
-            local_model_override=local_model_override,
+            model_override=model_override,
         )
         try:
             if _remaining(deadline) <= 0:
@@ -244,13 +245,17 @@ def generate(
                     deadline,
                 )
             elif provider == "gemini":
-                output = _run_gemini(prompt, deadline)
+                output = _run_gemini(
+                    prompt,
+                    deadline,
+                    requested_model=model_override,
+                )
             else:
                 output = _run_openai_compatible(
                     provider,
                     prompt,
                     deadline,
-                    local_model_override=local_model_override,
+                    local_model_override=model_override,
                 )
             text = output.text.strip()
             if not text:
@@ -548,7 +553,9 @@ def _run_openai_compatible(
     return _ProviderOutput(text=text, model=reported_model)
 
 
-def _gemini_model_candidates() -> tuple[str, ...]:
+def _gemini_model_candidates(
+    preferred_model: str | None = None,
+) -> tuple[str, ...]:
     primary = (
         os.environ.get("RAG_GEMINI_MODEL")
         or os.environ.get("GEMINI_MODEL")
@@ -559,7 +566,7 @@ def _gemini_model_candidates() -> tuple[str, ...]:
         or os.environ.get("GEMINI_FALLBACK_MODELS")
         or ""
     )
-    candidates = [primary]
+    candidates = [preferred_model, primary]
     candidates.extend(
         item.strip() for item in raw_fallbacks.split(",") if item.strip()
     )
@@ -612,12 +619,17 @@ def _gemini_failure_reason(model: str, error: _ProviderFailure) -> str:
     return f"gemini:{model}:{detail}"
 
 
-def _run_gemini(prompt: str, deadline: float) -> _ProviderOutput:
+def _run_gemini(
+    prompt: str,
+    deadline: float,
+    *,
+    requested_model: str | None = None,
+) -> _ProviderOutput:
     base_url = os.environ.get(
         "RAG_GEMINI_BASE_URL",
         DEFAULT_GEMINI_BASE_URL,
     ).strip()
-    models = _gemini_model_candidates()
+    models = _gemini_model_candidates(requested_model)
     api_key = (
         os.environ.get("RAG_GEMINI_API_KEY")
         or os.environ.get("GOOGLE_API_KEY")
@@ -835,15 +847,17 @@ def _normalized_model(value: str | None) -> str | None:
 def _configured_model(
     provider: str,
     *,
-    local_model_override: str | None = None,
+    model_override: str | None = None,
 ) -> str | None:
     if provider == "local":
-        if local_model_override:
-            return local_model_override
+        if model_override:
+            return model_override
         return os.environ.get("RAG_LOCAL_MODEL", "").strip() or None
     if provider == "frontier":
         return os.environ.get("RAG_FRONTIER_MODEL", "").strip() or None
     if provider == "gemini":
+        if model_override:
+            return model_override
         return (
             os.environ.get("RAG_GEMINI_MODEL")
             or os.environ.get("GEMINI_MODEL")
