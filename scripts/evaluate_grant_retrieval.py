@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from bm25_search import search_index  # noqa: E402
+from grant_retrieval import MODES, build_searcher  # noqa: E402
 from rag.grant_router import route, filter_hits  # noqa: E402
 
 # section 부분 문자열 → (기관 목록, 제목 부분 문자열 목록). 둘 중 하나라도
@@ -74,10 +74,14 @@ def main() -> None:
     ap.add_argument("--eval-file", type=Path, default=Path("config/grant-rules-answer-eval.jsonl"))
     ap.add_argument("--top-k", type=int, default=5)
     ap.add_argument("--routing", action="store_true", help="기관 스코프 라우팅 적용")
+    ap.add_argument("--retrieval-mode", choices=MODES, default="bm25")
+    ap.add_argument("--dense-artifact", type=Path, default=None,
+                    help="dense/hybrid 모드에서 쓸 learned dense 아티팩트 디렉터리")
     ap.add_argument("--json-out", type=Path, default=None)
     args = ap.parse_args()
 
     items = [json.loads(l) for l in args.eval_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+    search = build_searcher(args.index, args.retrieval_mode, args.dense_artifact)
 
     covered = uncovered = hits_at_k = 0
     rr_sum = 0.0
@@ -95,10 +99,10 @@ def main() -> None:
         accept = [exp] + EXTRA_ACCEPT.get(it["id"], [])
         if args.routing:
             scope = route(it["query"])
-            raw_hits = search_index(args.index, it["query"], max(30, args.top_k * 6), None)
+            raw_hits = search(it["query"], max(30, args.top_k * 6))
             hits = filter_hits(raw_hits, scope, args.top_k, it["query"])
         else:
-            hits = search_index(args.index, it["query"], args.top_k, None)
+            hits = search(it["query"], args.top_k)
         rank = hit_rank(hits, accept)
         key = it["section"].split("-")[0].split("–")[0].strip()[:24]
         per_section.setdefault(key, []).append(1 if rank else 0)
@@ -111,6 +115,7 @@ def main() -> None:
         results.append({"id": it["id"], "status": "hit" if rank else "miss", "rank": rank,
                         "section": it["section"], "query": it["query"]})
 
+    print(f"mode={args.retrieval_mode} routing={args.routing} index={args.index.name}")
     print(f"covered {covered} / uncovered {uncovered} (total {len(items)})")
     print(f"Hit@{args.top_k}: {hits_at_k}/{covered} = {hits_at_k/max(covered,1):.3f}")
     print(f"MRR: {rr_sum/max(covered,1):.4f}")
@@ -126,6 +131,9 @@ def main() -> None:
     if args.json_out:
         args.json_out.write_text(json.dumps({
             "index": str(args.index), "top_k": args.top_k,
+            "retrieval_mode": args.retrieval_mode,
+            "dense_artifact": str(args.dense_artifact) if args.dense_artifact else None,
+            "routing": args.routing,
             "covered": covered, "uncovered": uncovered,
             "hit_at_k": hits_at_k, "mrr": rr_sum / max(covered, 1),
             "results": results,

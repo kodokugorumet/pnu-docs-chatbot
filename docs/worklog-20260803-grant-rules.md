@@ -143,6 +143,78 @@
 추천 배분(3인): A=평가셋+페르소나 / B=채점·블라인드비교·검수 / C=조사·시나리오·수집.
 다음 액션 후보: 팀원 전달용 작업 지시서 + 평가셋 템플릿 제작 (사용자 요청 대기)
 
+## 2026-08-04 세션 — learned dense 하이브리드 적용 (레버 1)
+
+### 브랜치 정리 (선행 작업)
+- `feat/learned-dense-hybrid` (b6669b7): dense 검색 코드 + search_api/UI 연동
+- `feat/grant-rules-corpus` (d8e8c70): 연구비 평가 트랙, 위 브랜치 위에 스택
+- `diagrams/`는 7/28 데모 커밋에서 누락된 고아 파일이라 어느 쪽도 아니어서 untracked 유지
+
+### 인덱스 빌드
+grant corpus(3,483 chunks)에 대해 두 모델 모두 빌드, 각 27초 / `verified: true`:
+`processed/index/learned-dense/grant-rules-20260803/{kure-v1,snowflake-arctic-l-v2-ko}/`
+
+### 검색 평가 (53문항, 라우팅 적용, top-5)
+| 구성 | Hit@5 | MRR |
+|---|---|---|
+| **BM25 (어제 baseline 재현)** | **45/46 (97.8%)** | **0.9167** |
+| KURE dense 단독 | 41/46 (89.1%) | 0.8377 |
+| KURE 하이브리드(RRF) | 44/46 (95.7%) | 0.8967 |
+| Snowflake dense 단독 | 44/46 (95.7%) | 0.8986 |
+| Snowflake 하이브리드(RRF) | 44/46 (95.7%) | 0.8967 |
+
+**문서 단위 지표만 보면 dense는 개선이 아니라 후퇴다.** BM25가 이미 45/46이라
+헤드룸이 없고, dense는 grant_011/018/021/023/028을 1위에서 miss로 떨어뜨린다.
+단, **어제 유일한 miss였던 grant_050("신청 절차")은 모든 dense 구성에서 해결**
+(miss → 2위, 하이브리드는 4위). 예측했던 어휘 갭 사례가 맞았다.
+
+### 핵심 진단 — 청크 단위 근거 커버리지 (이 작업의 실제 목적)
+문서 단위 Hit@5는 **어제 무응답을 유발한 표 청크가 컨텍스트에 들어왔는지**를 보지
+못한다. 생성 0점 35문항 중 기준답안에 수치가 있는 19문항에 대해, 라우팅 top-8
+컨텍스트 안에 기준답안의 수치(금액·비율·기간)가 실제로 등장하는지 측정했다.
+
+| 구성 | 근거 수치가 컨텍스트에 등장 | baseline 대비 |
+|---|---|---|
+| BM25 | 10/19 | — |
+| **KURE dense** | **17/19** | +7, **잃은 문항 0** |
+| Snowflake dense | 16/19 | +6, 잃은 문항 0 |
+| Snowflake 하이브리드 | 16/19 | +6, 잃은 문항 0 |
+| KURE 하이브리드 | 15/19 | +5, 잃은 문항 0 |
+
+**두 지표가 정반대를 가리킨다.** BM25는 올바른 *문서*를 찾지만 그 안의 올바른
+*청크*(금액이 든 별표)를 못 집는다. dense는 그 반대다. 어느 구성도 BM25가 이미
+확보한 근거를 잃지 않았다(strictly dominant) — 순수 추가 이득이다.
+새로 근거를 확보한 문항: grant_023, 028, 032, 034, 036, 045, 046.
+
+grant_038·051은 전 구성에서 여전히 0 — 별도 원인(파싱 누락 또는 미수집) 확인 필요.
+
+### 결론 및 다음 레버
+- 생성 품질을 좌우하는 건 청크 단위 근거 커버리지이므로 **dense를 도입할 가치가 있다.**
+  다만 dense 단독은 문서 정밀도를 잃어 오문서 인용 위험이 있다
+- 현행 RRF 하이브리드는 두 지표 모두에서 어중간하다(문서 44/46, 근거 15/19).
+  **다음 레버: 생성 컨텍스트를 "BM25로 문서 선택 + dense로 청크 보강"으로 구성**
+  — `evaluate_grant_generation.py`의 컨텍스트 조립부(diverse 5 + 상위 문서 추가 청크)
+  에서 추가 청크를 BM25 raw 대신 dense로 뽑는 방식. 두 지표의 장점을 합칠 수 있다
+- 임베딩 모델은 근거 커버리지 기준 KURE(17/19) > Snowflake(16/19), 문서 정밀도는
+  Snowflake 우위. 하이브리드 구성이 정해지면 다시 비교할 것
+
+### 이번 세션 코드 변경
+- `scripts/grant_retrieval.py` (신규): bm25/dense/hybrid를 `(query, top_k) -> list[dict]`
+  하나로 감싼 어댑터. `rag` 패키지는 BM25에 의존하지 않는 재사용 계층이라 글루 코드는
+  `search_api`와 같은 스크립트 계층에 뒀다
+- `scripts/evaluate_grant_retrieval.py`: `--retrieval-mode`, `--dense-artifact` 추가
+- `tests/test_grant_retrieval.py` (신규): 세 모드 배선 검증. 전체 219 테스트 통과
+- 평가 결과: `processed/eval/20260804-grant-*.json` 5건
+
+### 생성 평가 (미실행, 결정 사항 기록)
+- 로컬 모델 `mlx-community/gemma-4-26b-a4b-it-4bit`로 진행하기로 결정 (EXAONE 제외)
+- 착수 시: `evaluate_grant_generation.py`는 `generators.generate`를 직접 호출해
+  MLX 서버가 뜨지 않으므로, `scripts/local_model_runtime.py`의
+  `build_local_model_runtime()`을 재사용해 `runtime.generation(model)`으로 감싸야 함
+  (현재 `managed_mlx` 기동은 `search_api`만 소유)
+- judge는 Gemini 유지 권장 — 어제 0.67이 Gemini judge 기준이라 채점자를 바꾸면 비교 불가.
+  생성기 교체분도 있으므로 "옛 검색 + 로컬 생성" baseline 1회가 추가로 필요
+
 ## 미해결/주의
 - Drive 자료실 접근 요청은 **보내지 않음** (사용자 결정 대기 상태였음 → 공식 수집으로 대체)
 - 수과원은 2026판 사용 중 — 기준답안(2025 기반)과 단가 다를 수 있음
