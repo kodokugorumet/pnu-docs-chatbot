@@ -45,6 +45,7 @@ def build_searcher(
     diversify: bool = True,
     max_chunks_per_document: int = 2,
     min_chars: int = 0,
+    reranker: Callable[[str, list[dict[str, Any]]], list[dict[str, Any]]] | None = None,
 ) -> Searcher:
     """검색 모드 하나를 `(query, top_k) -> list[dict]` 호출로 만들어 준다.
 
@@ -52,6 +53,11 @@ def build_searcher(
     BM25는 `search_index` 안에서 이미 문서 다양화를 하는데 dense 경로에는 그 단계가
     없어서, 문서 단위 지표가 BM25에만 유리하게 기울어 있었다(2026-08-04 원인 분석).
     `diversify=True`인 bm25 모드는 `search_index`와 동일한 동작이다.
+
+    `reranker`는 다양화 **이전**의 넓은 후보 풀에 적용한다. 문서당 캡이
+    "그 문서의 어느 청크를 남길지"를 BM25 순위로 정해 버리기 전에, 리랭커가
+    그 선택을 하게 하기 위해서다(2026-08-05, 실패 16문항이 전부 "정답 문서의
+    엉뚱한 조각" 문제라는 8/4 밤 분석에 대응).
     """
 
     if mode not in MODES:
@@ -81,6 +87,8 @@ def build_searcher(
                 preview_chars=preview_chars,
                 include_text=True,
             )
+            if reranker is not None:
+                rows = reranker(query, rows)
             return postprocess(rows, top_k)
 
         return bm25_searcher
@@ -127,7 +135,10 @@ def build_searcher(
     def learned_searcher(query: str, top_k: int) -> list[dict[str, Any]]:
         # 후처리로 걸러낼 몫을 감안해 BM25와 같은 폭으로 후보를 넉넉히 받는다.
         width = _candidate_limit(top_k) if (diversify or min_chars > 0) else top_k
-        return postprocess(_as_dicts(retriever.search(query, top_k=width).hits), top_k)
+        rows = _as_dicts(retriever.search(query, top_k=width).hits)
+        if reranker is not None:
+            rows = reranker(query, rows)
+        return postprocess(rows, top_k)
 
     return learned_searcher
 
