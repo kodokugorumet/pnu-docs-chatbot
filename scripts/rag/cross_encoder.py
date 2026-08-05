@@ -44,6 +44,8 @@ class CrossEncoderReranker:
         device: str | None = None,
         instruction: str | None = None,
         doc_char_limit: int = 1500,
+        fusion: str | None = None,
+        rrf_k: int = 60,
     ) -> None:
         self.model_name = model_name
         self._max_length = max_length
@@ -53,6 +55,14 @@ class CrossEncoderReranker:
         # 템플릿 꼬리(<|im_end|>...<think>)가 문서 뒤에 붙으므로, 토크나이저
         # 절단에 꼬리가 잘려나가지 않도록 문서를 먼저 글자 수로 자른다.
         self._doc_char_limit = doc_char_limit
+        # fusion="rrf": CE 점수로 완전히 갈아엎지 않고 입력(BM25) 순위와
+        # CE 순위를 reciprocal rank fusion으로 합친다. CE 단독 재정렬은
+        # BM25의 제목·조문 직격 매칭을 밀어내는 비용이 있었다(2026-08-05
+        # A 실험: 0점 5문항 회복 ↔ 멀쩡한 5문항 0점).
+        if fusion not in (None, "rrf"):
+            raise ValueError(f"unknown fusion: {fusion} (expected None or 'rrf')")
+        self._fusion = fusion
+        self._rrf_k = rrf_k
         self._is_qwen3 = "qwen3-reranker" in model_name.lower()
         if self._is_qwen3:
             # 템플릿(~150토큰) + 한국어 1,500자 문서가 1024를 넘을 수 있어
@@ -95,6 +105,17 @@ class CrossEncoderReranker:
         )
         for row, score in zip(out, scores):
             row["cross_encoder_score"] = float(score)
+        if self._fusion == "rrf":
+            ce_order = sorted(
+                range(len(out)), key=lambda i: -out[i]["cross_encoder_score"]
+            )
+            ce_rank = {idx: pos + 1 for pos, idx in enumerate(ce_order)}
+            k = self._rrf_k
+            for i, row in enumerate(out):
+                # 입력 순서 = BM25 순위 (grant_retrieval이 순위대로 넘겨줌)
+                row["rrf_score"] = 1.0 / (k + i + 1) + 1.0 / (k + ce_rank[i])
+            out.sort(key=lambda row: -row["rrf_score"])
+            return out
         # 안정 정렬: 점수가 같으면 BM25 순위(입력 순서)를 그대로 둔다.
         out.sort(key=lambda row: -row["cross_encoder_score"])
         return out

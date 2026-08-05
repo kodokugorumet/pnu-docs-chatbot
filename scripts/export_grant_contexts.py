@@ -46,6 +46,8 @@ def main() -> None:
     ap.add_argument("--min-chars", type=int, default=0)
     ap.add_argument("--rerank-model", default=None,
                     help="cross-encoder 리랭커 모델명(HF). 다양화 이전 후보 풀에 적용")
+    ap.add_argument("--rerank-fusion", choices=["rrf"], default=None,
+                    help="CE 단독 재정렬 대신 BM25 순위와 RRF 융합")
     ap.add_argument("--max-chunks-per-doc", type=int, default=2,
                     help="다양화 시 문서당 청크 상한 (기준선=2)")
     ap.add_argument("--parent-expand", action="store_true",
@@ -66,7 +68,9 @@ def main() -> None:
     if args.rerank_model:
         # sentence-transformers 의존이라 요청 시에만 import (ragas venv 오염 방지)
         from rag.cross_encoder import CrossEncoderReranker
-        reranker = CrossEncoderReranker(args.rerank_model).rerank
+        reranker = CrossEncoderReranker(
+            args.rerank_model, fusion=args.rerank_fusion
+        ).rerank
 
     search = build_searcher(
         args.index, args.retrieval_mode, args.dense_artifact,
