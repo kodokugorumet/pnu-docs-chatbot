@@ -73,11 +73,15 @@ def main() -> None:
     ap.add_argument("--timeout", type=float, default=180.0)
     args = ap.parse_args()
 
+    # 답변이 실제로 있는 레코드만 완료로 인정 — 네트워크 단절 등으로 남은
+    # error 레코드는 재실행 시 다시 수집한다.
     done = set()
     if args.out.exists():
         for line in args.out.open():
             try:
-                done.add(json.loads(line)["id"])
+                rec = json.loads(line)
+                if rec.get("answer"):
+                    done.add(rec["id"])
             except (json.JSONDecodeError, KeyError):
                 pass
 
