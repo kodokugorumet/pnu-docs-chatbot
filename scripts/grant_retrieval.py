@@ -22,7 +22,7 @@ from bm25_search import (
     select_document_diverse_results,
 )
 from rag.learned_dense import LearnedDenseIndex
-from rag.retrieval import HybridRetriever
+from rag.retrieval import HybridRetriever, lexical_fallback_rerank
 
 
 MODES = ("bm25", "dense", "hybrid")
@@ -127,9 +127,13 @@ def build_searcher(
             reranker=None,
         )
     else:
+        # CE 리랭커를 밖에서 붙일 때는 내부 기본 lexical 리랭커를 꺼서
+        # 이중 리랭킹을 피한다. 그러면 CE가 받는 입력 순서 = 순수 RRF 순위라
+        # fusion="rrf"가 (레인 융합 순위 × CE 순위)의 깨끗한 2단 융합이 된다.
         retriever = HybridRetriever(
             bm25_search=bm25_lane,
             dense_index=learned_index,
+            reranker=None if reranker is not None else lexical_fallback_rerank,
         )
 
     def learned_searcher(query: str, top_k: int) -> list[dict[str, Any]]:
