@@ -90,17 +90,38 @@ def main() -> None:
             else:
                 scope = route(query)
                 hits = filter_hits(raw, scope, args.top_k, query)
+            def hit_source(hit: dict) -> dict:
+                return {
+                    "institution": hit.get("institution"),
+                    "file_name": hit.get("file_name"),
+                    "chunk_id": hit.get("chunk_id"),
+                    "document_id": hit.get("document_id"),
+                    "char_count": hit.get("char_count"),
+                    "ce_score": hit.get("cross_encoder_score"),
+                }
+
             if args.parent_expand:
                 contexts, expand_meta = expand_hits(
                     args.index, hits,
                     per_parent_chars=args.parent_chars,
                     total_chars=args.parent_total_chars,
                 )
+                # sources를 컨텍스트와 1:1 정렬 — 병합으로 컨텍스트가 히트보다
+                # 적어질 수 있어, anchor chunk_id로 히트를 역참조해 재구성한다.
+                # (생성 평가가 컨텍스트별 메타를 zip으로 쓰기 위한 전제)
+                by_id = {h.get("chunk_id"): h for h in hits}
+                sources = []
+                for m in expand_meta:
+                    src = hit_source(by_id.get(m["chunk_id"], {}))
+                    src.update({"n_chunks": m["n_chunks"], "chars": m["chars"],
+                                "mode": m["mode"]})
+                    sources.append(src)
             else:
                 contexts = [
                     (hit.get("text") or hit.get("preview") or "") for hit in hits
                 ]
                 expand_meta = None
+                sources = [hit_source(h) for h in hits]
             record = {
                 "id": item["id"],
                 "user_input": query,
@@ -110,16 +131,7 @@ def main() -> None:
                     "section": item["section"],
                     "scope": scope,
                     "parent_expand": expand_meta,
-                    "sources": [
-                        {
-                            "institution": hit.get("institution"),
-                            "file_name": hit.get("file_name"),
-                            "chunk_id": hit.get("chunk_id"),
-                            "char_count": hit.get("char_count"),
-                            "ce_score": hit.get("cross_encoder_score"),
-                        }
-                        for hit in hits
-                    ],
+                    "sources": sources,
                 },
             }
             sink.write(json.dumps(record, ensure_ascii=False) + "\n")

@@ -87,6 +87,43 @@ def call_gemini_judge(question: str, reference: str, answer: str, retries: int =
     return {"score": None, "reason": "unreachable"}
 
 
+def litm_order(hits: list[dict]) -> list[dict]:
+    """문서 단위 Lost-in-the-Middle 가장자리 배치.
+
+    입력은 검색 순위순. 문서군은 첫 등장 순서를 강도로 삼고, 같은 문서 안은
+    원래 순서(원문 조문 순서)를 유지한다(D24). 배치는 1,3,5,…,6,4,2 —
+    가장 강한 군을 맨 앞, 다음 강한 군을 맨 뒤, 약한 군을 가운데로.
+    """
+    groups: dict = {}
+    order = []
+    for h in hits:
+        key = h.get("document_id") or h.get("chunk_id") or id(h)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(h)
+    front, back = [], []
+    for pos, key in enumerate(order):
+        (front if pos % 2 == 0 else back).append(groups[key])
+    return [h for g in front + back[::-1] for h in g]
+
+
+def load_context_map(path: Path) -> dict:
+    """export_grant_contexts.py 산출물을 id → (contexts, sources, scope)로 로드."""
+    out = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        meta = rec.get("meta") or {}
+        out[rec["id"]] = (
+            rec["retrieved_contexts"],
+            meta.get("sources") or [],
+            meta.get("scope"),
+        )
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--index", type=Path, default=Path("processed/index/grant-rules-20260803.sqlite"))
@@ -96,12 +133,54 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0, help="앞에서 N문항만 (0=전체)")
     ap.add_argument("--out", type=Path, default=Path("processed/eval/20260803-grant-generation.jsonl"))
     ap.add_argument("--sleep", type=float, default=2.0, help="문항 간 대기(초)")
+    ap.add_argument("--contexts", type=Path, default=None,
+                    help="export_grant_contexts.py 산출물 주입 — 내부 검색을 건너뛰고 "
+                         "검색 1회 → 생성·채점 N회 구조로 만든다 (RAGAS 트랙과 동일)")
+    ap.add_argument("--litm-order", action="store_true",
+                    help="컨텍스트를 문서 단위 가장자리 배치로 재정렬 (D24)")
+    ap.add_argument("--rejudge", action="store_true",
+                    help="--out 파일에서 judge 실패(score=None) 레코드만 재채점. "
+                         "답변은 보존돼 있으므로 문항당 judge 1호출로 복구된다 "
+                         "(2026-08-06 429 장애 대응). 생성 실패 레코드는 파일에서 "
+                         "제거해 일반 재실행이 다시 생성하게 한다")
     args = ap.parse_args()
 
     load_env(args.env_file)
     items = [json.loads(l) for l in args.eval_file.read_text(encoding="utf-8").splitlines() if l.strip()]
     if args.limit:
         items = items[: args.limit]
+
+    ctx_map = load_context_map(args.contexts) if args.contexts else None
+
+    if args.rejudge:
+        ref = {it["id"]: it for it in items}
+        recs = [json.loads(l) for l in args.out.read_text(encoding="utf-8").splitlines() if l.strip()]
+        kept, fixed, dropped = [], 0, 0
+        for r in recs:
+            broken_gen = r.get("generation", {}).get("error") or not r.get("answer")
+            if broken_gen:
+                dropped += 1  # 일반 재실행이 다시 생성하도록 제거
+                continue
+            if r["judge"].get("score") is None and r["id"] in ref:
+                it = ref[r["id"]]
+                r["judge"] = call_gemini_judge(
+                    it["query"], it["reference_answer"], r["answer"]
+                )
+                if r["judge"].get("score") is not None:
+                    fixed += 1
+                time.sleep(args.sleep)
+            kept.append(r)
+        tmp = args.out.with_suffix(".tmp")
+        with tmp.open("w", encoding="utf-8") as sink:
+            for r in kept:
+                sink.write(json.dumps(r, ensure_ascii=False) + "\n")
+        tmp.replace(args.out)
+        graded = [r["judge"]["score"] for r in kept if isinstance(r["judge"].get("score"), int)]
+        print(f"rejudge: 복구 {fixed}, 생성실패 제거 {dropped}, 채점 완료 {len(graded)}/{len(kept)}")
+        if graded:
+            print(f"mean={sum(graded)/len(graded):.3f}, 2점={graded.count(2)}, "
+                  f"1점={graded.count(1)}, 0점={graded.count(0)}")
+        return
 
     done_ids = set()
     if args.out.exists():
@@ -116,29 +195,47 @@ def main() -> None:
         for it in items:
             if it["id"] in done_ids:
                 continue
-            scope = route(it["query"])
-            # 문서 커버리지는 다양성 검색으로 확보하고, 상위 문서의 추가 청크
-            # (조문+별표 조합)는 원시 후보에서 보충한다.
-            diverse = filter_hits(
-                search_index(args.index, it["query"], 30, None, include_text=True),
-                scope, 5, it["query"],
-            )
-            raw = search_bm25_candidates(args.index, it["query"], 60, None, include_text=True)
-            raw = [h for h in raw if scope is None or (h.get("institution") or "") in scope]
-            seen = {h.get("chunk_id") for h in diverse}
-            top_docs = {h.get("document_id") for h in diverse[:3]}
-            per_doc: dict = {}
-            extra = []
-            for h in raw:
-                doc = h.get("document_id")
-                if doc not in top_docs or h.get("chunk_id") in seen:
-                    continue
-                if per_doc.get(doc, 0) >= 2:
-                    continue
-                per_doc[doc] = per_doc.get(doc, 0) + 1
-                seen.add(h.get("chunk_id"))
-                extra.append(h)
-            hits = (diverse + extra)[: args.top_k + 3]
+            if ctx_map is not None:
+                contexts, sources, scope = ctx_map[it["id"]]
+                hits = [
+                    {
+                        "text": ctx,
+                        "preview": ctx,
+                        "institution": src.get("institution"),
+                        "file_name": src.get("file_name"),
+                        "chunk_id": src.get("chunk_id"),
+                        "document_id": src.get("document_id"),
+                    }
+                    for ctx, src in zip(contexts, sources)
+                ]
+                if args.litm_order:
+                    hits = litm_order(hits)
+            else:
+                scope = route(it["query"])
+                # 문서 커버리지는 다양성 검색으로 확보하고, 상위 문서의 추가 청크
+                # (조문+별표 조합)는 원시 후보에서 보충한다.
+                diverse = filter_hits(
+                    search_index(args.index, it["query"], 30, None, include_text=True),
+                    scope, 5, it["query"],
+                )
+                raw = search_bm25_candidates(args.index, it["query"], 60, None, include_text=True)
+                raw = [h for h in raw if scope is None or (h.get("institution") or "") in scope]
+                seen = {h.get("chunk_id") for h in diverse}
+                top_docs = {h.get("document_id") for h in diverse[:3]}
+                per_doc: dict = {}
+                extra = []
+                for h in raw:
+                    doc = h.get("document_id")
+                    if doc not in top_docs or h.get("chunk_id") in seen:
+                        continue
+                    if per_doc.get(doc, 0) >= 2:
+                        continue
+                    per_doc[doc] = per_doc.get(doc, 0) + 1
+                    seen.add(h.get("chunk_id"))
+                    extra.append(h)
+                hits = (diverse + extra)[: args.top_k + 3]
+                if args.litm_order:
+                    hits = litm_order(hits)
             try:
                 result = generators.generate(it["query"], hits, requested="gemini")
                 answer = result.text
