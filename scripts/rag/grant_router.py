@@ -42,6 +42,12 @@ def route(query: str) -> list[str] | None:
             return None
     for keywords, scope in EXPLICIT_INSTITUTIONS:
         if any(k in query for k in keywords):
+            # 준용 관계 (D40): 기관 지침의 여비 조항은 대부분 공무원 여비
+            # 규정을 준용한다. 기관 단독 고정은 준용 원문(금액·시간 기준)을
+            # 차단한다 — grant_045에서 컨텍스트 8건에 금액 0건으로 실증.
+            # 여비 질의면 기관 + 여비 스코프 합집합으로 넓힌다.
+            if any(t in query for t in TRAVEL_TERMS):
+                return scope + [s for s in TRAVEL_SCOPE if s not in scope]
             return scope
     if any(t in query for t in TRAVEL_TERMS):
         return TRAVEL_SCOPE
