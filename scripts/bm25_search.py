@@ -14,18 +14,33 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
+import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
+
+# Direct CLI execution puts scripts/, not the repository root, on sys.path.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+try:
+    from .rag.corpus import inspect_corpus
+except ImportError:  # Direct CLI execution: python scripts/bm25_search.py
+    from rag.corpus import inspect_corpus
 
 
 DEFAULT_CHUNKS = Path("processed/current/chunks.jsonl")
 DEFAULT_INDEX = Path("processed/index/bm25.sqlite")
+DEFAULT_DENSE_INDEX = Path("processed/index/dense.sqlite")
+DEFAULT_RERANK_CANDIDATE_MULTIPLIER = 4
 TOKEN_RE = re.compile(r"[가-힣]+|[A-Za-z]+|\d+")
 HANGUL_RE = re.compile(r"^[가-힣]+$")
 
@@ -62,6 +77,9 @@ def make_search_text(chunk: dict[str, Any]) -> str:
         metadata.get("file_name", ""),
         metadata.get("relative_path", ""),
         metadata.get("extension", ""),
+        metadata.get("source_title", ""),
+        metadata.get("source_host", ""),
+        metadata.get("category", ""),
         chunk.get("text", ""),
     ]
     tokens = tokenize("\n".join(str(field) for field in fields if field))
@@ -71,7 +89,11 @@ def make_search_text(chunk: dict[str, Any]) -> str:
 def open_index(path: Path) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(str(path))
-    connection.execute("PRAGMA journal_mode=WAL")
+    # The database is built at a private temporary path and published only
+    # after close, so WAL adds no reader benefit.  DELETE mode leaves one
+    # self-contained file that can be opened with SQLite mode=ro immediately;
+    # a WAL-mode main file without its transient -shm sidecar cannot be.
+    connection.execute("PRAGMA journal_mode=DELETE")
     connection.execute("PRAGMA synchronous=NORMAL")
     connection.execute("PRAGMA temp_store=MEMORY")
     return connection
@@ -87,6 +109,7 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
         CREATE TABLE chunks (
           chunk_id TEXT PRIMARY KEY,
           doc_id TEXT NOT NULL,
+          document_id TEXT NOT NULL,
           chunk_index INTEGER NOT NULL,
           institution TEXT,
           source_path TEXT,
@@ -94,7 +117,24 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
           file_name TEXT,
           extension TEXT,
           parser TEXT,
+          source_title TEXT,
+          source_url TEXT,
+          download_url TEXT,
+          source_host TEXT,
+          fetched_at TEXT,
+          published_at TEXT,
+          category TEXT,
+          include_reason TEXT,
+          crawl_storage_path TEXT,
+          source_aliases_json TEXT NOT NULL DEFAULT '[]',
           char_count INTEGER,
+          page_start INTEGER,
+          page_end INTEGER,
+          section_path_json TEXT,
+          table_ids_json TEXT NOT NULL DEFAULT '[]',
+          block_ids_json TEXT NOT NULL DEFAULT '[]',
+          locations_json TEXT NOT NULL DEFAULT '[]',
+          corpus_revision TEXT NOT NULL,
           text TEXT NOT NULL
         );
 
@@ -111,6 +151,7 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
 
         CREATE INDEX idx_chunks_institution ON chunks(institution);
         CREATE INDEX idx_chunks_doc_id ON chunks(doc_id);
+        CREATE INDEX idx_chunks_document_id ON chunks(document_id);
         """
     )
 
@@ -127,93 +168,646 @@ def iter_chunks(path: Path) -> Iterable[dict[str, Any]]:
                 raise RuntimeError(f"Invalid JSON at {path}:{line_no}: {exc}") from exc
 
 
-def build_index(chunks_path: Path, index_path: Path, batch_size: int) -> dict[str, Any]:
-    if not chunks_path.exists():
-        raise FileNotFoundError(f"Missing chunks file: {chunks_path}")
+def _json_text(value: Any, default: Any) -> str:
+    normalized = value if value is not None else default
+    return json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
 
-    connection = open_index(index_path)
-    ensure_schema(connection)
 
-    chunk_rows: list[tuple[Any, ...]] = []
-    fts_rows: list[tuple[str, str]] = []
-    institutions: Counter[str] = Counter()
-    total = 0
+def _chunks_paths(value: Path | Sequence[Path]) -> list[Path]:
+    paths = [value] if isinstance(value, Path) else list(value)
+    if not paths:
+        raise ValueError("At least one chunks file is required")
+    normalized = [Path(path) for path in paths]
+    missing = [path for path in normalized if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"Missing chunks file: {missing[0]}")
+    return normalized
 
-    def flush() -> None:
-        nonlocal chunk_rows, fts_rows
-        if not chunk_rows:
-            return
-        connection.executemany(
-            """
-            INSERT INTO chunks (
-              chunk_id, doc_id, chunk_index, institution, source_path, relative_path,
-              file_name, extension, parser, char_count, text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            chunk_rows,
+
+def _collection_revision(revisions: Sequence[str]) -> str:
+    if len(revisions) == 1:
+        return revisions[0]
+    payload = json.dumps(
+        sorted(revisions),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return f"collection:{hashlib.sha256(payload).hexdigest()[:24]}"
+
+
+def build_index(
+    chunks_path: Path | Sequence[Path],
+    index_path: Path,
+    batch_size: int,
+    *,
+    allow_suspect: bool = False,
+    require_manifest: bool = False,
+) -> dict[str, Any]:
+    """Build a gated index and atomically publish it when complete."""
+
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    chunks_paths = _chunks_paths(chunks_path)
+    sources = [
+        (
+            path,
+            inspect_corpus(
+                path,
+                allow_suspect=allow_suspect,
+                require_manifest=require_manifest,
+            ),
         )
+        for path in chunks_paths
+    ]
+    corpus_revision = _collection_revision(
+        [gate.corpus_revision for _, gate in sources]
+    )
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_index = index_path.with_name(f".{index_path.name}.{uuid.uuid4().hex}.tmp")
+    connection: sqlite3.Connection | None = None
+
+    try:
+        connection = open_index(temporary_index)
+        ensure_schema(connection)
+
+        chunk_rows: list[tuple[Any, ...]] = []
+        fts_rows: list[tuple[str, str]] = []
+        institutions: Counter[str] = Counter()
+        seen_chunk_ids: set[str] = set()
+        total = 0
+
+        def flush() -> None:
+            nonlocal chunk_rows, fts_rows
+            if not chunk_rows:
+                return
+            assert connection is not None
+            connection.executemany(
+                """
+                INSERT INTO chunks (
+                  chunk_id, doc_id, document_id, chunk_index, institution,
+                  source_path, relative_path, file_name, extension, parser,
+                  source_title, source_url, download_url, source_host,
+                  fetched_at, published_at, category, include_reason,
+                  crawl_storage_path, source_aliases_json,
+                  char_count, page_start, page_end, section_path_json,
+                  table_ids_json, block_ids_json, locations_json,
+                  corpus_revision, text
+                ) VALUES (
+                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                chunk_rows,
+            )
+            connection.executemany(
+                "INSERT INTO chunk_fts (chunk_id, search_text) VALUES (?, ?)",
+                fts_rows,
+            )
+            connection.commit()
+            chunk_rows = []
+            fts_rows = []
+
+        for source_path, gate in sources:
+            for chunk in iter_chunks(source_path):
+                if not gate.allows_chunk(chunk):
+                    continue
+                metadata = chunk.get("metadata") or {}
+                chunk_id = str(chunk["chunk_id"])
+                if chunk_id in seen_chunk_ids:
+                    raise RuntimeError(
+                        f"Duplicate chunk_id across corpus sources: {chunk_id}"
+                    )
+                seen_chunk_ids.add(chunk_id)
+                document_id = str(
+                    chunk.get("document_id") or chunk.get("doc_id") or ""
+                )
+                if not document_id:
+                    raise RuntimeError(
+                        f"Chunk {chunk_id} is missing document_id/doc_id"
+                    )
+                institution = str(metadata.get("institution") or "")
+                text = str(chunk.get("text") or "")
+                block_ids = (
+                    metadata.get("block_ids")
+                    if isinstance(metadata.get("block_ids"), list)
+                    else []
+                )
+                table_ids = (
+                    metadata.get("table_ids")
+                    if isinstance(metadata.get("table_ids"), list)
+                    else []
+                )
+                chunk_rows.append(
+                    (
+                        chunk_id,
+                        document_id,
+                        document_id,
+                        int(chunk.get("chunk_index", 0)),
+                        institution,
+                        metadata.get("source_path", ""),
+                        metadata.get("relative_path", ""),
+                        metadata.get("file_name", ""),
+                        metadata.get("extension", ""),
+                        metadata.get("parser", ""),
+                        metadata.get("source_title", ""),
+                        metadata.get("source_url", ""),
+                        metadata.get("download_url", ""),
+                        metadata.get("source_host", ""),
+                        metadata.get("fetched_at", ""),
+                        metadata.get("published_at", ""),
+                        metadata.get("category", ""),
+                        metadata.get("include_reason", ""),
+                        metadata.get("crawl_storage_path", ""),
+                        _json_text(metadata.get("source_aliases"), []),
+                        int(chunk.get("char_count") or len(text)),
+                        metadata.get("page_start"),
+                        metadata.get("page_end"),
+                        _json_text(metadata.get("section_path"), None),
+                        _json_text(table_ids, []),
+                        _json_text(block_ids, []),
+                        _json_text(gate.locations_for_chunk(chunk), []),
+                        gate.corpus_revision,
+                        text,
+                    )
+                )
+                fts_rows.append((chunk_id, make_search_text(chunk)))
+                institutions[institution] += 1
+                total += 1
+
+                if total % batch_size == 0:
+                    flush()
+                    print(f"Indexed {total} chunks")
+
+        flush()
+        if total == 0:
+            raise RuntimeError("Corpus gate produced no non-empty chunks")
+
+        created_at = datetime.now(timezone.utc).isoformat()
+        single_gate = sources[0][1] if len(sources) == 1 else None
+        source_descriptors = [
+            {
+                "chunks_path": str(path),
+                "corpus_revision": gate.corpus_revision,
+                "run_id": gate.run_id,
+                "profile": gate.profile,
+                "manifest_sha256": gate.manifest_sha256,
+                "source_manifest_sha256": gate.source_manifest_sha256,
+                "selection_counts": gate.selection_counts,
+            }
+            for path, gate in sources
+        ]
+        source_manifest_sha256s = sorted(
+            {
+                gate.source_manifest_sha256
+                for _, gate in sources
+                if gate.source_manifest_sha256 is not None
+            }
+        )
+        shared_source_manifest_sha256 = (
+            source_manifest_sha256s[0]
+            if len(source_manifest_sha256s) == 1
+            and all(
+                gate.source_manifest_sha256 is not None
+                for _, gate in sources
+            )
+            else ""
+        )
+        metadata_rows = {
+            "chunks_path": str(chunks_paths[0]) if len(chunks_paths) == 1 else "",
+            "chunks_paths": json.dumps(
+                [str(path) for path in chunks_paths],
+                ensure_ascii=False,
+            ),
+            "sources": json.dumps(source_descriptors, ensure_ascii=False),
+            "source_count": str(len(sources)),
+            "chunk_count": str(total),
+            "created_at": created_at,
+            "institutions": json.dumps(institutions, ensure_ascii=False),
+            "corpus_revision": corpus_revision,
+            "run_id": single_gate.run_id or "" if single_gate else "",
+            "profile": single_gate.profile or "" if single_gate else "",
+            "manifest_sha256": (
+                single_gate.manifest_sha256 if single_gate else ""
+            ),
+            "source_manifest_sha256": shared_source_manifest_sha256,
+            "source_manifest_sha256s": json.dumps(
+                source_manifest_sha256s,
+                ensure_ascii=False,
+            ),
+            "selection_counts": json.dumps(
+                single_gate.selection_counts if single_gate else {},
+                ensure_ascii=False,
+            ),
+            "excluded_document_count": str(
+                sum(len(gate.excluded_document_ids) for _, gate in sources)
+            ),
+            "excluded_chunk_count": str(
+                sum(len(gate.excluded_chunk_ids) for _, gate in sources)
+            ),
+        }
         connection.executemany(
-            "INSERT INTO chunk_fts (chunk_id, search_text) VALUES (?, ?)",
-            fts_rows,
+            "INSERT INTO index_meta (key, value) VALUES (?, ?)",
+            metadata_rows.items(),
         )
         connection.commit()
-        chunk_rows = []
-        fts_rows = []
+        connection.close()
+        connection = None
 
-    for chunk in iter_chunks(chunks_path):
-        metadata = chunk.get("metadata") or {}
-        chunk_id = chunk["chunk_id"]
-        institution = metadata.get("institution", "")
-        text = chunk.get("text", "")
-        chunk_rows.append(
-            (
-                chunk_id,
-                chunk.get("doc_id", ""),
-                int(chunk.get("chunk_index", 0)),
-                institution,
-                metadata.get("source_path", ""),
-                metadata.get("relative_path", ""),
-                metadata.get("file_name", ""),
-                metadata.get("extension", ""),
-                metadata.get("parser", ""),
-                int(chunk.get("char_count") or len(text)),
-                text,
-            )
-        )
-        fts_rows.append((chunk_id, make_search_text(chunk)))
-        institutions[institution] += 1
-        total += 1
+        # The previous index stays intact until this point.
+        os.replace(temporary_index, index_path)
+        return {
+            "index": str(index_path),
+            "chunks_path": (
+                str(chunks_paths[0]) if len(chunks_paths) == 1 else None
+            ),
+            "chunks_paths": [str(path) for path in chunks_paths],
+            "source_count": len(sources),
+            "chunk_count": total,
+            "institutions": dict(institutions),
+            "created_at": created_at,
+            "corpus_revision": corpus_revision,
+            "verified_run": all(gate.is_verified_run for _, gate in sources),
+            "source_manifest_sha256": (
+                shared_source_manifest_sha256 or None
+            ),
+            "source_manifest_sha256s": source_manifest_sha256s,
+            "selection_counts": (
+                dict(single_gate.selection_counts) if single_gate else {}
+            ),
+            "excluded_document_count": sum(
+                len(gate.excluded_document_ids) for _, gate in sources
+            ),
+            "excluded_chunk_count": sum(
+                len(gate.excluded_chunk_ids) for _, gate in sources
+            ),
+        }
+    finally:
+        if connection is not None:
+            connection.close()
+        temporary_index.unlink(missing_ok=True)
 
-        if total % batch_size == 0:
-            flush()
-            print(f"Indexed {total} chunks")
 
-    flush()
-    created_at = datetime.now(timezone.utc).isoformat()
-    metadata_rows = {
-        "chunks_path": str(chunks_path),
-        "chunk_count": str(total),
-        "created_at": created_at,
-        "institutions": json.dumps(institutions, ensure_ascii=False),
-    }
-    connection.executemany(
-        "INSERT INTO index_meta (key, value) VALUES (?, ?)",
-        metadata_rows.items(),
+def build_dense_index(
+    source_index: Path,
+    index_path: Path,
+    *,
+    dimensions: int = 256,
+) -> dict[str, Any]:
+    """Build the deterministic offline dense lane from a BM25 index."""
+
+    try:
+        from .rag.retrieval import DenseIndex, HashingEmbedder
+    except ImportError:  # Direct CLI execution.
+        from rag.retrieval import DenseIndex, HashingEmbedder
+
+    dense = DenseIndex.from_bm25_index(
+        source_index,
+        embedder=HashingEmbedder(dimensions=dimensions),
+        index_path=index_path,
     )
-    connection.commit()
-    connection.close()
     return {
         "index": str(index_path),
-        "chunks_path": str(chunks_path),
-        "chunk_count": total,
-        "institutions": dict(institutions),
-        "created_at": created_at,
+        "source_index": str(source_index),
+        "chunk_count": len(dense),
+        "embedding_kind": dense.embedding_kind,
+        "dimensions": dense.dimensions,
+        "corpus_revision": dense.corpus_revision,
     }
 
 
 def fts_query(user_query: str) -> str:
     terms = dedupe_keep_order(tokenize(user_query), limit=32)
     return " OR ".join(terms)
+
+
+def normalize_for_rank(value: str) -> str:
+    return re.sub(r"\s+", " ", value.lower()).strip()
+
+
+def lexical_rerank_score(query: str, row: dict[str, Any], bm25_rank: int) -> float:
+    query_terms = set(dedupe_keep_order(tokenize(query, include_ngrams=False), limit=24))
+    if not query_terms:
+        return 0.0
+
+    text = str(row.get("text") or row.get("preview") or "")
+    metadata_text = " ".join(
+        str(row.get(field) or "")
+        for field in (
+            "institution",
+            "file_name",
+            "relative_path",
+            "source_title",
+            "category",
+        )
+    )
+    body_terms = set(tokenize(text, include_ngrams=False))
+    metadata_terms = set(tokenize(metadata_text, include_ngrams=False))
+
+    body_coverage = len(query_terms & body_terms) / len(query_terms)
+    metadata_coverage = len(query_terms & metadata_terms) / len(query_terms)
+
+    normalized_query = normalize_for_rank(query)
+    normalized_text = normalize_for_rank(text)
+    phrase_bonus = 1.0 if normalized_query and normalized_query in normalized_text else 0.0
+
+    # SQLite FTS bm25 scores are useful but hard to compare across queries. Rank
+    # position keeps that signal stable while allowing domain-specific boosts.
+    bm25_rank_signal = 1 / max(1, bm25_rank)
+    return (
+        body_coverage * 0.52
+        + metadata_coverage * 0.16
+        + phrase_bonus * 0.18
+        + bm25_rank_signal * 0.14
+    )
+
+
+def rerank_results(query: str, rows: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+    scored = [
+        (lexical_rerank_score(query, row, rank), rank, dict(row))
+        for rank, row in enumerate(rows, start=1)
+    ]
+    scored.sort(key=lambda item: (item[0], -item[1]), reverse=True)
+    reranked: list[dict[str, Any]] = []
+    for final_rank, (rerank_score, _, row) in enumerate(scored[:top_k], start=1):
+        retrieval = dict(row.get("retrieval") or {})
+        retrieval["reranker"] = {
+            "rank": final_rank,
+            "score": round(rerank_score, 8),
+            "kind": "lexical_fallback",
+        }
+        retrieval["final_rank"] = final_rank
+        row["retrieval"] = retrieval
+        row["rerank_score"] = round(rerank_score, 8)
+        # Backward-compatible alias.  Unlike the old response, score now means
+        # the final comparable relevance score, not SQLite's negative BM25.
+        row["score"] = row["rerank_score"]
+        reranked.append(row)
+    return reranked
+
+
+def select_document_diverse_results(
+    rows: Sequence[dict[str, Any]],
+    top_k: int,
+    *,
+    max_chunks_per_document: int = 2,
+) -> list[dict[str, Any]]:
+    """Keep BM25 order while preventing one document from crowding the result.
+
+    The lexical fallback remains available as an explicit experiment through
+    ``rerank_results``.  The production BM25 path is deliberately rank-safe:
+    exact title/path matches that FTS5 already places highly must not be
+    demoted by a second heuristic score.
+    """
+
+    limit = max(0, int(top_k))
+    if limit == 0:
+        return []
+    per_document = max(1, int(max_chunks_per_document))
+    document_counts: Counter[str] = Counter()
+    selected: list[dict[str, Any]] = []
+
+    for value in rows:
+        row = dict(value)
+        document_id = str(
+            row.get("document_id")
+            or row.get("doc_id")
+            or row.get("chunk_id")
+            or ""
+        )
+        if document_counts[document_id] >= per_document:
+            continue
+        document_counts[document_id] += 1
+
+        final_rank = len(selected) + 1
+        retrieval = dict(row.get("retrieval") or {})
+        retrieval["reranker"] = None
+        retrieval["final_rank"] = final_rank
+        row["retrieval"] = retrieval
+        row["score"] = row.get("bm25_score", row.get("score"))
+        selected.append(row)
+        if len(selected) >= limit:
+            break
+
+    return selected
+
+
+def _chunk_columns(connection: sqlite3.Connection) -> set[str]:
+    return {
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(chunks)").fetchall()
+    }
+
+
+def _json_column(value: Any, default: Any) -> Any:
+    if value in (None, ""):
+        return default
+    try:
+        decoded = json.loads(str(value))
+    except (TypeError, json.JSONDecodeError):
+        return default
+    return decoded
+
+
+def search_bm25_candidates(
+    index_path: Path,
+    query: str,
+    limit: int,
+    institution: str | None,
+    *,
+    preview_chars: int = 700,
+    include_text: bool = False,
+) -> list[dict[str, Any]]:
+    """Return raw BM25 candidates for fusion without applying the reranker."""
+
+    if not index_path.exists():
+        raise FileNotFoundError(f"Missing index DB: {index_path}")
+
+    match_query = fts_query(query)
+    if not match_query:
+        return []
+
+    preview_chars = max(1, min(int(preview_chars), 5000))
+    connection = sqlite3.connect(str(index_path))
+    connection.row_factory = sqlite3.Row
+    columns = _chunk_columns(connection)
+    document_id_select = (
+        "c.document_id AS document_id"
+        if "document_id" in columns
+        else "c.doc_id AS document_id"
+    )
+
+    optional_columns = {
+        "page_start": "c.page_start",
+        "page_end": "c.page_end",
+        "section_path_json": "c.section_path_json",
+        "table_ids_json": "c.table_ids_json",
+        "block_ids_json": "c.block_ids_json",
+        "locations_json": "c.locations_json",
+        "corpus_revision": "c.corpus_revision",
+        "source_title": "c.source_title",
+        "source_url": "c.source_url",
+        "download_url": "c.download_url",
+        "source_host": "c.source_host",
+        "fetched_at": "c.fetched_at",
+        "published_at": "c.published_at",
+        "category": "c.category",
+        "include_reason": "c.include_reason",
+        "crawl_storage_path": "c.crawl_storage_path",
+        "source_aliases_json": "c.source_aliases_json",
+    }
+    optional_selects = [
+        f"{expression} AS {name}" if name in columns else f"NULL AS {name}"
+        for name, expression in optional_columns.items()
+    ]
+    if include_text:
+        optional_selects.append("c.text AS text")
+    optional_sql = ",\n          ".join(optional_selects)
+
+    params: list[Any] = [preview_chars, match_query]
+    where = "chunk_fts MATCH ?"
+    if institution:
+        where += " AND c.institution = ?"
+        params.append(institution)
+    params.append(max(1, int(limit)))
+
+    rows = connection.execute(
+        f"""
+        SELECT
+          c.chunk_id,
+          c.doc_id,
+          {document_id_select},
+          c.chunk_index,
+          c.institution,
+          c.file_name,
+          c.source_path,
+          c.relative_path,
+          c.char_count,
+          bm25(chunk_fts) AS bm25_score,
+          substr(c.text, 1, ?) AS preview,
+          {optional_sql}
+        FROM chunk_fts
+        JOIN chunks c ON c.chunk_id = chunk_fts.chunk_id
+        WHERE {where}
+        ORDER BY bm25_score, c.chunk_id
+        LIMIT ?
+        """,
+        params,
+    ).fetchall()
+    connection.close()
+
+    candidates: list[dict[str, Any]] = []
+    for bm25_rank, raw_row in enumerate(rows, start=1):
+        row = dict(raw_row)
+        row["section_path"] = _json_column(row.pop("section_path_json", None), None)
+        row["table_ids"] = _json_column(row.pop("table_ids_json", None), [])
+        row["block_ids"] = _json_column(row.pop("block_ids_json", None), [])
+        row["locations"] = _json_column(row.pop("locations_json", None), [])
+        row["source_aliases"] = _json_column(
+            row.pop("source_aliases_json", None), []
+        )
+        row["location"] = {
+            "page_start": row.pop("page_start", None),
+            "page_end": row.pop("page_end", None),
+            "section_path": row["section_path"],
+            "table_ids": row["table_ids"],
+            "block_ids": row["block_ids"],
+        }
+        row["metadata"] = {
+            "corpus_revision": row.get("corpus_revision"),
+            "source_title": row.get("source_title"),
+            "source_url": row.get("source_url"),
+            "download_url": row.get("download_url"),
+            "source_host": row.get("source_host"),
+            "fetched_at": row.get("fetched_at"),
+            "published_at": row.get("published_at"),
+            "category": row.get("category"),
+            "include_reason": row.get("include_reason"),
+            "crawl_storage_path": row.get("crawl_storage_path"),
+            "source_aliases": row["source_aliases"],
+            **row["location"],
+        }
+        row["score"] = row["bm25_score"]
+        row["retrieval"] = {
+            "bm25": {"rank": bm25_rank, "score": row["bm25_score"]},
+            "dense": None,
+            "rrf": None,
+            "reranker": None,
+            "final_rank": None,
+        }
+        candidates.append(row)
+    return candidates
+
+
+def load_chunks_by_ids(
+    index_path: Path,
+    chunk_ids: Sequence[str],
+) -> list[dict[str, Any]]:
+    """Load complete chunk rows in caller order for a secondary retriever.
+
+    Learned-dense indexes deliberately store only vectors and stable chunk IDs.
+    This keeps document text and citation metadata authoritative in the BM25
+    SQLite corpus instead of duplicating it in every embedding artifact.
+    """
+
+    ordered_ids = dedupe_keep_order(
+        str(value).strip() for value in chunk_ids if str(value).strip()
+    )
+    if not ordered_ids:
+        return []
+    if not index_path.is_file():
+        raise FileNotFoundError(f"Missing index DB: {index_path}")
+
+    connection = sqlite3.connect(str(index_path))
+    connection.row_factory = sqlite3.Row
+    try:
+        placeholders = ",".join("?" for _ in ordered_ids)
+        rows = connection.execute(
+            f"SELECT * FROM chunks WHERE chunk_id IN ({placeholders})",
+            ordered_ids,
+        ).fetchall()
+    finally:
+        connection.close()
+
+    found: dict[str, dict[str, Any]] = {}
+    for raw_row in rows:
+        row = dict(raw_row)
+        row["section_path"] = _json_column(
+            row.pop("section_path_json", None), None
+        )
+        row["table_ids"] = _json_column(
+            row.pop("table_ids_json", None), []
+        )
+        row["block_ids"] = _json_column(
+            row.pop("block_ids_json", None), []
+        )
+        row["locations"] = _json_column(
+            row.pop("locations_json", None), []
+        )
+        row["source_aliases"] = _json_column(
+            row.pop("source_aliases_json", None), []
+        )
+        row["preview"] = str(row.get("text") or "")
+        row["metadata"] = {
+            "corpus_revision": row.get("corpus_revision"),
+            "source_title": row.get("source_title"),
+            "source_url": row.get("source_url"),
+            "download_url": row.get("download_url"),
+            "source_host": row.get("source_host"),
+            "fetched_at": row.get("fetched_at"),
+            "published_at": row.get("published_at"),
+            "category": row.get("category"),
+            "include_reason": row.get("include_reason"),
+            "crawl_storage_path": row.get("crawl_storage_path"),
+            "source_aliases": row["source_aliases"],
+            "page_start": row.get("page_start"),
+            "page_end": row.get("page_end"),
+            "section_path": row["section_path"],
+            "table_ids": row["table_ids"],
+            "block_ids": row["block_ids"],
+        }
+        found[str(row["chunk_id"])] = row
+    return [found[chunk_id] for chunk_id in ordered_ids if chunk_id in found]
 
 
 def search_index(
@@ -224,49 +818,24 @@ def search_index(
     *,
     preview_chars: int = 700,
     include_text: bool = False,
+    candidate_multiplier: int = DEFAULT_RERANK_CANDIDATE_MULTIPLIER,
 ) -> list[dict[str, Any]]:
-    if not index_path.exists():
-        raise FileNotFoundError(f"Missing index DB: {index_path}")
-
-    match_query = fts_query(query)
-    if not match_query:
+    if top_k <= 0:
         return []
-
-    preview_chars = max(1, min(int(preview_chars), 5000))
-    select_full_text = ",\n          c.text AS text" if include_text else ""
-    connection = sqlite3.connect(str(index_path))
-    connection.row_factory = sqlite3.Row
-    params: list[Any] = [preview_chars, match_query]
-    where = "chunk_fts MATCH ?"
-    if institution:
-        where += " AND c.institution = ?"
-        params.append(institution)
-    params.append(top_k)
-
-    rows = connection.execute(
-        f"""
-        SELECT
-          c.chunk_id,
-          c.doc_id,
-          c.chunk_index,
-          c.institution,
-          c.file_name,
-          c.source_path,
-          c.relative_path,
-          c.char_count,
-          bm25(chunk_fts) AS score,
-          substr(c.text, 1, ?) AS preview
-          {select_full_text}
-        FROM chunk_fts
-        JOIN chunks c ON c.chunk_id = chunk_fts.chunk_id
-        WHERE {where}
-        ORDER BY score
-        LIMIT ?
-        """,
-        params,
-    ).fetchall()
-    connection.close()
-    return [dict(row) for row in rows]
+    candidate_limit = max(
+        20,
+        top_k,
+        top_k * max(1, int(candidate_multiplier)),
+    )
+    rows = search_bm25_candidates(
+        index_path,
+        query,
+        candidate_limit,
+        institution,
+        preview_chars=preview_chars,
+        include_text=include_text,
+    )
+    return select_document_diverse_results(rows, top_k)
 
 
 def print_results(results: list[dict[str, Any]]) -> None:
@@ -286,9 +855,35 @@ def parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build = subparsers.add_parser("build", help="Build the SQLite BM25 index.")
-    build.add_argument("--chunks", type=Path, default=DEFAULT_CHUNKS)
+    build.add_argument(
+        "--chunks",
+        type=Path,
+        action="append",
+        help=(
+            "Chunks JSONL to include. Repeat for a verified multi-source "
+            f"collection (default: {DEFAULT_CHUNKS})."
+        ),
+    )
     build.add_argument("--index", type=Path, default=DEFAULT_INDEX)
     build.add_argument("--batch-size", type=int, default=1000)
+    build.add_argument(
+        "--allow-suspect",
+        action="store_true",
+        help="Index suspect documents as well as quality=pass documents.",
+    )
+    build.add_argument(
+        "--require-manifest",
+        action="store_true",
+        help="Reject legacy chunks that are not part of a verified parser run.",
+    )
+
+    dense = subparsers.add_parser(
+        "build-dense",
+        help="Build the local hashing dense index from the BM25 store.",
+    )
+    dense.add_argument("--source-index", type=Path, default=DEFAULT_INDEX)
+    dense.add_argument("--index", type=Path, default=DEFAULT_DENSE_INDEX)
+    dense.add_argument("--dimensions", type=int, default=256)
 
     search = subparsers.add_parser("search", help="Search the BM25 index.")
     search.add_argument("query")
@@ -302,7 +897,22 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     if args.command == "build":
-        summary = build_index(args.chunks, args.index, args.batch_size)
+        summary = build_index(
+            args.chunks or [DEFAULT_CHUNKS],
+            args.index,
+            args.batch_size,
+            allow_suspect=args.allow_suspect,
+            require_manifest=args.require_manifest,
+        )
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command == "build-dense":
+        summary = build_dense_index(
+            args.source_index,
+            args.index,
+            dimensions=args.dimensions,
+        )
         print(json.dumps(summary, ensure_ascii=False, indent=2))
         return 0
 

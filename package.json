@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "local:serve": "mlx_lm.server --host 127.0.0.1 --port 8080 --max-tokens 900 --decode-concurrency 1 --prompt-concurrency 1 --prompt-cache-size 1",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "python -m unittest discover -s tests",
-    "check": "python -m unittest discover -s tests && eslint . && tsc -b && vite build"
+    "test": "python3 -m unittest discover -s tests",
+    "check": "python3 -m unittest discover -s tests && eslint . && tsc -b && vite build"
   },
   "dependencies": {
     "lucide-react": "^1.14.0",

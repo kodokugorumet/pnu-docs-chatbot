@@ -16,6 +16,10 @@ dist
 dist-ssr
 *.local
 processed/
+.parser-tools/
+downloads/
+parser-workers/java/target/
+bun.lock
 __pycache__/
 *.py[cod]
 
@@ -29,3 +33,4 @@ __pycache__/
 *.njsproj
 *.sln
 *.sw?
+.gstack/

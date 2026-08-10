@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "tiers": {
+    "core": {
+      "max_items_per_host": 500,
+      "hosts": [
+        "pusan.ac.kr",
+        "www.pusan.ac.kr",
+        "dorm.pusan.ac.kr",
+        "graduate.pusan.ac.kr",
+        "go.pusan.ac.kr",
+        "international.pusan.ac.kr",
+        "job.pusan.ac.kr",
+        "lib.pusan.ac.kr",
+        "equality.pusan.ac.kr",
+        "sedu-support.pusan.ac.kr"
+      ]
+    },
+    "department": {
+      "max_items_per_host": 100,
+      "hosts": [
+        "archaeology.pusan.ac.kr",
+        "che.pusan.ac.kr",
+        "edu.pusan.ac.kr",
+        "medicine.pusan.ac.kr",
+        "physicaledu.pusan.ac.kr",
+        "uni.pusan.ac.kr"
+      ]
+    }
+  },
+  "budgets": {
+    "max_pages": 4000,
+    "max_files": 2000,
+    "max_bytes": 1610612736
+  },
+  "allowed_document_extensions": [
+    ".csv",
+    ".doc",
+    ".docx",
+    ".hwp",
+    ".hwpx",
+    ".odt",
+    ".pdf",
+    ".ppt",
+    ".pptx",
+    ".rtf",
+    ".txt",
+    ".xls",
+    ".xlsx"
+  ]
+}
