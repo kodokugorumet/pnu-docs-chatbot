@@ -1,0 +1,34 @@
+graph LR
+  subgraph Offline["오프라인 데이터 준비"]
+    Source["부산대 웹페이지·첨부 문서"]
+    Curate["크롤링·범위 선별<br/>중복 및 메타데이터 정리"]
+    Parse["3개 파서 프로필<br/>Baseline · Challenger · Cascade"]
+    Gate["공통 Block·Chunk<br/>품질 검사와 Corpus Gate"]
+    Index["SQLite FTS5 인덱스 3개<br/>프로필별 독립 저장"]
+    Source --> Curate --> Parse --> Gate --> Index
+  end
+
+  subgraph Online["실시간 질의 처리"]
+    User["사용자"]
+    UI["React + Vite UI<br/>127.0.0.1:5173"]
+    API["Python RAG API<br/>127.0.0.1:8000"]
+    Retrieve["선택 프로필 BM25 검색<br/>문서 다양성·중복 제거<br/>Dense/RRF는 데모에서 꺼짐"]
+    Generate["답변 생성 라우터"]
+    Local["MLX 로컬 LLM<br/>Qwen · Gemma · EXAONE<br/>127.0.0.1:8080"]
+    Gemini["Gemini API"]
+    Extract["추출형 안전 응답"]
+    Verify["문장별 근거 검증<br/>출처 번호·원문 위치 연결"]
+
+    User --> UI
+    UI -- "질문·기관·top_k·파서·모델" --> API
+    API --> Retrieve
+    Index --> Retrieve
+    Retrieve --> Generate
+    Generate --> Local
+    Generate --> Gemini
+    Generate --> Extract
+    Local --> Verify
+    Gemini --> Verify
+    Extract --> Verify
+    Verify -- "답변·claims·citations·검색 진단" --> UI
+  end
