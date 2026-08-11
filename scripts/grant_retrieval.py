@@ -47,6 +47,7 @@ def build_searcher(
     min_chars: int = 0,
     reranker: Callable[[str, list[dict[str, Any]]], list[dict[str, Any]]] | None = None,
     anchor_bm25_top1: bool = False,
+    demote_files: frozenset[str] | None = None,
 ) -> Searcher:
     """검색 모드 하나를 `(query, top_k) -> list[dict]` 호출로 만들어 준다.
 
@@ -95,6 +96,14 @@ def build_searcher(
                 row for row in rows
                 if (row.get("char_count") or len(row.get("text") or "")) >= min_chars
             ]
+        if demote_files:
+            # 폴백층(D50)은 후보 선정 이전에 강등해야 한다. 다양화가 뽑는
+            # 후보 풀 자체를 폴백 문서가 점유하면, 라우터 단계의 1군 우선이
+            # "1군 후보 부족"으로 무력화된다 (첫 구현의 실패: 39/53 변화).
+            rows = (
+                [r for r in rows if (r.get("file_name") or "") not in demote_files]
+                + [r for r in rows if (r.get("file_name") or "") in demote_files]
+            )
         if diversify:
             return select_document_diverse_results(
                 rows, top_k,

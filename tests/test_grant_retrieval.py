@@ -175,5 +175,59 @@ class GrantRetrievalLearnedModeTests(unittest.TestCase):
             self.assertIn("b#0000", ids)
 
 
+class GrantRouterFallbackTests(unittest.TestCase):
+    """폴백층(D50): 등록 문서는 1군이 top_k를 못 채울 때만 진입한다."""
+
+    @staticmethod
+    def _hit(chunk_id: str, file_name: str, institution: str = "한국연구재단") -> dict:
+        return {"chunk_id": chunk_id, "file_name": file_name,
+                "institution": institution}
+
+    def test_fallback_docs_cannot_evict_primary_evidence(self) -> None:
+        from rag.grant_router import filter_hits
+        fb = frozenset({"종합매뉴얼.pdf"})
+        # D49 재현: 폴백 문서가 상위권을 점유해도 1군 근거가 슬롯을 지킨다.
+        hits = [
+            self._hit("m#0", "종합매뉴얼.pdf"),
+            self._hit("m#1", "종합매뉴얼.pdf"),
+            self._hit("a#0", "정답근거.pdf"),
+            self._hit("b#0", "보조근거.pdf"),
+            self._hit("c#0", "제3근거.pdf"),
+        ]
+        out = filter_hits(hits, ["한국연구재단"], 3, fallback_files=fb)
+        self.assertEqual([h["chunk_id"] for h in out], ["a#0", "b#0", "c#0"])
+
+    def test_fallback_docs_fill_remaining_slots(self) -> None:
+        from rag.grant_router import filter_hits
+        fb = frozenset({"종합매뉴얼.pdf"})
+        hits = [
+            self._hit("m#0", "종합매뉴얼.pdf"),
+            self._hit("a#0", "정답근거.pdf"),
+        ]
+        out = filter_hits(hits, ["한국연구재단"], 3, fallback_files=fb)
+        # 1군이 부족하면 폴백이 잔여 슬롯에 진입한다 (순서: 1군 → 폴백).
+        self.assertEqual([h["chunk_id"] for h in out], ["a#0", "m#0"])
+
+    def test_fallback_applies_to_unscoped_queries_too(self) -> None:
+        from rag.grant_router import filter_hits
+        fb = frozenset({"종합매뉴얼.pdf"})
+        hits = [
+            self._hit("m#0", "종합매뉴얼.pdf"),
+            self._hit("a#0", "정답근거.pdf"),
+            self._hit("b#0", "보조근거.pdf"),
+        ]
+        out = filter_hits(hits, None, 2, fallback_files=fb)
+        self.assertEqual([h["chunk_id"] for h in out], ["a#0", "b#0"])
+
+    def test_no_fallback_set_preserves_existing_behavior(self) -> None:
+        from rag.grant_router import filter_hits
+        hits = [
+            self._hit("m#0", "종합매뉴얼.pdf"),
+            self._hit("a#0", "정답근거.pdf"),
+        ]
+        out = filter_hits(hits, ["한국연구재단"], 2)
+        self.assertEqual([h["chunk_id"] for h in out], ["m#0", "a#0"])
+
+
 if __name__ == "__main__":
     unittest.main()

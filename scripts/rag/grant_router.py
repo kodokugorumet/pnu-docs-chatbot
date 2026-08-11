@@ -63,23 +63,41 @@ COMMON_FIRST = ["국가법령", "과학기술정보통신부"]
 LOCAL_MARKERS = ["부산대", "우리 대학", "우리대학", "본교"]
 
 
-def filter_hits(hits: list[dict], scope: list[str] | None, top_k: int, query: str = "") -> list[dict]:
-    """스코프 필터 적용 후 상위 top_k. 스코프 결과가 부족하면 원본으로 보충."""
+def filter_hits(
+    hits: list[dict],
+    scope: list[str] | None,
+    top_k: int,
+    query: str = "",
+    fallback_files: set[str] | frozenset[str] | None = None,
+) -> list[dict]:
+    """스코프 필터 적용 후 상위 top_k. 스코프 결과가 부족하면 원본으로 보충.
+
+    ``fallback_files``는 플러딩 완화의 폴백층(D50)이다. 여기 등록된 파일의
+    청크는 1군(비폴백) 근거가 top_k를 못 채울 때만 잔여 슬롯에 진입한다 —
+    "관련 있는 종합 문서"가 다양화 캡 경쟁에서 기존 정답 근거를 밀어내는
+    실패(D46 매뉴얼 516p, D49 NRF 3종 121청크: 규모 불문 동일 패턴)를
+    구조적으로 차단한다. 순서: 1군 스코프 → 폴백 스코프 → 스코프 밖 보충.
+    """
     if scope is None:
-        return hits[:top_k]
-    scoped = [h for h in hits if (h.get("institution") or "") in scope]
-    if scope == DEFAULT_SCOPE and not any(m in query for m in LOCAL_MARKERS):
-        # 공통기준과 자체규정을 교차 배치: 공통기준을 먼저 세우되
-        # 자체규정도 상위에 남겨 둘 다 근거로 쓸 수 있게 한다.
-        common = [h for h in scoped if (h.get("institution") or "") in COMMON_FIRST]
-        local = [h for h in scoped if (h.get("institution") or "") not in COMMON_FIRST]
-        merged = []
-        for i in range(max(len(common), len(local))):
-            if i < len(common):
-                merged.append(common[i])
-            if i < len(local):
-                merged.append(local[i])
-        scoped = merged
+        scoped = list(hits)
+    else:
+        scoped = [h for h in hits if (h.get("institution") or "") in scope]
+        if scope == DEFAULT_SCOPE and not any(m in query for m in LOCAL_MARKERS):
+            # 공통기준과 자체규정을 교차 배치: 공통기준을 먼저 세우되
+            # 자체규정도 상위에 남겨 둘 다 근거로 쓸 수 있게 한다.
+            common = [h for h in scoped if (h.get("institution") or "") in COMMON_FIRST]
+            local = [h for h in scoped if (h.get("institution") or "") not in COMMON_FIRST]
+            merged = []
+            for i in range(max(len(common), len(local))):
+                if i < len(common):
+                    merged.append(common[i])
+                if i < len(local):
+                    merged.append(local[i])
+            scoped = merged
+    if fallback_files:
+        primary = [h for h in scoped if (h.get("file_name") or "") not in fallback_files]
+        demoted = [h for h in scoped if (h.get("file_name") or "") in fallback_files]
+        scoped = primary + demoted
     if len(scoped) < top_k:
         seen = {id(h) for h in scoped}
         scoped += [h for h in hits if id(h) not in seen][: top_k - len(scoped)]
