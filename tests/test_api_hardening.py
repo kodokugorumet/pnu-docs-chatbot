@@ -1171,6 +1171,48 @@ class ApiHardeningTests(unittest.TestCase):
             all(row["retrieval"]["reranker"] is None for row in selected)
         )
 
+    def test_diverse_selection_preserved_chunk_replaces_same_document_lowest(
+        self,
+    ) -> None:
+        # grant_031 (2026-08-11): CE 리랭커가 같은 문서의 표면 유사 청크 둘을
+        # 상위로 올려 캡 2를 소진하면, BM25 1위(정답 조항) 청크가 컨텍스트에서
+        # 탈락한다. preserve_chunk_id는 그 문서의 최하위 선택분과 교체돼
+        # 원래 슬롯 위치를 물려받아야 한다.
+        rows = [
+            {"chunk_id": "byl#0031", "document_id": "byl"},
+            {"chunk_id": "byl#0034", "document_id": "byl"},
+            {"chunk_id": "other#0000", "document_id": "other"},
+            {"chunk_id": "byl#0015", "document_id": "byl"},  # BM25 1위, CE가 강등
+            {"chunk_id": "third#0000", "document_id": "third"},
+        ]
+
+        selected = select_document_diverse_results(
+            rows, top_k=4, preserve_chunk_id="byl#0015"
+        )
+
+        self.assertEqual(
+            [row["chunk_id"] for row in selected],
+            ["byl#0031", "byl#0015", "other#0000", "third#0000"],
+        )
+        self.assertEqual(
+            [row["retrieval"]["final_rank"] for row in selected],
+            [1, 2, 3, 4],
+        )
+
+    def test_diverse_selection_preserve_is_noop_when_anchor_survives(self) -> None:
+        rows = [
+            {"chunk_id": "byl#0015", "document_id": "byl"},
+            {"chunk_id": "byl#0031", "document_id": "byl"},
+            {"chunk_id": "other#0000", "document_id": "other"},
+        ]
+        selected = select_document_diverse_results(
+            rows, top_k=3, preserve_chunk_id="byl#0015"
+        )
+        self.assertEqual(
+            [row["chunk_id"] for row in selected],
+            ["byl#0015", "byl#0031", "other#0000"],
+        )
+
     def test_context_dedupe_fills_requested_slots_and_preserves_fact_changes(
         self,
     ) -> None:

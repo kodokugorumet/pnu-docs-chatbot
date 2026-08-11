@@ -551,6 +551,7 @@ def select_document_diverse_results(
     top_k: int,
     *,
     max_chunks_per_document: int = 2,
+    preserve_chunk_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Keep BM25 order while preventing one document from crowding the result.
 
@@ -558,6 +559,13 @@ def select_document_diverse_results(
     ``rerank_results``.  The production BM25 path is deliberately rank-safe:
     exact title/path matches that FTS5 already places highly must not be
     demoted by a second heuristic score.
+
+    ``preserve_chunk_id`` marks one chunk (the BM25 anchor) that the per-document
+    cap may not evict.  When the cap would drop it, it replaces the lowest-ranked
+    already-selected chunk of the same document instead, inheriting that slot's
+    position.  Rationale (grant_031, 2026-08-11): the CE reranker preferred two
+    surface-similar chunks of the same document, the cap kept only those two, and
+    the BM25 top-1 chunk holding the actual answer never reached the context.
     """
 
     limit = max(0, int(top_k))
@@ -566,6 +574,7 @@ def select_document_diverse_results(
     per_document = max(1, int(max_chunks_per_document))
     document_counts: Counter[str] = Counter()
     selected: list[dict[str, Any]] = []
+    preserved_pending: dict[str, Any] | None = None
 
     for value in rows:
         row = dict(value)
@@ -576,18 +585,41 @@ def select_document_diverse_results(
             or ""
         )
         if document_counts[document_id] >= per_document:
+            if preserve_chunk_id and row.get("chunk_id") == preserve_chunk_id:
+                preserved_pending = row
             continue
         document_counts[document_id] += 1
-
-        final_rank = len(selected) + 1
-        retrieval = dict(row.get("retrieval") or {})
-        retrieval["reranker"] = None
-        retrieval["final_rank"] = final_rank
-        row["retrieval"] = retrieval
         row["score"] = row.get("bm25_score", row.get("score"))
         selected.append(row)
         if len(selected) >= limit:
             break
+
+    if preserved_pending is not None:
+        anchor_document = str(
+            preserved_pending.get("document_id")
+            or preserved_pending.get("doc_id")
+            or preserved_pending.get("chunk_id")
+            or ""
+        )
+        for position in range(len(selected) - 1, -1, -1):
+            candidate_document = str(
+                selected[position].get("document_id")
+                or selected[position].get("doc_id")
+                or selected[position].get("chunk_id")
+                or ""
+            )
+            if candidate_document == anchor_document:
+                preserved_pending["score"] = preserved_pending.get(
+                    "bm25_score", preserved_pending.get("score")
+                )
+                selected[position] = preserved_pending
+                break
+
+    for final_rank, row in enumerate(selected, start=1):
+        retrieval = dict(row.get("retrieval") or {})
+        retrieval["reranker"] = None
+        retrieval["final_rank"] = final_rank
+        row["retrieval"] = retrieval
 
     return selected
 

@@ -50,6 +50,9 @@ def main() -> None:
                     help="CE 단독 재정렬 대신 BM25 순위와 RRF 융합")
     ap.add_argument("--max-chunks-per-doc", type=int, default=2,
                     help="다양화 시 문서당 청크 상한 (기준선=2)")
+    ap.add_argument("--anchor-bm25-top1", action="store_true",
+                    help="BM25 전체 1위 청크는 다양화 캡에서 탈락 불가 "
+                         "(같은 문서 최하위 선택분과 교체, grant_031 대응)")
     ap.add_argument("--parent-expand", action="store_true",
                     help="최종 히트를 section_path 부모로 확장 (parent-child)")
     ap.add_argument("--parent-chars", type=int, default=3000,
@@ -76,6 +79,7 @@ def main() -> None:
         args.index, args.retrieval_mode, args.dense_artifact,
         diversify=not args.no_diversify, min_chars=args.min_chars,
         max_chunks_per_document=args.max_chunks_per_doc, reranker=reranker,
+        anchor_bm25_top1=args.anchor_bm25_top1,
     )
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

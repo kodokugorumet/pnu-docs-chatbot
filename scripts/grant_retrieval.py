@@ -46,6 +46,7 @@ def build_searcher(
     max_chunks_per_document: int = 2,
     min_chars: int = 0,
     reranker: Callable[[str, list[dict[str, Any]]], list[dict[str, Any]]] | None = None,
+    anchor_bm25_top1: bool = False,
 ) -> Searcher:
     """검색 모드 하나를 `(query, top_k) -> list[dict]` 호출로 만들어 준다.
 
@@ -58,6 +59,11 @@ def build_searcher(
     "그 문서의 어느 청크를 남길지"를 BM25 순위로 정해 버리기 전에, 리랭커가
     그 선택을 하게 하기 위해서다(2026-08-05, 실패 16문항이 전부 "정답 문서의
     엉뚱한 조각" 문제라는 8/4 밤 분석에 대응).
+
+    `anchor_bm25_top1`은 그 위임의 상한이다: BM25 전체 1위 청크만은 리랭커가
+    같은 문서의 다른 청크로 대체할 수 없다(다양화 캡에서 탈락 시 그 문서의
+    최하위 선택분과 교체). 질문 표면형이 정답 조항과 어긋날 때 CE가 어휘
+    정합 청크를 밀어내는 실패(grant_031, 2026-08-11)에 대응한다.
     """
 
     if mode not in MODES:
@@ -65,7 +71,25 @@ def build_searcher(
 
     index_path = Path(index_path)
 
-    def postprocess(rows: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+    def _bm25_top1_chunk_id(rows: list[dict[str, Any]]) -> str | None:
+        """후보 풀에서 BM25 레인 1위 청크를 찾는다 (하이브리드 융합 이후에도
+        `retrieval.bm25.rank`가 레인 순위를 보존한다)."""
+        best: tuple[int, str] | None = None
+        for row in rows:
+            bm25 = (row.get("retrieval") or {}).get("bm25") or {}
+            rank = bm25.get("rank")
+            if rank is None:
+                continue
+            chunk_id = str(row.get("chunk_id") or "")
+            if chunk_id and (best is None or rank < best[0]):
+                best = (int(rank), chunk_id)
+        return best[1] if best else None
+
+    def postprocess(
+        rows: list[dict[str, Any]],
+        top_k: int,
+        preserve_chunk_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         if min_chars > 0:
             rows = [
                 row for row in rows
@@ -73,7 +97,9 @@ def build_searcher(
             ]
         if diversify:
             return select_document_diverse_results(
-                rows, top_k, max_chunks_per_document=max_chunks_per_document
+                rows, top_k,
+                max_chunks_per_document=max_chunks_per_document,
+                preserve_chunk_id=preserve_chunk_id,
             )
         return rows[:top_k]
 
@@ -87,9 +113,13 @@ def build_searcher(
                 preview_chars=preview_chars,
                 include_text=True,
             )
+            # bm25 모드 후보는 리랭커 이전 순서가 곧 BM25 순위다.
+            anchor = None
+            if anchor_bm25_top1 and rows:
+                anchor = str(rows[0].get("chunk_id") or "") or None
             if reranker is not None:
                 rows = reranker(query, rows)
-            return postprocess(rows, top_k)
+            return postprocess(rows, top_k, preserve_chunk_id=anchor)
 
         return bm25_searcher
 
@@ -140,9 +170,10 @@ def build_searcher(
         # 후처리로 걸러낼 몫을 감안해 BM25와 같은 폭으로 후보를 넉넉히 받는다.
         width = _candidate_limit(top_k) if (diversify or min_chars > 0) else top_k
         rows = _as_dicts(retriever.search(query, top_k=width).hits)
+        anchor = _bm25_top1_chunk_id(rows) if anchor_bm25_top1 else None
         if reranker is not None:
             rows = reranker(query, rows)
-        return postprocess(rows, top_k)
+        return postprocess(rows, top_k, preserve_chunk_id=anchor)
 
     return learned_searcher
 
