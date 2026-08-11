@@ -281,6 +281,51 @@ class NativeAdapterTests(unittest.TestCase):
 
 
 class SubprocessAdapterTests(unittest.TestCase):
+    def test_timeout_kills_worker_process_group(self) -> None:
+        # 2026-08-10: a timed-out Paddle worker left an orphaned grandchild
+        # burning CPU for three hours after its result had been discarded.
+        # The runner must kill the worker's whole process group, not just the
+        # direct child.
+        import os
+        import time as time_module
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.txt"
+            path.write_text("input", encoding="utf-8")
+            pid_file = Path(directory) / "grandchild.pid"
+            worker_script = (
+                "import pathlib, subprocess, sys, time\n"
+                "child = subprocess.Popen(\n"
+                "    [sys.executable, '-c', 'import time; time.sleep(600)']\n"
+                ")\n"
+                "pathlib.Path({pid_file!r}).write_text(str(child.pid))\n"
+                "time.sleep(600)\n"
+            ).format(pid_file=str(pid_file))
+
+            result = parse_subprocess(
+                make_source(path),
+                AdapterContext(
+                    parser="sleepy-worker",
+                    command=(sys.executable, "-c", worker_script),
+                    timeout_seconds=2,
+                ),
+            )
+
+            self.assertEqual(result.attempts[0].status, "timeout")
+            self.assertTrue(result.attempts[0].timeout)
+
+            grandchild_pid = int(pid_file.read_text())
+            deadline = time_module.monotonic() + 5
+            alive = True
+            while time_module.monotonic() < deadline:
+                try:
+                    os.kill(grandchild_pid, 0)
+                except ProcessLookupError:
+                    alive = False
+                    break
+                time_module.sleep(0.1)
+            self.assertFalse(alive, "grandchild survived the timeout kill")
+
     def test_missing_command_is_explicitly_unavailable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "input.txt"

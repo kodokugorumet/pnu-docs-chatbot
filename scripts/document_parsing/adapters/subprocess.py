@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shlex
+import signal
 import subprocess
 import tempfile
 import time
@@ -131,15 +132,40 @@ def parse_subprocess(
     started = time.monotonic()
     stdout_capture = tempfile.TemporaryFile()
     stderr_capture = tempfile.TemporaryFile()
+
+    def _kill_process_group(process: "subprocess.Popen[Any]") -> None:
+        """Kill the worker's whole process group, then reap the worker."""
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            process.kill()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+
     try:
-        completed = subprocess.run(
+        # start_new_session puts the worker (and any grandchildren it spawns,
+        # e.g. Paddle's multiprocessing helpers) into its own process group so
+        # a timeout can kill the whole tree.  With plain subprocess.run only
+        # the direct child is signalled and orphaned compute processes keep
+        # burning CPU for hours after their result has been discarded
+        # (observed twice on the 516p manual, 2026-08-10).
+        with subprocess.Popen(
             argv,
             stdout=stdout_capture,
             stderr=stderr_capture,
-            check=False,
-            timeout=max(1, int(context.timeout_seconds)),
             env=environment,
-        )
+            start_new_session=True,
+        ) as process:
+            try:
+                process.wait(timeout=max(1, int(context.timeout_seconds)))
+            except subprocess.TimeoutExpired:
+                _kill_process_group(process)
+                raise
+            completed = subprocess.CompletedProcess(
+                argv, process.returncode or 0
+            )
     except subprocess.TimeoutExpired as exc:
         elapsed_ms = int((time.monotonic() - started) * 1000)
         stderr = _read_capture(
