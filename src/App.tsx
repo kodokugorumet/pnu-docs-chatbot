@@ -31,6 +31,7 @@ import {
   getRetrievalModeCapabilities,
   getResultLocations,
   normalizeGeneration,
+  parseRoleOptions,
   parserProfileDisplayName,
   providerDisplayName,
   retrievalModeDisplayName,
@@ -45,7 +46,9 @@ import type {
   GenerationProvider,
   HealthResponse,
   ParserProfile,
+  ResolvedRole,
   RetrievalMode,
+  RoleOption,
   SearchResult,
 } from './api/rag'
 import CitationLocation from './components/CitationLocation'
@@ -65,6 +68,7 @@ type Message = {
   claims?: Claim[]
   status?: 'search' | 'error'
   generation?: GenerationInfo
+  resolvedRole?: ResolvedRole
   trace?: ChatTrace
   retrieval?: Record<string, unknown>
   parserProfile?: ParserProfile
@@ -93,6 +97,21 @@ function envNumber(value: unknown, fallback: number) {
 }
 
 const MAX_QUESTION_CHARS = envNumber(import.meta.env.VITE_MAX_QUESTION_CHARS, 1000)
+const MAX_ROLE_CHARS = 120
+const noRole = 'none'
+const customRoleId = 'custom'
+// 서버 /health가 프리셋을 내려주지 못할 때의 예비 목록 (role_router와 동일).
+const fallbackRoleOptions: RoleOption[] = [
+  { id: 'pnu-student', label: '부산대학교 학생' },
+  { id: 'pnu-staff', label: '부산대학교 행정직원' },
+  { id: 'pnu-researcher', label: '부산대학교 연구자' },
+  { id: 'fss-staff', label: '금융감독원 직원' },
+  { id: 'bok-staff', label: '한국은행 직원' },
+  { id: 'krx-staff', label: '한국거래소 직원' },
+  { id: 'ksd-staff', label: '한국예탁결제원 직원' },
+  { id: 'kisa-staff', label: '한국인터넷진흥원 직원' },
+  { id: 'kiost-staff', label: '한국해양과학기술원 직원' },
+]
 const MAX_SOURCE_LOCATIONS = 3
 const MAX_DETAIL_LOCATIONS = 8
 const sanjiniSrc = '/sanjini.webp'
@@ -513,6 +532,8 @@ function App() {
   const [input, setInput] = useState('')
   const [institution, setInstitution] = useState(allInstitutions)
   const [institutions, setInstitutions] = useState(defaultInstitutions)
+  const [roleChoice, setRoleChoice] = useState(noRole)
+  const [customRole, setCustomRole] = useState('')
   const [provider, setProvider] = useState<GenerationProvider>('auto')
   const [parserProfile, setParserProfile] = useState<ParserProfile>('cascade')
   const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>('bm25')
@@ -544,6 +565,18 @@ function App() {
   const defaultRetrievalModeAppliedRef = useRef(false)
 
   const assistantMessages = messages.filter((message) => message.role === 'assistant')
+  const roleOptions = useMemo(() => {
+    const parsed = parseRoleOptions(health?.roles).filter(
+      (option) => option.id !== 'general',
+    )
+    return parsed.length ? parsed : fallbackRoleOptions
+  }, [health])
+  const activeRole =
+    roleChoice === noRole
+      ? undefined
+      : roleChoice === customRoleId
+        ? customRole.trim().slice(0, MAX_ROLE_CHARS) || undefined
+        : roleChoice
   const providerCapabilities = useMemo(
     () => getProviderCapabilities(health),
     [health],
@@ -879,6 +912,7 @@ function App() {
     const request: ChatRequest = {
       question: trimmed,
       institution: institutionOverride,
+      ...(activeRole ? { role: activeRole } : {}),
       provider: providerOverride,
       top_k: topKOverride,
       parser_profile: parserProfileOverride,
@@ -920,6 +954,7 @@ function App() {
         content: data.cited_answer ?? data.answer,
         claims: data.claims ?? [],
         results: data.results,
+        resolvedRole: data.role,
         generation: normalizeGeneration(data, providerOverride),
         trace: data.trace,
         retrieval: data.retrieval,
@@ -1052,6 +1087,38 @@ function App() {
               ))}
             </select>
             <span>{institution === allInstitutions ? '전체 문서에서 검색합니다.' : `${institution} 문서만 검색합니다.`}</span>
+          </div>
+          <div className="institution-control role-control">
+            <select
+              aria-label="내 역할 선택"
+              disabled={isLoading}
+              onChange={(event) => setRoleChoice(event.target.value)}
+              value={roleChoice}
+            >
+              <option value={noRole}>역할 없음</option>
+              {roleOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+              <option value={customRoleId}>직접 입력…</option>
+            </select>
+            {roleChoice === customRoleId ? (
+              <input
+                aria-label="역할 직접 입력"
+                disabled={isLoading}
+                maxLength={MAX_ROLE_CHARS}
+                onChange={(event) => setCustomRole(event.target.value)}
+                placeholder="예: 부산대 대학원생, 금감원 직원"
+                type="text"
+                value={customRole}
+              />
+            ) : null}
+            <span>
+              {roleChoice === noRole
+                ? '역할을 알려주면 그 역할에 맞는 기관 문서를 우선합니다.'
+                : '역할에 맞는 기관 문서를 우선하되 다른 기관 문서도 검색합니다.'}
+            </span>
           </div>
           <div className="institution-shortcuts">
             {institutions.slice(0, 5).map((option) => (
@@ -1261,6 +1328,14 @@ function App() {
                               {retrievalModeDisplayName(
                                 message.request.retrieval_mode,
                               )}
+                            </span>
+                          )}
+                          {message.resolvedRole?.requested && (
+                            <span className="role-badge">
+                              역할{' '}
+                              {message.resolvedRole.id === 'general'
+                                ? '일반 사용자 (매핑 안 됨)'
+                                : message.resolvedRole.label}
                             </span>
                           )}
                           <span>근거 chunk {sourceCount}개</span>

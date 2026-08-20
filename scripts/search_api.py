@@ -57,6 +57,7 @@ try:
     )
     from .rag.retrieval import DenseIndex, HybridRetriever
     from .rag.learned_dense import LearnedDenseIndex
+    from .rag import role_router
 except ImportError:  # Direct CLI execution: python scripts/search_api.py
     from bm25_search import (
         DEFAULT_INDEX,
@@ -81,6 +82,7 @@ except ImportError:  # Direct CLI execution: python scripts/search_api.py
     )
     from rag.retrieval import DenseIndex, HybridRetriever
     from rag.learned_dense import LearnedDenseIndex
+    from rag import role_router
 
 
 DEFAULT_HOST = "127.0.0.1"
@@ -2638,6 +2640,10 @@ class SearchHandler(BaseHTTPRequestHandler):
                     or {self.default_parser_profile: target},
                     self.dense_path,
                 )
+                payload["roles"] = [
+                    {"id": profile.id, "label": profile.label}
+                    for profile in role_router.PRESET_ROLES
+                ]
                 self.write_json(payload)
                 return
 
@@ -2741,6 +2747,10 @@ class SearchHandler(BaseHTTPRequestHandler):
             body = self.read_json_body()
             question = validate_question(body.get("question", ""))
             institution = str(body.get("institution", "")).strip() or None
+            # 역할 자유 입력은 매핑에만 쓰고 원문은 프롬프트에 넣지 않는다.
+            # 매핑 판정 비용이 길이에 비례하므로 상한만 자른다.
+            requested_role = str(body.get("role", "")).strip()[:120] or None
+            role_profile = role_router.resolve(requested_role)
             top_k = parse_top_k(body.get("top_k", DEFAULT_TOP_K))
             target = self.parser_target(body.get("parser_profile"))
             retrieval_state = resolve_retrieval_mode(
@@ -2765,6 +2775,12 @@ class SearchHandler(BaseHTTPRequestHandler):
                 include_text=True,
                 retrieval_mode=retrieval_state.id,
             )
+            # 역할 소프트 우선순위: top-k 선정(인접 확장·중복 제거) 이전의
+            # 넓은 후보 풀에서 우선 기관 문서를 앞으로 보낸다. 기관 필터가
+            # 명시된 요청에는 이미 스코프가 고정되어 있으므로 건드리지
+            # 않는다.
+            if institution is None:
+                results = role_router.prioritize_hits(results, role_profile)
             results, neighbor_expansion = (
                 replace_with_adjacent_temporal_contexts(
                     target.index_path,
@@ -2787,6 +2803,9 @@ class SearchHandler(BaseHTTPRequestHandler):
             }
             retrieval["parser_profile"] = target.profile
             retrieval["retriever_warning"] = retrieval_state.warning
+            retrieval["role"] = role_router.public_role(
+                role_profile, requested_role
+            )
             numbered_results = number_sources(results)
             draft_answer = None
             generator = "extractive"
@@ -2843,6 +2862,13 @@ class SearchHandler(BaseHTTPRequestHandler):
                             extractive_fallback=extractive_fallback_answer,
                             requested_model=requested_model,
                             excluded_providers=excluded_providers,
+                            # 일반 사용자(매핑 실패 포함)는 역할 블록을 아예
+                            # 넣지 않아 역할 없는 요청과 프롬프트가 같다.
+                            role_perspective=(
+                                role_profile.perspective
+                                if role_profile.id != "general"
+                                else None
+                            ),
                         )
                         draft_answer = strip_untrusted_citation_markers(generated.text)
                         generation = public_generation_metadata(
@@ -2910,6 +2936,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                 {
                     "question": question,
                     "institution": institution,
+                    "role": role_router.public_role(role_profile, requested_role),
                     "parser_profile": target.profile,
                     "retrieval_mode": retrieval_state.id,
                     "answer": rag["answer"],

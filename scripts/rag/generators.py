@@ -170,6 +170,7 @@ def generate(
     *,
     requested_model: str | None = None,
     excluded_providers: Sequence[str] = (),
+    role_perspective: str | None = None,
 ) -> GenerationResult:
     """Generate an answer with a server-configured provider.
 
@@ -193,7 +194,9 @@ def generate(
         )
 
     context_values = tuple(contexts)
-    prompt = build_prompt(normalized_question, context_values)
+    prompt = build_prompt(
+        normalized_question, context_values, role_perspective=role_perspective
+    )
     global_deadline_seconds = _env_float(
         "RAG_GENERATION_DEADLINE_SECONDS",
         DEFAULT_DEADLINE_SECONDS,
@@ -311,8 +314,19 @@ def generate(
     raise GenerationError(requested=normalized_requested, attempts=attempts)
 
 
-def build_prompt(question: str, contexts: Sequence[Context]) -> str:
-    """Build a bounded, provider-independent Korean RAG prompt."""
+def build_prompt(
+    question: str,
+    contexts: Sequence[Context],
+    *,
+    role_perspective: str | None = None,
+) -> str:
+    """Build a bounded, provider-independent Korean RAG prompt.
+
+    ``role_perspective``는 서버가 프리셋에서 만든 신뢰된 문장만 받는다
+    (역할 자유 입력 원문 금지 — ``rag.role_router`` 참고). None이면
+    프롬프트는 역할 기능 도입 이전과 바이트 단위로 동일하다 — 연구비
+    벤치마크 경로가 이 기본값을 쓴다.
+    """
 
     remaining = _env_int(
         "RAG_GENERATION_MAX_CONTEXT_CHARS",
@@ -331,8 +345,18 @@ def build_prompt(question: str, contexts: Sequence[Context]) -> str:
             remaining -= len(rendered)
 
     joined = "\n\n".join(blocks) if blocks else "(검색 근거 없음)"
+    role_block = ""
+    if role_perspective:
+        # 역할은 질문자 정보이지 지시가 아니다. 근거에 없는 내용을 역할에
+        # 맞춰 지어내지 않도록 답변 재료는 여전히 검색 근거로 한정한다.
+        role_block = (
+            f"<질문자_정보>\n{role_perspective}\n"
+            "역할은 여러 기준 중 어느 것을 앞세워 설명할지에만 사용하고, "
+            "검색 근거에 없는 내용을 역할에 맞춰 추정하지 마세요.\n"
+            "</질문자_정보>\n\n"
+        )
     if os.environ.get("RAG_ANSWER_STYLE") == "structured":
-        return _build_structured_prompt(question, joined)
+        return _build_structured_prompt(question, joined, role_block=role_block)
     return (
         "아래 검색 근거만 사용해 질문에 바로 답하세요.\n"
         "작성 규칙:\n"
@@ -356,12 +380,15 @@ def build_prompt(question: str, contexts: Sequence[Context]) -> str:
         "8. 근거가 충돌하면 임의로 최신이라고 판단하지 마세요. "
         "적용 대상과 날짜가 명확한 차이만 구분하고, 판단할 수 없으면 "
         "서로 다른 내용이 확인되어 담당 기관 확인이 필요하다고 답하세요.\n\n"
+        f"{role_block}"
         f"<질문>\n{question}\n</질문>\n\n"
         f"<검색_근거_시작>\n{joined}\n<검색_근거_끝>"
     )
 
 
-def _build_structured_prompt(question: str, joined: str) -> str:
+def _build_structured_prompt(
+    question: str, joined: str, *, role_block: str = ""
+) -> str:
     """구조화 답변 프롬프트 (RAG_ANSWER_STYLE=structured).
 
     연구비 규정 상담용. 기본 프롬프트(줄 단위, 마크다운 금지)와 달리
@@ -394,6 +421,7 @@ def _build_structured_prompt(question: str, joined: str) -> str:
         "6. 근거가 충돌하면 임의로 판단하지 말고 적용 대상·날짜 차이를 "
         "구분해 설명하세요.\n"
         "7. 목차·메뉴·머리말 등 문서 구조 잔재는 무시하세요.\n\n"
+        f"{role_block}"
         f"<질문>\n{question}\n</질문>\n\n"
         f"<검색_근거_시작>\n{joined}\n<검색_근거_끝>"
     )

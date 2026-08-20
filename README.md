@@ -18,6 +18,7 @@
 - 로컬 OpenAI 호환 API, 프론티어 AI(Gemini API), 추출형 fallback 답변 생성
   - Gemini 3.1/3.5 직접 선택과 선택 모델 우선 fallback
 - claim 단위 근거 검증 및 출처 번호 표시
+- 역할 기반 응답: 프리셋·자유입력 역할을 매핑해 검색 소프트 우선순위와 답변 관점에 반영
 - React + Vite + TypeScript 프론트엔드
 - 답변 생성 단계 표시
   - 문서 검색
@@ -520,12 +521,22 @@ python scripts/bm25_search.py search "상장폐지 공시" --institution 한국�
 {
   "question": "상장폐지 제도 개선 내용을 알려줘",
   "institution": "한국거래소",
+  "role": "저는 부산대 대학원생이에요",
   "top_k": 8
 }
 ```
 
 응답에는 답변, 근거가 붙은 답변, claim 검증 결과, 검색된 chunk 목록과
 BM25/Dense/RRF/reranker 실행 trace가 포함됩니다.
+
+`role`은 선택 항목으로, 프리셋 id(`pnu-student` 등)나 자유 텍스트를
+받습니다. 서버는 규칙 기반으로 가장 가까운 프리셋 역할에 매핑해
+(`scripts/rag/role_router.py`) ① `institution` 필터가 없으면 역할의 우선
+기관 문서를 검색 후보 정렬에서 앞으로 보내고(하드 필터 아님 — 역할 밖
+기관 문서도 검색됨) ② 생성 프롬프트에 매핑된 프리셋의 관점 문장을
+추가합니다. 자유 텍스트 원문은 프롬프트에 넣지 않으므로 역할 입력란이
+프롬프트 주입 통로가 되지 않습니다. 매핑 결과는 응답과 `/health`의
+`roles` 목록으로 확인할 수 있습니다.
 
 ## 프론트엔드 기능
 
@@ -563,7 +574,6 @@ git switch -c codex/improve-retrieval-quality
 ## 다음 작업 후보
 
 - 학습된 한국어 embedding 모델로 hashing Dense baseline 교체
-- 사용자 역할별 답변 프롬프트 분리
 - RAG 평가 벤치마크 제작
 - 문서별 정답 chunk 기반 retrieval 평가
 - 응답 캐싱 및 Gemini rate limit 대응

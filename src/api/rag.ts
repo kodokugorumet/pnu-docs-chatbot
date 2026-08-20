@@ -116,6 +116,7 @@ export type ChatTrace = {
 export type ChatRequest = {
   question: string
   institution?: string
+  role?: string
   top_k?: number
   provider: GenerationProvider
   model?: string
@@ -123,8 +124,21 @@ export type ChatRequest = {
   retrieval_mode: RetrievalMode
 }
 
+export type ResolvedRole = {
+  requested?: string | null
+  id: string
+  label: string
+  institutions?: string[]
+}
+
+export type RoleOption = {
+  id: string
+  label: string
+}
+
 export type ChatResponse = {
   answer: string
+  role?: ResolvedRole
   cited_answer?: string
   claims?: Claim[]
   results: SearchResult[]
@@ -207,7 +221,22 @@ export type HealthResponse = {
   default_retrieval_mode?: RetrievalMode
   retrieval_modes?: unknown
   parser_profiles?: unknown
+  roles?: unknown
   [key: string]: unknown
+}
+
+export function parseRoleOptions(value: unknown): RoleOption[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.flatMap((item) => {
+    if (!isRecord(item)) {
+      return []
+    }
+    const id = optionalString(item.id)
+    const label = optionalString(item.label)
+    return id && label ? [{ id, label }] : []
+  })
 }
 
 export type LocalModelUnloadResponse = {
