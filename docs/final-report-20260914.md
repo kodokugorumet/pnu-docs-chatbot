@@ -1129,6 +1129,7 @@ dirty 작업 snapshot이므로 최종 동결 커밋의 전체 check와 데모 sm
 - `processed/eval/preflight-20260901/judge-p0g-v8/gfc-paired-analysis.json`
 - `processed/eval/preflight-20260901/judge-p0g-v8/gfc-paired-cases.csv`
 - `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/analysis/c1-vs-c2-v3-3run-review-v2.html`
+- `docs/c2-grounded-claims-decision-20260904.md`
 - `docs/holdout-v2-human-review.md`
 - `evidence/holdout-v2-reviewer-a.json`
 - `evidence/holdout-v2-reviewer-b.json`

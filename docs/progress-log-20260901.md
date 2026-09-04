@@ -1417,6 +1417,14 @@ run3 `e3fba8c705eb49833bffaa92191a035c53f629a591de9f80706ca976feb6640c`다.
 비교판 코드까지 포함한 최종 gate는 `git diff --check`, 전체 unittest, lint,
 build가 모두 통과했고 **786 tests OK, 6 skipped, 실패 0**, Vite 1,735 modules였다.
 
+DEV 결과를 production 채택으로 오해하지 않도록
+`docs/c2-grounded-claims-decision-20260904.md`를 작성했다. C2의 변경점, n=3
+점수·GFC·검정, 검색 13/생성 6의 잔여 병목, run1 확인 편향, 사람 signoff·
+calibration을 포함한 채택 gate를 한 장으로 정리했다. 문서 SHA는
+`8f58020a6a7080bb8abc10776d49b360efb9ca03a52231942da96e8267e821c6`다.
+이를 부록에 연결한 최종 보고서의 최신 SHA는
+`7d82c9abee42e46b21f35300f4ebbc5b0ef9f98ab68d947641e9f98da9be2070`이다.
+
 ### 2026-09-04 C0/C1 Judge v11 안정성 반복 권한 상태
 
 C0/C1 run1 각 45개 answer는 validate-only에서 45/45 eligible, terminal service
