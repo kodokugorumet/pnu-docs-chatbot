@@ -1,0 +1,82 @@
+{
+  "schema_version": "pnu.tuning-freeze-snapshot.v1",
+  "recorded_at": "2026-09-04",
+  "scope": "service tuning freeze before analysis-only tooling and documentation",
+  "external_llm_calls": 0,
+  "holdout_content_accessed": false,
+  "git": {
+    "head": "0a45cd5f66e843abe83eeb16abafd8acede1cc4d",
+    "worktree_clean": false,
+    "status_entry_count": 96
+  },
+  "service_code": [
+    {
+      "path": "scripts/search_api.py",
+      "line_count": 8325,
+      "sha256": "9a8865db361d6d3a044d26fc57698f56840540ed573a5f37bb50ef684c1cf4a5",
+      "health_field": "startup_code_sha256"
+    },
+    {
+      "path": "scripts/bm25_search.py",
+      "line_count": 1273,
+      "sha256": "6c474dc83a4f27ab3172de5b839f731e9954206b1d3cb1748dc08f3848cb1ad7"
+    },
+    {
+      "path": "scripts/rag/generators.py",
+      "line_count": 1294,
+      "sha256": "67cccfd602b808929c226fcbb659635495e50e05103592664020c6c3a725166b"
+    }
+  ],
+  "indexes": [
+    {
+      "profile": "cascade",
+      "path": "processed/index/pnu-20260725-curated-cascade-v5-allow-suspect.sqlite",
+      "sha256": "a4c1ca6318cb14721866a6512f3dfeacdca58c62ecff98ea7b81df2e75c74c31"
+    },
+    {
+      "profile": "baseline",
+      "path": "processed/index/pnu-20260725-curated-baseline-v5-allow-suspect.sqlite",
+      "sha256": "a993f00d222177adf668fa7069869f0a79576166fba9234662c37a7b657b94e7"
+    },
+    {
+      "profile": "challenger",
+      "path": "processed/index/pnu-20260725-curated-challenger-v5-allow-suspect.sqlite",
+      "sha256": "6c1aab850a0b1ac572de9123eee8acfb21007afffaeb6b6e66c7dffc6875ece4"
+    }
+  ],
+  "quality_gates": [
+    {
+      "command": "git diff --check",
+      "status": "PASS",
+      "exit_code": 0,
+      "warning": null
+    },
+    {
+      "command": "python3 -B -m unittest discover -s tests -p 'test_*.py'",
+      "status": "PASS",
+      "exit_code": 0,
+      "tests": 747,
+      "skipped": 6,
+      "warning": "The restricted sandbox run first produced 23 PermissionError failures because local 127.0.0.1 fixture sockets could not bind; the identical command passed outside that socket restriction. Expected negative-path tests print stale/error/usage messages to stderr."
+    },
+    {
+      "command": "bun run lint",
+      "status": "PASS",
+      "exit_code": 0,
+      "warning": null
+    },
+    {
+      "command": "bun run build",
+      "status": "PASS",
+      "exit_code": 0,
+      "warning": "Vite reported 1735 transformed modules; output assets were index.html 0.62 kB, CSS 24.92 kB, and JS 247.91 kB."
+    }
+  ],
+  "constraints": {
+    "service_tuning_changes_after_snapshot": "forbidden",
+    "analysis_scripts_tests_docs_after_snapshot": "allowed until final code freeze",
+    "commit_tag_push": "approval required",
+    "external_llm_calls": "approval required",
+    "holdout": "embargoed until two-person signoff"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": "pnu.saved-retrieval-replay.v1",
+  "created_on": "2026-09-04",
+  "diagnostic_only": true,
+  "service_performance_eligible": false,
+  "generation_called": false,
+  "judge_called": false,
+  "condition": "c1",
+  "generation_run_source": "processed/eval/preflight-20260903/dev45-generation-current-v1/c1-run1.answers.jsonl",
+  "generation_run_source_sha256": "1383561bb04ba242c9dd039d26c821abfd53a36de8e7d18fa268e2293e3dabd6",
+  "cases_path": "config/pnu-service-answer-eval.jsonl",
+  "cases_sha256": "961c3079bb6d0e2298be4ecf0dde9ea5f7ed79695494dd35e6d12510ffc95ffe",
+  "index_path": "processed/index/pnu-20260725-curated-cascade-v5-allow-suspect.sqlite",
+  "index_sha256": "a4c1ca6318cb14721866a6512f3dfeacdca58c62ecff98ea7b81df2e75c74c31",
+  "replay_input_stage": "post_retrieval_pool",
+  "top_k": 8,
+  "max_chunks_per_document": 2,
+  "case_count": 45,
+  "required_evidence_micro": {
+    "denominator": 71,
+    "before_found": 47,
+    "before_recall": 0.6619718309859155,
+    "after_found": 49,
+    "after_recall": 0.6901408450704225,
+    "delta": 0.0281690140845070
+  },
+  "changed_case_count": 2,
+  "improved_case_count": 2,
+  "regressed_case_count": 0,
+  "changes": [
+    {
+      "case_id": "svc_core_01",
+      "removed_chunk_id": "doc_4d26f3f285a8e24c292e1365:cascade#0015",
+      "added_chunk_id": "doc_4d26f3f285a8e24c292e1365:cascade#0017",
+      "required_gold_found_before": 0,
+      "required_gold_found_after": 1
+    },
+    {
+      "case_id": "svc_core_01_role_staff",
+      "removed_chunk_id": "doc_4d26f3f285a8e24c292e1365:cascade#0015",
+      "added_chunk_id": "doc_4d26f3f285a8e24c292e1365:cascade#0017",
+      "required_gold_found_before": 0,
+      "required_gold_found_after": 1
+    }
+  ],
+  "selection_rule": "For a single numeric facet, expand only a strong same-document seed, reject year/semester conflicts, and prefer a candidate containing the queried audience or numeric subject before proximity.",
+  "safety_checks": [
+    "teacher query prefers the teacher row over a closer staff/assistant amount row",
+    "percentage tied to 납부금액 remains an amount facet",
+    "generic 실적급 50% is not treated as the requested monetary amount",
+    "all 45 saved DEV candidate pools changed only for the two intended cases"
+  ],
+  "limitations": "This replays a saved DEV candidate pool and current deterministic selection only. It is tuned on DEV, makes no model call, and cannot be reported as fresh retrieval, generation, GFC, holdout, or generalization performance."
+}

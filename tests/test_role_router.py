@@ -96,6 +96,7 @@ class PromptTests(unittest.TestCase):
         )
         self.assertIn("<질문자_정보>", prompt)
         self.assertIn(profile.perspective, prompt)
+        self.assertIn("국제·비자", profile.perspective)
         # 역할 블록은 질문 앞에 있어야 한다.
         self.assertLess(prompt.index("<질문자_정보>"), prompt.index("<질문>"))
 

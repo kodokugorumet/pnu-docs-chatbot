@@ -54,7 +54,13 @@ JUDGE_PROMPT = """당신은 연구비 규정 상담 답변의 채점자입니다
 JSON 한 줄로만 답하세요: {{"score": 0|1|2, "reason": "한 문장 근거"}}"""
 
 
-def call_gemini_judge(question: str, reference: str, answer: str, retries: int = 4) -> dict:
+def call_gemini_judge(
+    question: str,
+    reference: str,
+    answer: str,
+    retries: int = 4,
+    prompt_template: str = JUDGE_PROMPT,
+) -> dict:
     import urllib.request
 
     api_key = os.environ["GEMINI_API_KEY"]
@@ -62,7 +68,7 @@ def call_gemini_judge(question: str, reference: str, answer: str, retries: int =
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     )
-    prompt = JUDGE_PROMPT.format(question=question, reference=reference, answer=answer)
+    prompt = prompt_template.format(question=question, reference=reference, answer=answer)
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.0, "maxOutputTokens": 200},

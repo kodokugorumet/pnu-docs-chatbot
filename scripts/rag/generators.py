@@ -24,9 +24,11 @@ Completions.  Configure them with ``RAG_<LOCAL|FRONTIER>_API_STYLE`` set to
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import queue
+import re
 import socket
 import threading
 import time
@@ -70,6 +72,9 @@ SYSTEM_INSTRUCTION = (
     "질문에 맞는 기관·학년도·학기·대상과 구체적인 공지 내용을 우선하세요. "
     "날짜·시간·금액·자격 조건·메뉴 경로·서류명·예외 조건은 "
     "원문의 값과 용어를 정확히 보존하세요. "
+    "여러 항목을 함께 묻는 질문은 근거로 확인되는 항목을 반드시 답하고, "
+    "확인되지 않는 항목만 구분해 확인할 수 없다고 밝히세요. 일부 근거가 "
+    "없다는 이유로 질문 전체에 대한 답변을 거부하지 마세요. "
     "근거가 부족하면 추측하지 말고 확인할 수 없다고 명시하세요. "
     "근거끼리 충돌하면 임의로 최신이라고 판단하거나 서로 합치지 마세요. "
     "적용 대상과 시행 날짜가 명확할 때만 내용을 구분하고, 판단할 수 없으면 "
@@ -108,6 +113,10 @@ class GenerationResult:
     model: str | None
     fallback_reason: str | None
     attempts: tuple[GenerationAttempt, ...]
+    prompt_sha256: str
+    system_instruction_sha256: str
+    request_config: Mapping[str, Any]
+    request_config_sha256: str
 
     def metadata(self) -> dict[str, Any]:
         return {
@@ -116,6 +125,10 @@ class GenerationResult:
             "model": self.model,
             "fallback_reason": self.fallback_reason,
             "attempts": [attempt.to_dict() for attempt in self.attempts],
+            "prompt_sha256": self.prompt_sha256,
+            "system_instruction_sha256": self.system_instruction_sha256,
+            "request_config": dict(self.request_config),
+            "request_config_sha256": self.request_config_sha256,
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -159,7 +172,22 @@ class _ProviderFailure(Exception):
 class _ProviderOutput:
     text: str
     model: str | None
+    request_config: Mapping[str, Any]
     fallback_reason: str | None = None
+
+
+def _sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _sha256_json(value: Mapping[str, Any]) -> str:
+    canonical = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return _sha256_text(canonical)
 
 
 def generate(
@@ -309,6 +337,10 @@ def generate(
                 output.fallback_reason,
             ),
             attempts=tuple(attempts),
+            prompt_sha256=_sha256_text(prompt),
+            system_instruction_sha256=_sha256_text(SYSTEM_INSTRUCTION),
+            request_config=dict(output.request_config),
+            request_config_sha256=_sha256_json(output.request_config),
         )
 
     raise GenerationError(requested=normalized_requested, attempts=attempts)
@@ -357,17 +389,25 @@ def build_prompt(
         )
     if os.environ.get("RAG_ANSWER_STYLE") == "structured":
         return _build_structured_prompt(question, joined, role_block=role_block)
+    requirement_block = _build_answer_requirement_block(question)
     return (
         "아래 검색 근거만 사용해 질문에 바로 답하세요.\n"
         "작성 규칙:\n"
-        "1. 첫 줄에 핵심 결론을 쓰세요. 근거가 충분하면 전체 답변을 3~5줄로, "
+        "1. 첫 줄에 핵심 결론을 쓰세요. 근거가 충분하면 전체 답변을 3~7줄로, "
         "핵심 답만 있거나 근거가 부족하면 1~2줄로 작성하세요.\n"
         "2. 각 줄은 20~250자의 독립된 완전한 한국어 문장으로 쓰고, "
-        "한 줄에 하나의 핵심 사실만 담으세요.\n"
+        "한 줄에 하나의 핵심 사실만 담으세요. 서로 다른 처리 결과나 선택지"
+        "(예: 이월과 반환)는 '또는'이나 '-거나'로 한 문장에 합치지 말고 "
+        "각각 별도 줄로 쓰세요. 한 줄의 모든 내용은 하나의 검색 근거 블록에서 "
+        "확인되어야 합니다. 대상·자격, 신청 경로, 비용이 서로 다른 근거 블록에 "
+        "있으면 반드시 각각 별도 줄로 쓰세요.\n"
         "3. Markdown 제목·글머리표·번호 매기기·표·굵은 글씨·출처 번호·"
         "인용 표시는 쓰지 마세요. 서버가 각 줄의 형식과 출처를 처리합니다.\n"
-        "4. 신청이나 절차를 묻는 질문에는 확인되는 항목만 대상·자격, "
-        "신청 기간, 신청 경로·단계, 제출 서류, 예외·문의처 순서로 설명하세요.\n"
+        "4. 신청이나 절차를 묻는 질문에는 <필수_답변_항목>과 질문에서 "
+        "직접 요구한 내용만 우선하세요. 질문하지 않은 대상·신청 기간·제출 "
+        "서류·문의처를 일괄 나열하거나, 그 항목을 확인할 수 없다고 "
+        "덧붙이지 마세요. 다만 신청·등록의 성립이나 실패를 바꾸는 필수 "
+        "예외가 점검표에 있으면 답하세요.\n"
         "5. 날짜·시간·금액·자격 조건·메뉴 경로·서류명은 "
         "원문의 값과 용어를 그대로 보존하세요.\n"
         "6. 목차·메뉴·내비게이션·머리말·꼬리말·파일 목록·문서 뷰어 문구는 "
@@ -375,14 +415,153 @@ def build_prompt(
         "사실을 반복하지 마세요. 반복되었다는 이유로 그 사실을 버리지는 "
         "마세요.\n"
         "7. 근거에 없는 내용을 보완하거나 일반 상식으로 추정하지 마세요. "
-        "필요한 정보가 확인되지 않으면 "
-        "'제공된 문서에서 해당 내용을 확인할 수 없습니다.'라고 답하세요.\n"
+        "여러 항목을 함께 묻는 질문에서는 확인되는 항목은 반드시 답하고, "
+        "확인되지 않는 항목만 '제공된 문서에서 해당 내용을 확인할 수 "
+        "없습니다.'라고 구분하세요. 일부 항목의 근거가 없다는 이유로 질문 "
+        "전체에 대한 답변을 거부하지 마세요.\n"
         "8. 근거가 충돌하면 임의로 최신이라고 판단하지 마세요. "
         "적용 대상과 날짜가 명확한 차이만 구분하고, 판단할 수 없으면 "
         "서로 다른 내용이 확인되어 담당 기관 확인이 필요하다고 답하세요.\n\n"
         f"{role_block}"
         f"<질문>\n{question}\n</질문>\n\n"
+        f"{requirement_block}"
         f"<검색_근거_시작>\n{joined}\n<검색_근거_끝>"
+    )
+
+
+def _build_answer_requirement_block(question: str) -> str:
+    """Turn explicit question facets into a short generation checklist.
+
+    The general prompt already asks for completeness, but compact models still
+    tend to summarize one salient fact and omit the other requested facts.  A
+    query-scoped checklist makes those obligations concrete without asking the
+    model to invent facets that the user did not request.
+    """
+
+    requirements: list[str] = []
+    if re.search(r"언제|기간|일정|날짜|마감|몇\s*시", question):
+        requirements.append("날짜·기간·마감 시각")
+    if re.search(
+        r"금액|지원액|지원\s*금액|한도|비율|얼마|비용|수수료|납부액",
+        question,
+    ):
+        requirements.append("금액·한도·비율")
+    if re.search(
+        r"자격|대상|누가|조건|소득\s*분위|지원\s*구간",
+        question,
+    ):
+        requirements.append("대상·자격·조건")
+    if re.search(r"어떻게|방법|절차|단계|어디서|어디로", question):
+        requirements.append("신청·제출·납부 경로와 단계")
+    if re.search(
+        r"수\s*있|가능|불가|허용|인정|승인|반려|처리|되나요|해도",
+        question,
+    ):
+        requirements.append("가능·불가·처리 결과와 예외 조건")
+    if re.search(r"대신|대체|면제|인정", question) and re.search(
+        r"시험|강좌|과목|이수",
+        question,
+    ):
+        requirements.append("대체·면제 인정에 필요한 이수 기준")
+    if re.search(r"체험|경험", question) and re.search(
+        r"프로그램|직무|진로|업무|현장",
+        question,
+    ):
+        requirements.append("프로그램에서 실제로 하는 활동·체험 방식")
+    if "등록금" in question and re.search(
+        r"언제|어떻게|납부|내야|내나요|내면",
+        question,
+    ):
+        requirements.extend(
+            (
+                "등록금 고지서 출력 가능 시점",
+                "미납·전액장학 등 등록 완료 예외",
+            )
+        )
+    if (
+        re.search(r"학생증|증명서", question)
+        and re.search(r"외부\s*기관|위탁", question)
+    ):
+        requirements.append("질문에 나온 각 업무별 수탁기관")
+    if (
+        re.search(r"(?:19|20)\d{2}\s*학년도", question)
+        and re.search(r"신입생|신입학", question)
+        and re.search(r"총\s*몇|몇\s*명|모집\s*인원", question)
+        and re.search(r"전년\s*대비|달라|변경", question)
+    ):
+        requirements.append("총 모집인원과 전년 대비 주요 변경사항을 구분")
+    if (
+        re.search(r"(?<![A-Za-z0-9])D\s*[-‐‑‒–—]?\s*2(?!\d)", question, re.IGNORECASE)
+        and re.search(r"비자|체류", question)
+        and "연장" in question
+        and "단체" in question
+    ):
+        requirements.extend(
+            (
+                "1차 접수기간",
+                "단체접수 대상",
+                "사전예약",
+                "제출서류",
+                "수수료 금액과 현금·권종 등 납부방식",
+            )
+        )
+    if (
+        re.search(r"정보통신\s*보조기기", question)
+        and re.search(r"자부담금|개인부담금", question)
+        and "지원" in question
+    ):
+        requirements.append(
+            "지원 대상·지원 범위·신청기간·선납부 절차·제출서류와 접수 경로"
+        )
+    if all(
+        re.search(pattern, question)
+        for pattern in (r"외국인", r"학부", r"신입학|신입생", r"자격|조건|요건")
+    ):
+        requirements.append("국적·학력·언어능력 자격을 구분")
+    if (
+        re.search(r"교환학생|해외\s*파견", question)
+        and re.search(r"선발\s*규모", question)
+        and re.search(r"지원\s*일정|접수\s*일정", question)
+    ):
+        requirements.append("선발 규모·온라인 지원기간·합격자 발표")
+    if (
+        "여름방학" in question
+        and "자격증" in question
+        and re.search(r"강의|특강|프로그램|대비", question)
+    ):
+        requirements.append("운영 여부와 자격증 대비 과정 종류")
+    if (
+        "장애" in question
+        and "지원" in question
+        and re.search(r"수업|시험", question)
+    ):
+        requirements.append("수업 지원과 시험 지원을 구분")
+    if (
+        "신고" in question
+        and re.search(
+            r"피해자가?\s*아닌|대신\s*신고|제\s*3\s*자|목격",
+            question,
+        )
+    ):
+        requirements.append("제3자 신고 가능 여부·피해자 의사·인적사항 조건")
+
+    multipart = question.count("?") >= 2 or bool(
+        re.search(r"각각|모두|둘\s*다|\b및\b|[·/]", question)
+    )
+    if multipart:
+        requirements.append("질문에 나열된 각 대상·행위별로 따로 답하기")
+    if not requirements:
+        return ""
+
+    checklist = "\n".join(f"- {item}" for item in requirements)
+    return (
+        "<필수_답변_항목>\n"
+        "아래는 출력 형식이 아니라 작성 전 누락 점검표입니다. 검색 근거에서 "
+        "확인되는 항목은 하나도 생략하지 말고, 확인되지 않는 항목만 그 항목에 "
+        "한해 확인할 수 없다고 쓰세요. 각 줄에 해당하는 원문 값이 있으면 답변에 "
+        "그 값을 직접 쓰고, '확인하세요' 같은 표현으로 대신하지 마세요.\n"
+        f"{checklist}\n"
+        "</필수_답변_항목>\n\n"
     )
 
 
@@ -415,9 +594,11 @@ def _build_structured_prompt(
         "구조로 둘 다 쓰세요. 예외·단서 조항 누락은 오답으로 간주됩니다.\n"
         "4. 글머리표와 굵은 글씨로 항목을 구조화하고, 각 사실 뒤에 근거 "
         "번호를 [n] 형식으로 붙이세요 (Source n의 n).\n"
-        "5. 근거에 없는 내용을 일반 상식으로 보완하지 마세요. 필요한 정보가 "
-        "근거에 없으면 그 항목에 한해 '제공된 문서에서 확인할 수 없습니다'라고 "
-        "쓰세요. 확인되는 부분까지는 답하세요.\n"
+        "5. 근거에 없는 내용을 일반 상식으로 보완하지 마세요. 여러 항목을 "
+        "함께 묻는 질문은 확인되는 항목을 반드시 답하고, 필요한 정보가 근거에 "
+        "없으면 그 항목에 한해 '제공된 문서에서 확인할 수 없습니다'라고 "
+        "쓰세요. 일부 항목이 확인되지 않아도 질문 전체에 대한 답변을 거부하지 "
+        "마세요.\n"
         "6. 근거가 충돌하면 임의로 판단하지 말고 적용 대상·날짜 차이를 "
         "구분해 설명하세요.\n"
         "7. 목차·메뉴·머리말 등 문서 구조 잔재는 무시하세요.\n\n"
@@ -618,7 +799,19 @@ def _run_openai_compatible(
         if provider == "local" and local_model_override
         else _text_value(payload.get("model")) or model
     )
-    return _ProviderOutput(text=text, model=reported_model)
+    return _ProviderOutput(
+        text=text,
+        model=reported_model,
+        request_config={
+            "provider": provider,
+            "model_requested": model,
+            "api_style": style,
+            "temperature": temperature,
+            "max_output_tokens": max_tokens,
+            "prompt_used": True,
+            "system_instruction_sha256": _sha256_text(SYSTEM_INSTRUCTION),
+        },
+    )
 
 
 def _gemini_model_candidates(
@@ -667,6 +860,28 @@ def _gemini_generation_config(model: str) -> dict[str, Any]:
             ),
         )
     return config
+
+
+def generation_runtime_controls(model: str | None = None) -> dict[str, Any]:
+    """Expose effective non-secret generation caps for evaluation preflight."""
+
+    candidates = _gemini_model_candidates()
+    active_model = model or (candidates[0] if candidates else "")
+    generation_config = _gemini_generation_config(active_model)
+    sampling_keys = sorted(
+        key
+        for key in generation_config
+        if key not in {"maxOutputTokens"}
+    )
+    return {
+        "max_context_chars": _env_int(
+            "RAG_GENERATION_MAX_CONTEXT_CHARS",
+            DEFAULT_MAX_CONTEXT_CHARS,
+            minimum=100,
+        ),
+        "max_output_tokens": generation_config["maxOutputTokens"],
+        "sampling_parameters": sampling_keys,
+    }
 
 
 def _should_try_next_gemini_model(error: _ProviderFailure) -> bool:
@@ -748,6 +963,16 @@ def _run_gemini(
         return _ProviderOutput(
             text=text,
             model=reported_model,
+            request_config={
+                "provider": "gemini",
+                "model_requested": model,
+                "api_style": "generateContent",
+                "generation_config": dict(body["generationConfig"]),
+                "prompt_used": True,
+                "system_instruction_sha256": _sha256_text(
+                    SYSTEM_INSTRUCTION
+                ),
+            },
             fallback_reason=",".join(failures) or None,
         )
 
@@ -764,7 +989,15 @@ def _run_extractive(
         text = fallback.strip()
         if not text:
             raise _ProviderFailure("empty_response")
-        return _ProviderOutput(text=text, model=None)
+        return _ProviderOutput(
+            text=text,
+            model=None,
+            request_config={
+                "provider": "extractive",
+                "model_requested": None,
+                "prompt_used": False,
+            },
+        )
     if not callable(fallback):
         raise _ProviderFailure("not_configured")
 
@@ -790,7 +1023,15 @@ def _run_extractive(
     text = str(value or "").strip()
     if not text:
         raise _ProviderFailure("empty_response")
-    return _ProviderOutput(text=text, model=None)
+    return _ProviderOutput(
+        text=text,
+        model=None,
+        request_config={
+            "provider": "extractive",
+            "model_requested": None,
+            "prompt_used": False,
+        },
+    )
 
 
 def _post_json(

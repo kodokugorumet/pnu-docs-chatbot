@@ -57,8 +57,8 @@ PRESET_ROLES: tuple[RoleProfile, ...] = (
         id="pnu-student",
         label="부산대학교 학생",
         perspective=(
-            "질문자는 부산대학교 학생입니다. 학사·장학·등록·수강 등 "
-            "학생에게 적용되는 기준을 우선해 설명하세요."
+            "질문자는 부산대학교 학생입니다. 학사·장학·등록·수강·국제·비자 "
+            "등 질문 주제에서 학생에게 적용되는 기준을 우선해 설명하세요."
         ),
         institutions=("부산대학교",),
         institution_markers=("부산대", "부산대학교"),

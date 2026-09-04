@@ -476,9 +476,309 @@ def build_dense_index(
     }
 
 
-def fts_query(user_query: str) -> str:
+# 서비스 질의 전용 구어체 어미·의문사 토큰 (2026-08-31 진단, worklog S7).
+# tokenize()는 어절 통짜 + 한글 바이그램을 만들기 때문에 "있나요"가
+# 있나요·있나·나요 3토큰으로 같은 표면 문자열에 중복 매칭되고, 이 토큰들은
+# FAQ·상담 가이드북 계열에 집중되어 있어 무관 질의의 상위를 점령한다.
+# 여기서 제거하는 것은 질의 측 OR 항뿐이다 — 내용어의 통짜 토큰과 나머지
+# 바이그램은 남으므로 정보 손실이 없다. 벤치마크 경로는 이 상수를 쓰지
+# 않는다 (service_tuning 기본 꺼짐).
+SERVICE_QUERY_STOP_TOKENS = frozenset({
+    "나요", "있나", "있나요", "되나", "되나요", "됐나", "됐나요",
+    "하나요", "한가요", "인가요", "할까", "할까요", "까요", "가요",
+    "어떻", "떻게", "어떻게", "어떤", "해요", "세요", "궁금", "금해",
+    "궁금해", "니까", "습니까", "합니까",
+})
+
+# 내비게이션·상용구 제목 (정규화: 공백 제거 + 소문자). 일반적으로는
+# 강등하되, 본문·섹션이 질의의 강한 내용어를 충분히 덮는 실제 내용
+# 페이지는 아래 content-aware 규칙으로 구제한다.
+GENERIC_SOURCE_TITLES = frozenset({
+    "faqs", "부산대학교", "국문(korean)", "pdf", "hwp", "[다운로드]",
+    "사이트맵", "100%크게보기",
+    "pnu포커스>뉴스>홍보센터|부산대학교",
+    "카드뉴스내용>뉴스>홍보센터|부산대학교",
+    "공지사항내용>공지사항>공지/참여|부산대학교",
+    # 회의록공개 셸: 본문 없는 목록 페이지인데 연도가 없어 연도 강등을
+    # 피해 상위로 유입 (S8 A/B에서 svc_reg_05 오염 실증). 브레드크럼
+    # 제목 일반(453문서)에는 실제 내용 페이지가 많아 일괄 강등은 금지 —
+    # 정확 일치로만 추가한다.
+    "등록금심의위원회회의록공개>행정서비스>학교소개|부산대학교",
+    "등록금심의위원회회의록공개내용>행정서비스>학교소개|부산대학교",
+})
+_GENERIC_DOWNLOAD_TITLE_RE = re.compile(
+    r"^(?:pdf|hwp|hwpx|doc|docx|xls|xlsx|ppt|pptx)(?:파일)?다운로드$"
+)
+
+_YEAR_TOKEN_RE = re.compile(r"(?:19|20)\d{2}")
+_LATIN_TOKEN_RE = re.compile(
+    r"(?<![A-Za-z0-9])[A-Za-z][A-Za-z0-9]{2,}(?![A-Za-z0-9])"
+)
+
+# 파일 형식·기관명·일반 앱 표현은 많은 문서 제목에 반복되므로 희소 식별자
+# 부스트로 쓰지 않는다. BIDV/TOPIK처럼 질의와 제목에 정확히 함께 등장하는
+# 토큰만 후보를 앞당긴다.
+_GENERIC_LATIN_TITLE_TOKENS = frozenset({
+    "app", "apps", "application", "applications", "com", "doc", "docx",
+    "download", "file", "hwp", "hwpx", "html", "http", "https", "jpeg",
+    "jpg", "kr", "pdf", "png", "pnu", "ppt", "pptx", "use", "www",
+    "xls", "xlsx",
+})
+
+_QUERY_CONTENT_STOP_TERMS = frozenset({
+    "그거", "내야", "누가", "뭐가", "무엇", "부산대", "부산대학교", "수",
+    "알려줘", "알려주세요", "어느", "어디", "어떤", "어떻게", "언제",
+    "언제까지", "이번", "있나요", "있어", "있어요", "지금", "현재", "하고",
+    "하나요", "해당",
+}) | SERVICE_QUERY_STOP_TOKENS
+
+_KOREAN_TERM_SUFFIXES = (
+    "으로부터", "에게서는", "에서부터", "으로는", "에서는", "에서도",
+    "에게서", "까지는", "부터는", "하려고", "하면서", "하는", "해서",
+    "에서", "에게", "한테", "으로", "까지", "부터", "처럼", "보다",
+    "하며", "하면", "하고", "하려", "할", "은", "는", "이", "가", "을",
+    "를", "에", "도", "만",
+)
+
+_PROCEDURE_QUERY_TERMS = frozenset({
+    "app", "application", "단계", "방법", "신청", "앱", "어떻게", "업로드",
+    "입력", "절차", "제출", "로그인", "선택",
+})
+_MINUTES_DECISION_TERMS = frozenset({
+    "결과", "동결", "심의", "위원회", "의결", "인상", "책정", "회의록",
+})
+
+
+def fts_query(user_query: str, *, drop_tokens: frozenset[str] | None = None) -> str:
     terms = dedupe_keep_order(tokenize(user_query), limit=32)
+    if drop_tokens:
+        kept = [term for term in terms if term not in drop_tokens]
+        terms = kept or terms
     return " OR ".join(terms)
+
+
+def _normalize_content_term(value: str) -> str:
+    term = str(value or "").lower()
+    if not HANGUL_RE.fullmatch(term):
+        return term
+    for suffix in _KOREAN_TERM_SUFFIXES:
+        if term.endswith(suffix) and len(term) - len(suffix) >= 2:
+            return term[: -len(suffix)]
+    return term
+
+
+def _content_terms(value: str) -> set[str]:
+    return {
+        normalized
+        for token in tokenize(value, include_ngrams=False)
+        if (normalized := _normalize_content_term(token))
+    }
+
+
+def _flatten_scope_strings(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for nested in value.values():
+            yield from _flatten_scope_strings(nested)
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            yield from _flatten_scope_strings(nested)
+
+
+def _row_body_and_section_text(row: dict[str, Any]) -> str:
+    scopes: list[Any] = [
+        row.get("text") or row.get("preview") or "",
+        row.get("section_path"),
+    ]
+    location = row.get("location")
+    if isinstance(location, dict):
+        scopes.append(location.get("section_path"))
+    locations = row.get("locations")
+    if isinstance(locations, list):
+        scopes.extend(
+            item.get("section_path")
+            for item in locations
+            if isinstance(item, dict)
+        )
+    return "\n".join(
+        text
+        for scope in scopes
+        for text in _flatten_scope_strings(scope)
+        if text
+    )
+
+
+def _has_strong_content_coverage(query: str, row: dict[str, Any]) -> bool:
+    query_terms = {
+        term
+        for term in _content_terms(query)
+        if term not in _QUERY_CONTENT_STOP_TERMS
+        and (len(term) >= 2 or term.isdigit())
+    }
+    if len(query_terms) < 3:
+        return False
+    candidate_terms = _content_terms(_row_body_and_section_text(row))
+    matched = query_terms & candidate_terms
+    # 숫자(연도·학기·금액)는 의미를 뒤집을 수 있어 비율 계산만으로
+    # 누락을 허용하지 않는다.
+    numeric_terms = {term for term in query_terms if term.isdigit()}
+    return (
+        numeric_terms <= candidate_terms
+        and len(matched) >= 3
+        and len(matched) / len(query_terms) >= 0.85
+    )
+
+
+def _rare_query_title_match(query: str, row: dict[str, Any]) -> bool:
+    query_tokens = {
+        token.lower()
+        for token in _LATIN_TOKEN_RE.findall(str(query or ""))
+        if token.lower() not in _GENERIC_LATIN_TITLE_TOKENS
+    }
+    if not query_tokens:
+        return False
+    title_text = " ".join(
+        str(row.get(field) or "") for field in ("source_title", "file_name")
+    )
+    title_tokens = {
+        token.lower() for token in _LATIN_TOKEN_RE.findall(title_text)
+    }
+    return bool(query_tokens & title_tokens)
+
+
+def _is_procedure_minutes_noise(query: str, row: dict[str, Any]) -> bool:
+    raw_query_terms = {
+        token.lower() for token in tokenize(query, include_ngrams=False)
+    }
+    query_terms = raw_query_terms | {
+        _normalize_content_term(token) for token in raw_query_terms
+    }
+    if not (query_terms & _PROCEDURE_QUERY_TERMS):
+        return False
+    if query_terms & _MINUTES_DECISION_TERMS:
+        return False
+    candidate_label = re.sub(
+        r"\s+",
+        "",
+        " ".join(
+            str(row.get(field) or "") for field in ("source_title", "file_name")
+        ).lower(),
+    )
+    return "회의록" in candidate_label and "등록금" in candidate_label
+
+
+_SPECIALIZED_FOREIGN_ADMISSION_TITLE_TERMS = (
+    "추가모집",
+    "추천트랙",
+    "현지",
+    "글로벌자유전공학부",
+)
+
+
+def _foreign_admission_title_priority(
+    query: str,
+    row: dict[str, Any],
+) -> str | None:
+    """Classify general vs specialized guides for an unscoped admission query."""
+
+    query_key = re.sub(r"\s+", "", str(query or ""))
+    intent_terms = ("외국인", "학부", "신입", "자격")
+    if not all(term in query_key for term in intent_terms):
+        return None
+    # A user who explicitly asks for a country/local/recommendation/additional
+    # track should keep ordinary BM25 ordering for that requested scope.
+    if any(term in query_key for term in _SPECIALIZED_FOREIGN_ADMISSION_TITLE_TERMS):
+        return None
+
+    title_key = re.sub(
+        r"\s+",
+        "",
+        " ".join(
+            str(row.get(field) or "")
+            for field in ("source_title", "file_name")
+        ),
+    )
+    if "대학원" in title_key and "학부" not in title_key:
+        return "scope_mismatch"
+    if not all(
+        term in title_key
+        for term in ("학부", "외국인", "특별전형", "모집요강")
+    ):
+        return None
+    if any(
+        term in title_key
+        for term in _SPECIALIZED_FOREIGN_ADMISSION_TITLE_TERMS
+    ):
+        return "specialized"
+    return "general"
+
+
+def demote_generic_candidates(
+    query: str, rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """서비스 전용 후보 안정 분할: 버킷 안의 순서·점수는 보존한다.
+
+    우선 대상:
+    - 상용구 제목이지만 본문·섹션이 질의 내용어를 85% 이상(최소 3개,
+      숫자는 전부) 덮는 후보
+    - 질의의 희소 영문 토큰(BIDV/TOPIK 등)이 제목·파일명에 정확히 있는 후보
+
+    강등 대상 (role_router.prioritize_hits와 같은 분할 방식):
+    - 제목이 내비게이션·상용구(GENERIC_SOURCE_TITLES)인 후보
+    - 질의에 연도가 있는데 제목·파일명에 다른 연도만 있는 후보
+      (연도 토큰은 DF가 커서 IDF≈0 — BM25가 연도 사본을 구분하지 못하는
+      공백을 순위 밖에서 메운다. 제목에 연도가 없으면 강등하지 않고,
+      질의에 연도가 없으면 규칙 자체가 발동하지 않는다.)
+    - 절차·앱 질의에서 등록금심의위원회 회의록인 후보. 단 심의 결과·동결·
+      인상 등을 직접 묻는 질의는 회의록이 정답이므로 제외한다.
+    """
+    query_years = set(_YEAR_TOKEN_RE.findall(str(query or "")))
+    promoted: list[dict[str, Any]] = []
+    preferred: list[dict[str, Any]] = []
+    demoted: list[dict[str, Any]] = []
+    scope_conflicted: list[dict[str, Any]] = []
+    for row in rows:
+        title = str(row.get("source_title") or "")
+        title_key = re.sub(r"\s+", "", title).lower()
+        is_generic = (
+            title_key in GENERIC_SOURCE_TITLES
+            or bool(_GENERIC_DOWNLOAD_TITLE_RE.fullmatch(title_key))
+        )
+        generic_content_match = is_generic and _has_strong_content_coverage(
+            query, row
+        )
+        year_mismatch = False
+        if query_years and not is_generic:
+            candidate_years = set(_YEAR_TOKEN_RE.findall(title)) | set(
+                _YEAR_TOKEN_RE.findall(str(row.get("file_name") or ""))
+            )
+            year_mismatch = bool(candidate_years) and not (
+                candidate_years & query_years
+            )
+        foreign_admission_priority = _foreign_admission_title_priority(
+            query,
+            row,
+        )
+        should_demote = (
+            (is_generic and not generic_content_match)
+            or year_mismatch
+            or _is_procedure_minutes_noise(query, row)
+            or foreign_admission_priority == "specialized"
+        )
+        if foreign_admission_priority == "scope_mismatch":
+            scope_conflicted.append(row)
+        elif should_demote:
+            demoted.append(row)
+        elif (
+            generic_content_match
+            or _rare_query_title_match(query, row)
+            or foreign_admission_priority == "general"
+        ):
+            promoted.append(row)
+        else:
+            preferred.append(row)
+    return promoted + preferred + demoted + scope_conflicted
 
 
 def normalize_for_rank(value: str) -> str:
@@ -649,13 +949,14 @@ def search_bm25_candidates(
     *,
     preview_chars: int = 700,
     include_text: bool = False,
+    drop_query_tokens: frozenset[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return raw BM25 candidates for fusion without applying the reranker."""
 
     if not index_path.exists():
         raise FileNotFoundError(f"Missing index DB: {index_path}")
 
-    match_query = fts_query(query)
+    match_query = fts_query(query, drop_tokens=drop_query_tokens)
     if not match_query:
         return []
 
@@ -851,6 +1152,8 @@ def search_index(
     preview_chars: int = 700,
     include_text: bool = False,
     candidate_multiplier: int = DEFAULT_RERANK_CANDIDATE_MULTIPLIER,
+    service_tuning: bool = False,
+    max_chunks_per_document: int = 2,
 ) -> list[dict[str, Any]]:
     if top_k <= 0:
         return []
@@ -866,8 +1169,15 @@ def search_index(
         institution,
         preview_chars=preview_chars,
         include_text=include_text,
+        drop_query_tokens=SERVICE_QUERY_STOP_TOKENS if service_tuning else None,
     )
-    return select_document_diverse_results(rows, top_k)
+    if service_tuning:
+        rows = demote_generic_candidates(query, rows)
+    return select_document_diverse_results(
+        rows,
+        top_k,
+        max_chunks_per_document=max_chunks_per_document,
+    )
 
 
 def print_results(results: list[dict[str, Any]]) -> None:

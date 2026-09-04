@@ -1,0 +1,1284 @@
+{
+  "schema_version": 1,
+  "cases": "/Users/leehyunwoo/project/pnu-docs-chatbot/config/pnu-service-answer-eval.jsonl",
+  "labels": {
+    "a": "baseline",
+    "b": "service-tuning"
+  },
+  "runs": {
+    "a": [
+      "evidence/20260914/20260831-svc-gen-baseline-run1.jsonl",
+      "evidence/20260914/20260831-svc-gen-baseline-run2.jsonl",
+      "evidence/20260914/20260831-svc-gen-baseline-run3.jsonl"
+    ],
+    "b": [
+      "evidence/20260914/20260831-svc-gen-tuned-run1.jsonl",
+      "evidence/20260914/20260831-svc-gen-tuned-run2.jsonl",
+      "evidence/20260914/20260831-svc-gen-tuned-run3.jsonl"
+    ]
+  },
+  "a": {
+    "runs": 3,
+    "questions": 45,
+    "run_means": [
+      0.7333333333333333,
+      0.6666666666666666,
+      0.7555555555555555
+    ],
+    "mean": 0.7185185185185186,
+    "run_mean_sd": 0.03777051491550212,
+    "score_counts": {
+      "0": 61,
+      "1": 51,
+      "2": 23
+    },
+    "retrieval": {
+      "hits": 29,
+      "hit_rate": 0.6444444444444445,
+      "mrr": 0.49444444444444446,
+      "evidence_hits": 23,
+      "evidence_hit_rate": 0.5111111111111111
+    },
+    "categories": {
+      "academic": {
+        "questions": 5,
+        "mean": 1.2
+      },
+      "admissions": {
+        "questions": 4,
+        "mean": 0.3333333333333333
+      },
+      "core": {
+        "questions": 5,
+        "mean": 0
+      },
+      "employment": {
+        "questions": 3,
+        "mean": 0.6666666666666666
+      },
+      "graduation": {
+        "questions": 6,
+        "mean": 0.8333333333333334
+      },
+      "international": {
+        "questions": 5,
+        "mean": 0.4666666666666667
+      },
+      "registration": {
+        "questions": 7,
+        "mean": 0.7142857142857143
+      },
+      "scholarship": {
+        "questions": 7,
+        "mean": 1.1904761904761905
+      },
+      "student_support": {
+        "questions": 3,
+        "mean": 0.7777777777777778
+      }
+    }
+  },
+  "b": {
+    "runs": 3,
+    "questions": 45,
+    "run_means": [
+      0.7333333333333333,
+      0.7555555555555555,
+      0.7555555555555555
+    ],
+    "mean": 0.7481481481481481,
+    "run_mean_sd": 0.010475656017578498,
+    "score_counts": {
+      "0": 52,
+      "1": 65,
+      "2": 18
+    },
+    "retrieval": {
+      "hits": 40,
+      "hit_rate": 0.8888888888888888,
+      "mrr": 0.7229629629629629,
+      "evidence_hits": 28,
+      "evidence_hit_rate": 0.6222222222222222
+    },
+    "categories": {
+      "academic": {
+        "questions": 5,
+        "mean": 1.2
+      },
+      "admissions": {
+        "questions": 4,
+        "mean": 0.5833333333333333
+      },
+      "core": {
+        "questions": 5,
+        "mean": 0
+      },
+      "employment": {
+        "questions": 3,
+        "mean": 1
+      },
+      "graduation": {
+        "questions": 6,
+        "mean": 0.8888888888888888
+      },
+      "international": {
+        "questions": 5,
+        "mean": 0.4
+      },
+      "registration": {
+        "questions": 7,
+        "mean": 0.9523809523809523
+      },
+      "scholarship": {
+        "questions": 7,
+        "mean": 0.6666666666666666
+      },
+      "student_support": {
+        "questions": 3,
+        "mean": 1.2222222222222223
+      }
+    }
+  },
+  "comparison": {
+    "mean_delta_b_minus_a": 0.029629629629629617,
+    "wins_b": 10,
+    "ties": 29,
+    "losses_b": 6,
+    "bootstrap": {
+      "method": "paired cluster bootstrap by base/role question family",
+      "iterations": 10000,
+      "seed": 20260914,
+      "ci95": [
+        -0.14074074074074075,
+        0.19512195121951217
+      ]
+    }
+  },
+  "questions": [
+    {
+      "id": "svc_reg_01",
+      "category": "registration",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 4,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_reg_02",
+      "category": "registration",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 2,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_reg_03",
+      "category": "registration",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        1,
+        1,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0.6666666666666666,
+      "delta_b_minus_a": 0.6666666666666666,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 2,
+      "evidence_hit_a": false,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_reg_04",
+      "category": "registration",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        1,
+        1,
+        2
+      ],
+      "mean_a": 0,
+      "mean_b": 1.3333333333333333,
+      "delta_b_minus_a": 1.3333333333333333,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 5,
+      "evidence_hit_a": false,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_reg_05",
+      "category": "registration",
+      "role": null,
+      "scores_a": [
+        2,
+        2,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1.6666666666666667,
+      "mean_b": 1,
+      "delta_b_minus_a": -0.6666666666666667,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_reg_06",
+      "category": "registration",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 2,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sch_01",
+      "category": "scholarship",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 0,
+      "mean_b": 1,
+      "delta_b_minus_a": 1,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sch_02",
+      "category": "scholarship",
+      "role": null,
+      "scores_a": [
+        1,
+        2,
+        2
+      ],
+      "scores_b": [
+        0,
+        0,
+        1
+      ],
+      "mean_a": 1.6666666666666667,
+      "mean_b": 0.3333333333333333,
+      "delta_b_minus_a": -1.3333333333333335,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sch_03",
+      "category": "scholarship",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sch_04",
+      "category": "scholarship",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sch_05",
+      "category": "scholarship",
+      "role": null,
+      "scores_a": [
+        2,
+        2,
+        2
+      ],
+      "scores_b": [
+        1,
+        0,
+        0
+      ],
+      "mean_a": 2,
+      "mean_b": 0.3333333333333333,
+      "delta_b_minus_a": -1.6666666666666667,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sch_06",
+      "category": "scholarship",
+      "role": null,
+      "scores_a": [
+        1,
+        2,
+        2
+      ],
+      "scores_b": [
+        0,
+        1,
+        0
+      ],
+      "mean_a": 1.6666666666666667,
+      "mean_b": 0.3333333333333333,
+      "delta_b_minus_a": -1.3333333333333335,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 3,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_acad_01",
+      "category": "academic",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 4,
+      "rank_b": 3,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_acad_02",
+      "category": "academic",
+      "role": null,
+      "scores_a": [
+        2,
+        2,
+        2
+      ],
+      "scores_b": [
+        2,
+        2,
+        2
+      ],
+      "mean_a": 2,
+      "mean_b": 2,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 3,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_acad_03",
+      "category": "academic",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_acad_04",
+      "category": "academic",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_acad_05",
+      "category": "academic",
+      "role": null,
+      "scores_a": [
+        2,
+        2,
+        2
+      ],
+      "scores_b": [
+        2,
+        2,
+        2
+      ],
+      "mean_a": 2,
+      "mean_b": 2,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_grad_01",
+      "category": "graduation",
+      "role": null,
+      "scores_a": [
+        2,
+        2,
+        2
+      ],
+      "scores_b": [
+        2,
+        2,
+        2
+      ],
+      "mean_a": 2,
+      "mean_b": 2,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 2,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_grad_02",
+      "category": "graduation",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_grad_03",
+      "category": "graduation",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_grad_04",
+      "category": "graduation",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_grad_05",
+      "category": "graduation",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        2,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1.3333333333333333,
+      "delta_b_minus_a": 0.33333333333333326,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_core_01",
+      "category": "core",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_core_02",
+      "category": "core",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_core_03",
+      "category": "core",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": false,
+      "rank_a": null,
+      "rank_b": null,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_adm_01",
+      "category": "admissions",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        2
+      ],
+      "scores_b": [
+        1,
+        1,
+        2
+      ],
+      "mean_a": 1.3333333333333333,
+      "mean_b": 1.3333333333333333,
+      "delta_b_minus_a": 0.0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_adm_02",
+      "category": "admissions",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 0,
+      "mean_b": 1,
+      "delta_b_minus_a": 1,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 4,
+      "evidence_hit_a": false,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_adm_03",
+      "category": "admissions",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": false,
+      "rank_a": null,
+      "rank_b": null,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_adm_04",
+      "category": "admissions",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 2,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": false
+    },
+    {
+      "id": "svc_intl_01",
+      "category": "international",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 1,
+      "mean_b": 0,
+      "delta_b_minus_a": -1,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": false,
+      "rank_a": null,
+      "rank_b": null,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_intl_02",
+      "category": "international",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_intl_03",
+      "category": "international",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_intl_04",
+      "category": "international",
+      "role": null,
+      "scores_a": [
+        2,
+        0,
+        2
+      ],
+      "scores_b": [
+        2,
+        2,
+        2
+      ],
+      "mean_a": 1.3333333333333333,
+      "mean_b": 2,
+      "delta_b_minus_a": 0.6666666666666667,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 4,
+      "evidence_hit_a": false,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_emp_01",
+      "category": "employment",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 0,
+      "mean_b": 1,
+      "delta_b_minus_a": 1,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": false,
+      "rank_a": null,
+      "rank_b": null,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_emp_02",
+      "category": "employment",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 3,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_emp_03",
+      "category": "employment",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 2,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sup_01",
+      "category": "student_support",
+      "role": null,
+      "scores_a": [
+        2,
+        0,
+        2
+      ],
+      "scores_b": [
+        2,
+        2,
+        2
+      ],
+      "mean_a": 1.3333333333333333,
+      "mean_b": 2,
+      "delta_b_minus_a": 0.6666666666666667,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": false,
+      "rank_a": null,
+      "rank_b": null,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sup_02",
+      "category": "student_support",
+      "role": null,
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sup_03",
+      "category": "student_support",
+      "role": null,
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        1,
+        1
+      ],
+      "mean_a": 0,
+      "mean_b": 0.6666666666666666,
+      "delta_b_minus_a": 0.6666666666666666,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_reg_01_role_student",
+      "category": "registration",
+      "role": "부산대학교 학생",
+      "scores_a": [
+        1,
+        0,
+        0
+      ],
+      "scores_b": [
+        1,
+        1,
+        0
+      ],
+      "mean_a": 0.3333333333333333,
+      "mean_b": 0.6666666666666666,
+      "delta_b_minus_a": 0.3333333333333333,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 4,
+      "rank_b": 2,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_sch_03_role_student",
+      "category": "scholarship",
+      "role": "부산대학교 학생",
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        0,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 0.6666666666666666,
+      "delta_b_minus_a": -0.33333333333333337,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": true,
+      "evidence_hit_b": true,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_core_01_role_staff",
+      "category": "core",
+      "role": "부산대학교 행정직원",
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_core_02_role_researcher",
+      "category": "core",
+      "role": "부산대학교 연구자",
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_grad_03_role_free",
+      "category": "graduation",
+      "role": "대학원 박사과정 수료생",
+      "scores_a": [
+        1,
+        1,
+        1
+      ],
+      "scores_b": [
+        1,
+        1,
+        1
+      ],
+      "mean_a": 1,
+      "mean_b": 1,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": true,
+      "retrieval_hit_b": true,
+      "rank_a": 1,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    },
+    {
+      "id": "svc_intl_03_role_free",
+      "category": "international",
+      "role": "외국인 유학생",
+      "scores_a": [
+        0,
+        0,
+        0
+      ],
+      "scores_b": [
+        0,
+        0,
+        0
+      ],
+      "mean_a": 0,
+      "mean_b": 0,
+      "delta_b_minus_a": 0,
+      "retrieval_hit_a": false,
+      "retrieval_hit_b": true,
+      "rank_a": null,
+      "rank_b": 1,
+      "evidence_hit_a": false,
+      "evidence_hit_b": false,
+      "sources_changed": true
+    }
+  ]
+}

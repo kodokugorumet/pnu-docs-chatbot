@@ -1,0 +1,3010 @@
+{
+  "benchmark": {
+    "component_under_test": "scripts.search_api.attribute_claim",
+    "estimand": "supported-label, validation-reason, and selected-source behavior on curated relation-reversal cases",
+    "kind": "synthetic_adversarial_microbenchmark",
+    "limitations": [
+      "This benchmark is curated from synthetic and notice-shaped examples.",
+      "It does not estimate retrieval, LLM generation, or end-to-end service quality.",
+      "Use a separate held-out service evaluation before claiming production gains."
+    ],
+    "synthetic": true
+  },
+  "cases": [
+    {
+      "case_id": "permission_reversed_denied",
+      "category": "permission_reversal",
+      "claim": "등록금을 분할 납부할 수 없습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#allowed"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_reversed_allowed",
+      "category": "permission_reversal",
+      "claim": "등록금을 분할 납부할 수 있습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#denied"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_matching_allowed",
+      "category": "permission_positive_control",
+      "claim": "등록금을 분할 납부할 수 있습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#allowed"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "permission#allowed"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "permission_matching_denied",
+      "category": "permission_positive_control",
+      "claim": "등록금을 분할 납부할 수 없습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#denied"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "permission#denied"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "comparator_ge_reversed",
+      "category": "comparator_reversal",
+      "claim": "직전 학기 성적은 80점 이상이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#ge-wrong"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_ge_matching",
+      "category": "comparator_positive_control",
+      "claim": "직전 학기 성적은 80점 이상이어야 합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#ge-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "comparator#ge-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "comparator_le_reversed",
+      "category": "comparator_reversal",
+      "claim": "직전 학기 성적은 80점 이하이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#le-wrong"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_le_matching",
+      "category": "comparator_positive_control",
+      "claim": "직전 학기 성적은 80점 이하이어야 합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#le-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "comparator#le-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "comparator_gt_reversed",
+      "category": "comparator_reversal",
+      "claim": "직전 학기 성적은 80점 초과이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#gt-wrong"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_gt_matching",
+      "category": "comparator_positive_control",
+      "claim": "직전 학기 성적은 80점 초과이어야 합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#gt-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "comparator#gt-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "comparator_lt_reversed",
+      "category": "comparator_reversal",
+      "claim": "직전 학기 성적은 80점 미만이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#lt-wrong"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_lt_matching",
+      "category": "comparator_positive_control",
+      "claim": "직전 학기 성적은 80점 미만이어야 합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#lt-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "comparator#lt-right"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "comparator_money_equivalent_reversed",
+      "category": "comparator_normalization",
+      "claim": "지원 금액은 100,000원 이하이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#money-reversed"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_percent_spelling_reversed",
+      "category": "comparator_normalization",
+      "claim": "지원 비율은 30% 이상이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#percent-reversed"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_negated_same_operator",
+      "category": "comparator_negation",
+      "claim": "직전 학기 성적은 80점 이상이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#negated"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_rows_correct",
+      "category": "subject_relation_binding",
+      "claim": "학부 등록금은 동결되고 대학원 등록금은 3.95% 인상됩니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "tuition#correct"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "tuition#correct"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "direction_rows_swapped",
+      "category": "subject_relation_binding",
+      "claim": "학부 등록금은 3.95% 인상되고 대학원 등록금은 동결됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "tuition#swapped"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "substring_no_abnormality",
+      "category": "substring_regression",
+      "claim": "점검 결과 이상 없음으로 처리되었습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "substring#no-abnormality"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "substring#no-abnormality"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "substring_unavoidable",
+      "category": "substring_regression",
+      "claim": "불가피한 사유가 있으면 증빙을 제출합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "substring#unavoidable"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "substring#unavoidable"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "permission_double_negation",
+      "category": "permission_negation",
+      "claim": "등록금 분할 납부 신청은 허용됩니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#double-negation"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "permission#double-negation"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "substring_no_possibility",
+      "category": "substring_regression",
+      "claim": "추가 장학금 수혜 가능성이 없습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "substring#possibility"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "substring#possibility"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "substring_impressive",
+      "category": "substring_regression",
+      "claim": "이번 연구는 인상적인 성과를 보였습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "substring#impressive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "substring#impressive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "substring_possibility_false_support",
+      "category": "substring_regression",
+      "claim": "등록금 분할 납부가 가능합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "substring#possibility-negative"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "substring_impressive_false_support",
+      "category": "substring_regression",
+      "claim": "등록금은 인상됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "substring#impressive-negative"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "later_compatible_source",
+      "category": "multi_source_regression",
+      "claim": "등록금을 분할 납부할 수 없습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": [
+        "multi#right-second"
+      ],
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "multi#right-second",
+          "multi#wrong-first"
+        ],
+        "source_ids_correct": false,
+        "source_ids_evaluated": true,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "multi#right-second"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": true,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "permission_year_scope_conflict",
+      "category": "scope_binding",
+      "claim": "2026학년도에는 등록금을 분할 납부할 수 없습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#permission-year"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_year_scope_conflict",
+      "category": "scope_binding",
+      "claim": "2026학년도 장학금 신청 성적은 80점 이상이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#comparator-year"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_subject_value_conflict",
+      "category": "subject_relation_binding",
+      "claim": "대학원 등록금은 3.95% 인상됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#tuition-percent"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_negated_increase",
+      "category": "direction_negation",
+      "claim": "등록금은 인상되었습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": true,
+        "reason": "low_lexical_overlap",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "critical_date_mismatch",
+      "category": "critical_value_regression",
+      "claim": "2026학년도 2학기 신청 마감일은 2026년 9월 30일입니다.",
+      "expected_reason": "critical_value_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "table_row_value_mixing",
+      "category": "table_row_regression",
+      "claim": "1차 신청 시작일은 2026년 9월 2일입니다.",
+      "expected_reason": "critical_value_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "pnu_abbreviated_date_matching",
+      "category": "critical_value_regression",
+      "claim": "2026학년도 2학기 1차 신청 기간은 2026년 8월 3일부터 8월 10일 18시까지입니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "date#abbreviated"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "date#abbreviated"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "permission_relation_unverified",
+      "category": "permission_unverified",
+      "claim": "학생은 온라인으로 신청할 수 있습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#procedure-only"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_value_after_relation_conflict",
+      "category": "subject_relation_binding",
+      "claim": "학부 등록금 인상률은 3.95%입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "direction#rate-after"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_value_after_relation_positive",
+      "category": "direction_positive_control",
+      "claim": "학부 등록금은 3.95% 인상되었습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "direction#parenthetical-rate"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "direction#parenthetical-rate"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "tab_separated_relation_rows",
+      "category": "table_row_regression",
+      "claim": "대학원 등록금은 3.95% 인상되었습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "table#tab-relations"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_contrastive_clause",
+      "category": "permission_scope_binding",
+      "claim": "학부생은 신청이 불가합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#contrast"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_contrastive_positive",
+      "category": "permission_positive_control",
+      "claim": "학부생은 신청이 가능합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#contrast-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "permission#contrast-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "title_scope_permission_positive",
+      "category": "metadata_scope",
+      "claim": "2026학년도에는 등록금을 분할 납부할 수 있습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#title-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "scope#title-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "title_scope_permission_reversed",
+      "category": "metadata_scope",
+      "claim": "2026학년도에는 등록금을 분할 납부할 수 없습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#title-reversed"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "unscoped_permission_ambiguous_years",
+      "category": "scope_binding",
+      "claim": "등록금은 분할 납부할 수 없습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#ambiguous-years"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "negated_direction_not_frozen",
+      "category": "direction_negation",
+      "claim": "2026학년도 학부 등록금은 동결됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "direction#not-increased"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_copular_double_negation",
+      "category": "permission_negation",
+      "claim": "분할 납부는 금지됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#copular-negation"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_conditional_modality",
+      "category": "comparator_negation",
+      "claim": "지원 성적은 80점 미만이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#conditional"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "compound_man_currency_reversal",
+      "category": "comparator_normalization",
+      "claim": "지원금은 2천만원 이하입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#compound-money"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "quantity_unit_collision",
+      "category": "critical_value_regression",
+      "claim": "지원 기간은 12개월 이상입니다.",
+      "expected_reason": "critical_value_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "decimal_quantity_positive",
+      "category": "critical_value_positive_control",
+      "claim": "평점은 3.50학점 이상입니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "quantity#decimal-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "quantity#decimal-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "minimum_maximum_reversal",
+      "category": "comparator_reversal",
+      "claim": "지원금은 최소 100만원입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#minmax"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "temporal_boundary_reversal",
+      "category": "temporal_boundary",
+      "claim": "신청 마감은 9월 1일까지입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "temporal#start"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "temporal_range_order_reversal",
+      "category": "temporal_boundary",
+      "claim": "신청 기간은 8/10부터 8/3까지입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "temporal#range"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_under_review",
+      "category": "relation_modality",
+      "claim": "분할 납부는 허용됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "modality#permission-review"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_planned_not_completed",
+      "category": "relation_modality",
+      "claim": "등록금은 인상되었습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": true,
+        "reason": "low_lexical_overlap",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "metadata_year_conflict",
+      "category": "metadata_scope",
+      "claim": "2026학년도에는 등록금을 분할 납부할 수 있습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#metadata-conflict"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "title_scope_comparator_positive",
+      "category": "metadata_scope",
+      "claim": "2026학년도 성적은 80점 이상이어야 합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#comparator-title"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "scope#comparator-title"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "title_scope_direction_positive",
+      "category": "metadata_scope",
+      "claim": "2026학년도 학부 등록금은 3.95% 인상되었습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#direction-title"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "scope#direction-title"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "permission_compound_false_support",
+      "category": "permission_scope_binding",
+      "claim": "학부생은 온라인으로 신청할 수 없습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#compound"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_compound_second_positive",
+      "category": "permission_positive_control",
+      "claim": "수수료는 면제받을 수 있습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#compound-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "permission#compound-positive"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "permission_exclusive_subject",
+      "category": "permission_scope_binding",
+      "claim": "학부생은 온라인 신청이 가능합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#wrong-subject"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "temporal_subject_binding",
+      "category": "temporal_boundary",
+      "claim": "학생 신청 기간은 8월 3일부터입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "temporal#subject"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "calendar_year_scope_conflict",
+      "category": "scope_binding",
+      "claim": "2026년에는 등록금을 분할 납부할 수 있습니다.",
+      "expected_reason": "critical_value_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "critical_value_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_postfix_subject",
+      "category": "comparator_scope_binding",
+      "claim": "80점 이상인 학부생을 선발합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#postfix-subject"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_possible_not_asserted",
+      "category": "relation_modality",
+      "claim": "등록금은 인상됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "modality#direction-possible"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_not_required",
+      "category": "relation_modality",
+      "claim": "지원 성적은 80점 이상이어야 합니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "modality#comparator-not-required"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "permission_allowed_negated",
+      "category": "relation_modality",
+      "claim": "분할 납부는 허용됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "modality#permission-negated"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_plan_cancelled",
+      "category": "relation_modality",
+      "claim": "등록금은 인상될 예정입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "modality#cancelled"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "temporal_boundary_negated",
+      "category": "relation_modality",
+      "claim": "신청 마감은 8월 31일까지입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "modality#temporal-negated"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "temporal_boundary_planned",
+      "category": "relation_modality",
+      "claim": "신청 마감은 8월 31일까지입니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "modality#temporal-planned"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_slash_rows",
+      "category": "table_row_regression",
+      "claim": "대학원 등록금은 3.95% 인상됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "table#slash-direction"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "direction_and_rows",
+      "category": "table_row_regression",
+      "claim": "대학원 등록금은 3.95% 인상됩니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "table#and-direction"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "time_only_boundary_reversal",
+      "category": "temporal_boundary",
+      "claim": "고지서는 10:00부터 출력할 수 있습니다.",
+      "expected_reason": "semantic_relation_mismatch",
+      "expected_source_ids": null,
+      "expected_supported": false,
+      "legacy": {
+        "joint_correct": false,
+        "label_correct": false,
+        "reason": "supported",
+        "reason_correct": false,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "temporal#time-only"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "semantic_relation_mismatch",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": false
+      }
+    },
+    {
+      "case_id": "comparator_shared_subject_positive",
+      "category": "comparator_positive_control",
+      "claim": "성적은 90점 이하입니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#shared-subject"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "comparator#shared-subject"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "title_round_scope_positive",
+      "category": "metadata_scope",
+      "claim": "2026학년도 1차에는 등록금을 분할 납부할 수 있습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "scope#title-round"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "scope#title-round"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "temporal_omitted_endpoint_year_positive",
+      "category": "temporal_positive_control",
+      "claim": "신청 기간은 2026년 8월 3일부터 2026년 8월 10일까지입니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "temporal#omitted-year"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "temporal#omitted-year"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "temporal_specific_time_positive",
+      "category": "temporal_positive_control",
+      "claim": "신청 마감은 8월 31일까지입니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "temporal#specific-time"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "temporal#specific-time"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "direction_decrease_synonym_positive",
+      "category": "direction_positive_control",
+      "claim": "등록금은 3.95% 인하되었습니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "direction#decrease-synonym"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "direction#decrease-synonym"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "permission_shared_subject_positive",
+      "category": "permission_positive_control",
+      "claim": "수료후연구생은 신청이 가능합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "permission#shared-subject"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "permission#shared-subject"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    },
+    {
+      "case_id": "comparator_complement_positive",
+      "category": "comparator_positive_control",
+      "claim": "지원 성적은 80점 미만이어야 합니다.",
+      "expected_reason": "supported",
+      "expected_source_ids": null,
+      "expected_supported": true,
+      "legacy": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": false,
+        "source_ids": [
+          "comparator#complement"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      },
+      "tuned": {
+        "joint_correct": true,
+        "label_correct": true,
+        "reason": "supported",
+        "reason_correct": true,
+        "reason_evaluated": true,
+        "semantic_guard": true,
+        "source_ids": [
+          "comparator#complement"
+        ],
+        "source_ids_correct": true,
+        "source_ids_evaluated": false,
+        "supported": true
+      }
+    }
+  ],
+  "comparison": {
+    "fixed_case_ids": [
+      "permission_reversed_denied",
+      "permission_reversed_allowed",
+      "comparator_ge_reversed",
+      "comparator_le_reversed",
+      "comparator_gt_reversed",
+      "comparator_lt_reversed",
+      "comparator_money_equivalent_reversed",
+      "comparator_percent_spelling_reversed",
+      "comparator_negated_same_operator",
+      "direction_rows_swapped",
+      "substring_possibility_false_support",
+      "substring_impressive_false_support",
+      "permission_year_scope_conflict",
+      "comparator_year_scope_conflict",
+      "direction_subject_value_conflict",
+      "direction_negated_increase",
+      "permission_relation_unverified",
+      "direction_value_after_relation_conflict",
+      "tab_separated_relation_rows",
+      "permission_contrastive_clause",
+      "title_scope_permission_reversed",
+      "unscoped_permission_ambiguous_years",
+      "negated_direction_not_frozen",
+      "permission_copular_double_negation",
+      "comparator_conditional_modality",
+      "compound_man_currency_reversal",
+      "minimum_maximum_reversal",
+      "temporal_boundary_reversal",
+      "temporal_range_order_reversal",
+      "permission_under_review",
+      "direction_planned_not_completed",
+      "metadata_year_conflict",
+      "permission_compound_false_support",
+      "permission_exclusive_subject",
+      "temporal_subject_binding",
+      "comparator_postfix_subject",
+      "direction_possible_not_asserted",
+      "comparator_not_required",
+      "permission_allowed_negated",
+      "direction_plan_cancelled",
+      "temporal_boundary_negated",
+      "temporal_boundary_planned",
+      "direction_slash_rows",
+      "direction_and_rows",
+      "time_only_boundary_reversal"
+    ],
+    "joint_accuracy_delta": 0.584416,
+    "label_accuracy_delta": 0.558442,
+    "reason_accuracy_delta": 0.584416,
+    "regression_case_ids": []
+  },
+  "conditions": {
+    "legacy": {
+      "metrics": {
+        "case_count": 77,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 43,
+          "true_negative": 6,
+          "true_positive": 28
+        },
+        "error_case_ids": [
+          "permission_reversed_denied",
+          "permission_reversed_allowed",
+          "comparator_ge_reversed",
+          "comparator_le_reversed",
+          "comparator_gt_reversed",
+          "comparator_lt_reversed",
+          "comparator_money_equivalent_reversed",
+          "comparator_percent_spelling_reversed",
+          "comparator_negated_same_operator",
+          "direction_rows_swapped",
+          "substring_possibility_false_support",
+          "substring_impressive_false_support",
+          "permission_year_scope_conflict",
+          "comparator_year_scope_conflict",
+          "direction_subject_value_conflict",
+          "direction_negated_increase",
+          "permission_relation_unverified",
+          "direction_value_after_relation_conflict",
+          "tab_separated_relation_rows",
+          "permission_contrastive_clause",
+          "title_scope_permission_reversed",
+          "unscoped_permission_ambiguous_years",
+          "negated_direction_not_frozen",
+          "permission_copular_double_negation",
+          "comparator_conditional_modality",
+          "compound_man_currency_reversal",
+          "minimum_maximum_reversal",
+          "temporal_boundary_reversal",
+          "temporal_range_order_reversal",
+          "permission_under_review",
+          "direction_planned_not_completed",
+          "metadata_year_conflict",
+          "permission_compound_false_support",
+          "permission_exclusive_subject",
+          "temporal_subject_binding",
+          "comparator_postfix_subject",
+          "direction_possible_not_asserted",
+          "comparator_not_required",
+          "permission_allowed_negated",
+          "direction_plan_cancelled",
+          "temporal_boundary_negated",
+          "temporal_boundary_planned",
+          "direction_slash_rows",
+          "direction_and_rows",
+          "time_only_boundary_reversal"
+        ],
+        "joint_accuracy": 0.415584,
+        "joint_correct_count": 32,
+        "label_accuracy": 0.441558,
+        "label_correct_count": 34,
+        "label_error_case_ids": [
+          "permission_reversed_denied",
+          "permission_reversed_allowed",
+          "comparator_ge_reversed",
+          "comparator_le_reversed",
+          "comparator_gt_reversed",
+          "comparator_lt_reversed",
+          "comparator_money_equivalent_reversed",
+          "comparator_percent_spelling_reversed",
+          "comparator_negated_same_operator",
+          "direction_rows_swapped",
+          "substring_possibility_false_support",
+          "substring_impressive_false_support",
+          "permission_year_scope_conflict",
+          "comparator_year_scope_conflict",
+          "direction_subject_value_conflict",
+          "permission_relation_unverified",
+          "direction_value_after_relation_conflict",
+          "tab_separated_relation_rows",
+          "permission_contrastive_clause",
+          "title_scope_permission_reversed",
+          "unscoped_permission_ambiguous_years",
+          "negated_direction_not_frozen",
+          "permission_copular_double_negation",
+          "comparator_conditional_modality",
+          "compound_man_currency_reversal",
+          "minimum_maximum_reversal",
+          "temporal_boundary_reversal",
+          "temporal_range_order_reversal",
+          "permission_under_review",
+          "metadata_year_conflict",
+          "permission_compound_false_support",
+          "permission_exclusive_subject",
+          "temporal_subject_binding",
+          "comparator_postfix_subject",
+          "direction_possible_not_asserted",
+          "comparator_not_required",
+          "permission_allowed_negated",
+          "direction_plan_cancelled",
+          "temporal_boundary_negated",
+          "temporal_boundary_planned",
+          "direction_slash_rows",
+          "direction_and_rows",
+          "time_only_boundary_reversal"
+        ],
+        "reason_accuracy": 0.415584,
+        "reason_correct_count": 32,
+        "reason_error_case_ids": [
+          "permission_reversed_denied",
+          "permission_reversed_allowed",
+          "comparator_ge_reversed",
+          "comparator_le_reversed",
+          "comparator_gt_reversed",
+          "comparator_lt_reversed",
+          "comparator_money_equivalent_reversed",
+          "comparator_percent_spelling_reversed",
+          "comparator_negated_same_operator",
+          "direction_rows_swapped",
+          "substring_possibility_false_support",
+          "substring_impressive_false_support",
+          "permission_year_scope_conflict",
+          "comparator_year_scope_conflict",
+          "direction_subject_value_conflict",
+          "direction_negated_increase",
+          "permission_relation_unverified",
+          "direction_value_after_relation_conflict",
+          "tab_separated_relation_rows",
+          "permission_contrastive_clause",
+          "title_scope_permission_reversed",
+          "unscoped_permission_ambiguous_years",
+          "negated_direction_not_frozen",
+          "permission_copular_double_negation",
+          "comparator_conditional_modality",
+          "compound_man_currency_reversal",
+          "minimum_maximum_reversal",
+          "temporal_boundary_reversal",
+          "temporal_range_order_reversal",
+          "permission_under_review",
+          "direction_planned_not_completed",
+          "metadata_year_conflict",
+          "permission_compound_false_support",
+          "permission_exclusive_subject",
+          "temporal_subject_binding",
+          "comparator_postfix_subject",
+          "direction_possible_not_asserted",
+          "comparator_not_required",
+          "permission_allowed_negated",
+          "direction_plan_cancelled",
+          "temporal_boundary_negated",
+          "temporal_boundary_planned",
+          "direction_slash_rows",
+          "direction_and_rows",
+          "time_only_boundary_reversal"
+        ],
+        "reason_evaluated_count": 77,
+        "source_ids_accuracy": 0.0,
+        "source_ids_correct_count": 0,
+        "source_ids_error_case_ids": [
+          "later_compatible_source"
+        ],
+        "source_ids_evaluated_count": 1
+      },
+      "semantic_guard": false
+    },
+    "tuned": {
+      "metrics": {
+        "case_count": 77,
+        "confusion": {
+          "false_negative": 0,
+          "false_positive": 0,
+          "true_negative": 49,
+          "true_positive": 28
+        },
+        "error_case_ids": [],
+        "joint_accuracy": 1.0,
+        "joint_correct_count": 77,
+        "label_accuracy": 1.0,
+        "label_correct_count": 77,
+        "label_error_case_ids": [],
+        "reason_accuracy": 1.0,
+        "reason_correct_count": 77,
+        "reason_error_case_ids": [],
+        "reason_evaluated_count": 77,
+        "source_ids_accuracy": 1.0,
+        "source_ids_correct_count": 1,
+        "source_ids_error_case_ids": [],
+        "source_ids_evaluated_count": 1
+      },
+      "semantic_guard": true
+    }
+  },
+  "config": {
+    "case_count": 77,
+    "case_ids": [
+      "permission_reversed_denied",
+      "permission_reversed_allowed",
+      "permission_matching_allowed",
+      "permission_matching_denied",
+      "comparator_ge_reversed",
+      "comparator_ge_matching",
+      "comparator_le_reversed",
+      "comparator_le_matching",
+      "comparator_gt_reversed",
+      "comparator_gt_matching",
+      "comparator_lt_reversed",
+      "comparator_lt_matching",
+      "comparator_money_equivalent_reversed",
+      "comparator_percent_spelling_reversed",
+      "comparator_negated_same_operator",
+      "direction_rows_correct",
+      "direction_rows_swapped",
+      "substring_no_abnormality",
+      "substring_unavoidable",
+      "permission_double_negation",
+      "substring_no_possibility",
+      "substring_impressive",
+      "substring_possibility_false_support",
+      "substring_impressive_false_support",
+      "later_compatible_source",
+      "permission_year_scope_conflict",
+      "comparator_year_scope_conflict",
+      "direction_subject_value_conflict",
+      "direction_negated_increase",
+      "critical_date_mismatch",
+      "table_row_value_mixing",
+      "pnu_abbreviated_date_matching",
+      "permission_relation_unverified",
+      "direction_value_after_relation_conflict",
+      "direction_value_after_relation_positive",
+      "tab_separated_relation_rows",
+      "permission_contrastive_clause",
+      "permission_contrastive_positive",
+      "title_scope_permission_positive",
+      "title_scope_permission_reversed",
+      "unscoped_permission_ambiguous_years",
+      "negated_direction_not_frozen",
+      "permission_copular_double_negation",
+      "comparator_conditional_modality",
+      "compound_man_currency_reversal",
+      "quantity_unit_collision",
+      "decimal_quantity_positive",
+      "minimum_maximum_reversal",
+      "temporal_boundary_reversal",
+      "temporal_range_order_reversal",
+      "permission_under_review",
+      "direction_planned_not_completed",
+      "metadata_year_conflict",
+      "title_scope_comparator_positive",
+      "title_scope_direction_positive",
+      "permission_compound_false_support",
+      "permission_compound_second_positive",
+      "permission_exclusive_subject",
+      "temporal_subject_binding",
+      "calendar_year_scope_conflict",
+      "comparator_postfix_subject",
+      "direction_possible_not_asserted",
+      "comparator_not_required",
+      "permission_allowed_negated",
+      "direction_plan_cancelled",
+      "temporal_boundary_negated",
+      "temporal_boundary_planned",
+      "direction_slash_rows",
+      "direction_and_rows",
+      "time_only_boundary_reversal",
+      "comparator_shared_subject_positive",
+      "title_round_scope_positive",
+      "temporal_omitted_endpoint_year_positive",
+      "temporal_specific_time_positive",
+      "direction_decrease_synonym_positive",
+      "permission_shared_subject_positive",
+      "comparator_complement_positive"
+    ],
+    "path": "config/pnu-grounding-adversarial-eval.jsonl",
+    "sha256": "f6595b035c415b08f7f924bfc10999ed48b7a10967552fecff8c01f5d3462275"
+  },
+  "schema_version": "pnu.grounding-guard-ablation.v1"
+}

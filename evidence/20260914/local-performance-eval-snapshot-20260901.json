@@ -1,0 +1,496 @@
+{
+  "schema_version": 1,
+  "experiment_id": "20260901-local-performance-eval-working-snapshot",
+  "created_at": "2026-09-01T06:32:31.320036+00:00",
+  "repository": {
+    "root": "/Users/leehyunwoo/project/pnu-docs-chatbot",
+    "commit": "0a45cd5f66e843abe83eeb16abafd8acede1cc4d",
+    "dirty": true
+  },
+  "runtime": {
+    "python": "3.9.6",
+    "platform": "macOS-26.6.2-arm64-arm-64bit"
+  },
+  "metadata": {
+    "snapshot_date": "2026-09-01",
+    "snapshot_status": "working_tree_snapshot_not_final",
+    "git_state": "dirty_preserved_user_work",
+    "deadline": "2026-09-14",
+    "corpus_revision": "20260725-pnu-curated-cascade-v5:cascade:5d1b5fee3d2eafa1a7c77d33",
+    "index_sha256": "a4c1ca6318cb14721866a6512f3dfeacdca58c62ecff98ea7b81df2e75c74c31",
+    "service_eval_split": "DEV_reused_for_tuning_not_holdout",
+    "retrieval_mode": "bm25",
+    "parser_profile": "cascade",
+    "cap_generation": "extractive_not_llm",
+    "cap2": "max_chunks_per_document_2_default",
+    "cap4": "max_chunks_per_document_4_experimental_candidate_not_default",
+    "cap_producing_code": "current_search_api_has_later_grounding_changes_sources_remain_reaggregatable",
+    "grounding_benchmark": "synthetic_adversarial_component_only_77_cases",
+    "historical_generation": "legacy_inline_20260831_not_current_code_snapshot",
+    "historical_eval_links": "legacy_inline_not_split_schema_link_validation",
+    "external_gemini": "not_run_missing_explicit_context_transfer_approval",
+    "holdout": "not_run",
+    "human_eval": "not_run",
+    "full_gate": "348_run_342_pass_6_skip_eslint_tsc_vite_pass",
+    "runtime_versions": "python3.9.6_node22.23.1_bun1.3.14_eslint10.3.0_typescript6.0.3_vite8.0.11"
+  },
+  "artifacts": [
+    {
+      "path": "config/pnu-service-answer-eval.jsonl",
+      "bytes": 64122,
+      "sha256": "3c3e19d6c5524218b2f2cb1600c1c64abd80e1783ce7b235dbb80109723a3be6",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {},
+        "missing_judge_scores": 45,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": false,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "config/pnu-grounding-adversarial-eval.jsonl",
+      "bytes": 31496,
+      "sha256": "f6595b035c415b08f7f924bfc10999ed48b7a10967552fecff8c01f5d3462275",
+      "jsonl": {
+        "records": 77,
+        "id_field": "id",
+        "unique_ids": 77,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {},
+        "missing_judge_scores": 77,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": false,
+        "expected_records": 77,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "processed/index/pnu-20260725-curated-cascade-v5-allow-suspect.sqlite",
+      "bytes": 329048064,
+      "sha256": "a4c1ca6318cb14721866a6512f3dfeacdca58c62ecff98ea7b81df2e75c74c31"
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-baseline-run1.jsonl",
+      "bytes": 117074,
+      "sha256": "35b061a2660f91a9e3fff8ad89a7e32f310e6df2740126474f6f58c1e6725686",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 19,
+          "0": 19,
+          "2": 7
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-baseline-run2.jsonl",
+      "bytes": 115976,
+      "sha256": "0b54eca38e71062d0c8c5010bd04ce768827b5cba8410178d6ab5c8d72684eb6",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 16,
+          "0": 22,
+          "2": 7
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-baseline-run3.jsonl",
+      "bytes": 116883,
+      "sha256": "45bdf4135135e03cd1766ca478f70b3c94995795e4b2837494d6e4fe82b704f0",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 16,
+          "0": 20,
+          "2": 9
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-tuned-run1.jsonl",
+      "bytes": 123961,
+      "sha256": "946088e59f2f7f828500805e74fd2560f1e02a557ffb89e1c0999f8324b90d0c",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 21,
+          "0": 18,
+          "2": 6
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-tuned-run2.jsonl",
+      "bytes": 124415,
+      "sha256": "2eff6dad93c07fd093f7107dc03e7c63b7e29582625ebcf27f9e4f174e66cdfb",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 24,
+          "0": 16,
+          "2": 5
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-tuned-run3.jsonl",
+      "bytes": 125625,
+      "sha256": "03d233b7e0352d825eb796f16f44c5637cc3ac36e8ced9919906a476dc6d04d9",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 20,
+          "0": 18,
+          "2": 7
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/cap2-service-extractive-dev45-20260901.jsonl",
+      "bytes": 3877312,
+      "sha256": "a616f0603b18bc10cd1ffcc9942df325a4817a5f65110f016fc3abc43afced25",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {},
+        "missing_judge_scores": 45,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": false,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/cap4-service-extractive-dev45-20260901.jsonl",
+      "bytes": 3791954,
+      "sha256": "fcd7e88cbe019f632e0fb4cd051d0a7ae9a1c4e90f0d7d47e7753a86d9ec710c",
+      "jsonl": {
+        "records": 45,
+        "id_field": "id",
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {},
+        "missing_judge_scores": 45,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": false,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "package.json",
+      "bytes": 1042,
+      "sha256": "aa4c524c400d2b2a03d226f8362466fbf02c60fa5a7d27205da8d3812eb742c0"
+    },
+    {
+      "path": "bun.lock",
+      "bytes": 43823,
+      "sha256": "7379b4e111353b66e2b01038edc60dc2565724f53019337d12ae1f9fcfc1b273"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 124,
+      "sha256": "d8c6d0dfb468b697b0a03d28a53239e0175c0ae2ac397ce8aa62c6e353bfef77"
+    },
+    {
+      "path": "evidence/20260914/service-ab-summary-metric-corrected-20260901.json",
+      "bytes": 41083,
+      "sha256": "c9e8719bdb3bf02cd7a1db7f3d1a6e144fd2d6fa61d83b45c0bc6694724cc27b"
+    },
+    {
+      "path": "evidence/20260914/service-ab-per-question-metric-corrected-20260901.csv",
+      "bytes": 6880,
+      "sha256": "00015cff3a610488651100d0868e7a3f8c26b60b527edab3522e54744982a881"
+    },
+    {
+      "path": "evidence/20260914/service-ab-review-metric-corrected-20260901.html",
+      "bytes": 328859,
+      "sha256": "e803fb3ee683eb3853b4cf3fb8adeb62fd128a9c42a862356b82d1617aba15de"
+    },
+    {
+      "path": "evidence/20260914/cap2-vs-cap4-retrieval-dev45.json",
+      "bytes": 274087,
+      "sha256": "d2afd1338686c758ff5f7492c0f33f2c75f66274bd1d09277031cb112f7fd15a"
+    },
+    {
+      "path": "evidence/20260914/cap2-vs-cap4-retrieval-dev45.csv",
+      "bytes": 115426,
+      "sha256": "63f5c2d0dfd659eb35d985ae3c509c8be104aa4fd6be42d45abd7737e452fe4f"
+    },
+    {
+      "path": "evidence/20260914/cap2-vs-cap4-retrieval-dev45.html",
+      "bytes": 353359,
+      "sha256": "129c13aa60efd8f4052160ef23a414080290d4a36902c0524964a7fc1ba4f347"
+    },
+    {
+      "path": "evidence/20260914/cap2-vs-cap4-retrieval-dev45-preview.png",
+      "bytes": 142731,
+      "sha256": "7efcf9e83ea7d229292c02f3365ad140cdcf83d33e36fd0921859efcd20923a4"
+    },
+    {
+      "path": "evidence/20260914/grounding-guard-ablation.json",
+      "bytes": 93863,
+      "sha256": "52a971f17624699b9b0ecdef34d042e9d6f22b6e893ca7a2d01fdb1b93d8f075"
+    },
+    {
+      "path": "evidence/20260914/grounding-guard-ablation.csv",
+      "bytes": 16190,
+      "sha256": "e42860b32569501c3e884761d0fa8e15fd51f9452c0ef4156a13c6fb41854fd1"
+    },
+    {
+      "path": "evidence/20260914/postprocessor-offline-ab.json",
+      "bytes": 100072,
+      "sha256": "a7a498a570d29307d210e0dfeb08e35320efeb20d697274b48ec4e4828c875af"
+    },
+    {
+      "path": "evidence/20260914/local-full-check-20260901.log",
+      "bytes": 1766,
+      "sha256": "f689639e00dfe12844b2bdf1565b69e94696c7ab9eedf2dda10d049453ca0bc9"
+    },
+    {
+      "path": "scripts/bm25_search.py",
+      "bytes": 38546,
+      "sha256": "cdf35debc4eeba182d434f6eefa0798c67310b23ac52a9d3d31417ceaaad80a3"
+    },
+    {
+      "path": "scripts/search_api.py",
+      "bytes": 157115,
+      "sha256": "5fe9e45bb6a9799afb1d9450a3b6fe6910e9d151b5e267b93870a9d5760be8e6"
+    },
+    {
+      "path": "scripts/rag/generators.py",
+      "bytes": 39064,
+      "sha256": "cc446b3b6dd336f89b2e8c3f6cfb0a7e4c5adceb34c14a8c5c45e4c8de0ede14"
+    },
+    {
+      "path": "src/api/rag.ts",
+      "bytes": 31814,
+      "sha256": "f75faf47352d2df1c25b4eed8875d3d6644458c99372311f8237001475f4bfa9"
+    },
+    {
+      "path": "scripts/evaluate_service_answers.py",
+      "bytes": 29536,
+      "sha256": "e06e7034a42b3b52375b7b5962f1785bb959a1a106e430f20da6e7be92e3884c"
+    },
+    {
+      "path": "scripts/judge_service_answers.py",
+      "bytes": 21964,
+      "sha256": "872e09c3e05678d2f8178bc7f3144d7b0ea80d9cc320806849a037b53006aba4"
+    },
+    {
+      "path": "scripts/service_eval_artifacts.py",
+      "bytes": 9633,
+      "sha256": "215b8edf281c4b3c8962c3762415aaec7636a109406617cf0d38d8aa38a6d1ba"
+    },
+    {
+      "path": "scripts/analyze_service_ab.py",
+      "bytes": 20451,
+      "sha256": "3c200c02d6fc1a29d19ff863391267cc6070408ddaa098894b463201c8154727"
+    },
+    {
+      "path": "scripts/build_service_ab_review.py",
+      "bytes": 11791,
+      "sha256": "d5b4f082e514a553dd173770cf10cb7d9c862fd1dd9fcf004cdc53bafe4ff62c"
+    },
+    {
+      "path": "scripts/analyze_service_retrieval_ab.py",
+      "bytes": 40885,
+      "sha256": "8d9fe70e7e3273e713aff75017cb7ef6c82c074d66956be9d355a3bfad55e1e1"
+    },
+    {
+      "path": "scripts/evaluate_grounding_guard.py",
+      "bytes": 16993,
+      "sha256": "e0439121f02220f40d035662bfe62ee6dba349e3abfb36bb2e6309d67bd4ac87"
+    },
+    {
+      "path": "scripts/evaluate_postprocessor_regression.py",
+      "bytes": 6070,
+      "sha256": "f5b74b4e8aa9567cbc44e50c463aab67167608cd4a1f7afa78ac35c3487cc3db"
+    },
+    {
+      "path": "scripts/build_evidence_manifest.py",
+      "bytes": 15070,
+      "sha256": "0004a8974e930085fed3e03300d637dfb0cb3e92e4488bba98dc16cb9ab7890e"
+    },
+    {
+      "path": "tests/test_api_hardening.py",
+      "bytes": 124669,
+      "sha256": "8c2cac690333b554c5892528644bf05cf490ce200a1aaefcfe451e32ac8064f0"
+    },
+    {
+      "path": "tests/test_rag_generators.py",
+      "bytes": 24977,
+      "sha256": "823afbac4ff4a57a47df71cb73d14ef23afee1d35c089e42e0b2b8df3fa02cbe"
+    },
+    {
+      "path": "tests/test_service_retrieval_tuning.py",
+      "bytes": 4110,
+      "sha256": "85933295f974411979b8a9225ea67024b25f06382d129f43a08bfa494894427a"
+    },
+    {
+      "path": "tests/test_evaluate_service_answers.py",
+      "bytes": 7058,
+      "sha256": "2745b626f431ef8fee54b93576b68feceb7a990a092f8baff08ffccf34fde175"
+    },
+    {
+      "path": "tests/test_judge_service_answers.py",
+      "bytes": 5326,
+      "sha256": "a941ae3c7be1f98a8ed1e2eed82dc01a8f4db23db7aab82a39b7c5cfcc6d325a"
+    },
+    {
+      "path": "tests/test_service_eval_artifacts.py",
+      "bytes": 4171,
+      "sha256": "333c79b7f12eb1d5dacb1d037144b68d278e4261f6a39c4a68e96d8ed4ed4a4c"
+    },
+    {
+      "path": "tests/test_analyze_service_ab.py",
+      "bytes": 4979,
+      "sha256": "dfe7a78687fa46c26a709c7206ec9906e366b1b828b8aaf933b93fc7d57d6f04"
+    },
+    {
+      "path": "tests/test_analyze_service_retrieval_ab.py",
+      "bytes": 9890,
+      "sha256": "52abafe7f2b69ca26c963bce3c52be26ab6a3700aa6f3ee77e991fbf4c5f26c8"
+    },
+    {
+      "path": "tests/test_evaluate_grounding_guard.py",
+      "bytes": 7974,
+      "sha256": "3afd8624f9ea7dd8283793c13bee28778b202ff5cfae58302e5a8c619211f2db"
+    },
+    {
+      "path": "tests/test_postprocessor_regression.py",
+      "bytes": 1568,
+      "sha256": "034774941f56f19be93469b4107eef6fe3d4e81cfa7d57ec689c0cfcd75b6c09"
+    },
+    {
+      "path": "tests/test_evidence_manifest.py",
+      "bytes": 6053,
+      "sha256": "23c0e65e3d0c5f5fec9ae436a2c81eaef4da47a85e844737a3e275ea4dadd9f8"
+    },
+    {
+      "path": "evidence/20260914/README.md",
+      "bytes": 8684,
+      "sha256": "0fa601bdf4590d1e97f41f50189493f712b9ff853b7ee26c6386b7205a66c23d"
+    },
+    {
+      "path": "docs/evaluation-protocol-20260914.md",
+      "bytes": 33584,
+      "sha256": "02253fa65eead949cfdb9a33981df5bad0b95ded179f370aba70fbc7bd101b43"
+    },
+    {
+      "path": "docs/final-report-20260914.md",
+      "bytes": 37628,
+      "sha256": "d8806e15f9b527e24abb6a38576b8d90696f74041fbd3efac9491e6e476c6c1f"
+    },
+    {
+      "path": "docs/report-evidence-ledger-20260914.md",
+      "bytes": 14319,
+      "sha256": "b93e53305b7e41c78e499bba9b7d65ef31d741302a96398fd9d77defc1bbf5ea"
+    },
+    {
+      "path": "docs/theory-background-20260914.md",
+      "bytes": 9511,
+      "sha256": "4cd0a1682a7239ceaf79e03eb3111e92ebfd0ea729d36e736fb7b67c1b471293"
+    }
+  ],
+  "eval_artifact_links": {
+    "answer_records": 0,
+    "unique_answer_ids": 0,
+    "judgment_records": 0,
+    "unique_judgment_ids": 0,
+    "judgment_groups": 0,
+    "complete": true,
+    "problems": []
+  },
+  "validation": {
+    "ok": true,
+    "problems": []
+  }
+}

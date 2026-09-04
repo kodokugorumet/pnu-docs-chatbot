@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "experiment_id": "20260831-current-service-code-offline-audit",
+  "created_at": "2026-08-31T04:54:59.825690+00:00",
+  "repository": {
+    "root": "/Users/leehyunwoo/project/pnu-docs-chatbot",
+    "commit": "0a45cd5f66e843abe83eeb16abafd8acede1cc4d",
+    "dirty": true
+  },
+  "runtime": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit"
+  },
+  "metadata": {
+    "corpus_revision": "20260725-pnu-curated-cascade-v5:cascade:5d1b5fee3d2eafa1a7c77d33",
+    "retrieval": "Hit@5-0.889_MRR-0.723_evidence-0.622",
+    "unit_tests": "258-passed_skip-0",
+    "external_generation_eval": "pending-explicit-user-approval",
+    "status": "current-dirty-worktree-offline-verified"
+  },
+  "artifacts": [
+    {
+      "path": "config/pnu-service-answer-eval.jsonl",
+      "bytes": 64122,
+      "sha256": "3c3e19d6c5524218b2f2cb1600c1c64abd80e1783ce7b235dbb80109723a3be6",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {},
+        "missing_judge_scores": 45,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": false,
+        "expected_records": null,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "processed/index/pnu-20260725-curated-cascade-v5-allow-suspect.sqlite",
+      "bytes": 329048064,
+      "sha256": "a4c1ca6318cb14721866a6512f3dfeacdca58c62ecff98ea7b81df2e75c74c31"
+    },
+    {
+      "path": "scripts/bm25_search.py",
+      "bytes": 38428,
+      "sha256": "7f6c55cf36ccc13709e08a40c5f081d3e251806692755c2fa8baf3d5656541e3"
+    },
+    {
+      "path": "scripts/search_api.py",
+      "bytes": 109278,
+      "sha256": "cab35d3b34726e516df37cf8296ff4d369c4bbffd9172a754e73b019f612b3d5"
+    },
+    {
+      "path": "scripts/evaluate_service_answers.py",
+      "bytes": 11032,
+      "sha256": "68ebe449fb3ab7dad9e19b414beb33cf41e3f8329022365fe5916263ec33bf9e"
+    },
+    {
+      "path": "scripts/evaluate_postprocessor_regression.py",
+      "bytes": 6070,
+      "sha256": "f5b74b4e8aa9567cbc44e50c463aab67167608cd4a1f7afa78ac35c3487cc3db"
+    },
+    {
+      "path": "scripts/build_service_ab_review.py",
+      "bytes": 11785,
+      "sha256": "e7d57bfce39512e00a4361495ee1a589b2f721ce26771d37b60d1a3c7f4de2ad"
+    },
+    {
+      "path": "tests/test_service_retrieval_tuning.py",
+      "bytes": 4110,
+      "sha256": "85933295f974411979b8a9225ea67024b25f06382d129f43a08bfa494894427a"
+    },
+    {
+      "path": "tests/test_api_hardening.py",
+      "bytes": 77251,
+      "sha256": "de39cfd23970619c1aaa8ad8beb8d9c18b17654f1da124c1a481f81b7427d2a9"
+    },
+    {
+      "path": "tests/test_postprocessor_regression.py",
+      "bytes": 1568,
+      "sha256": "034774941f56f19be93469b4107eef6fe3d4e81cfa7d57ec689c0cfcd75b6c09"
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-retrieval-current-smoke.jsonl",
+      "bytes": 130608,
+      "sha256": "f62330350564327f5b8eaef61fc9c4ffac661f8a6984b70f887c69d44ff359de",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {},
+        "missing_judge_scores": 45,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": false,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/postprocessor-offline-ab.json",
+      "bytes": 100072,
+      "sha256": "a7a498a570d29307d210e0dfeb08e35320efeb20d697274b48ec4e4828c875af"
+    },
+    {
+      "path": "evidence/20260914/service-ab-review.html",
+      "bytes": 315845,
+      "sha256": "3c2701d447f53e0d3d9a39605d30ecbd5463ff701ab53f4c5ae4015dc83dd7c0"
+    },
+    {
+      "path": "evidence/20260914/README.md",
+      "bytes": 3417,
+      "sha256": "444277de98375e08f06a0a1ed799a41d2d4eae2fe9c1fcc55945b16bc7f624da"
+    }
+  ],
+  "validation": {
+    "ok": true,
+    "problems": []
+  }
+}

@@ -24,8 +24,22 @@ export type CitationLocation = {
 }
 
 export type ClaimCitation = CitationLocation & {
+  citation_id?: string
   source_number?: number
   chunk_id?: string
+  document_id?: string
+  excerpt?: string
+  excerpt_start?: number
+  excerpt_end?: number
+  excerpt_sha256?: string
+  claim_sha256?: string | null
+  source_title?: string | null
+  source_url?: string | null
+}
+
+export type AnswerCitation = ClaimCitation & {
+  claim_index?: number
+  claim_text?: string
 }
 
 export type Claim = {
@@ -141,6 +155,7 @@ export type ChatResponse = {
   role?: ResolvedRole
   cited_answer?: string
   claims?: Claim[]
+  citations?: AnswerCitation[]
   results: SearchResult[]
   generation?: Partial<GenerationInfo>
   generator?: string

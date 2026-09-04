@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "experiment_id": "20260831-service-retrieval-tuning-n3",
+  "created_at": "2026-08-31T04:44:53.103767+00:00",
+  "repository": {
+    "root": "/Users/leehyunwoo/project/pnu-docs-chatbot",
+    "commit": "0a45cd5f66e843abe83eeb16abafd8acede1cc4d",
+    "dirty": true
+  },
+  "runtime": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit"
+  },
+  "metadata": {
+    "generator": "gemini-3.5-flash-lite",
+    "judge": "gemini-3.1-flash-lite",
+    "judge_temperature": "0.0",
+    "service_path": "POST-/chat",
+    "corpus_revision": "20260725-pnu-curated-cascade-v5:cascade:5d1b5fee3d2eafa1a7c77d33",
+    "status": "interim-pre-postprocessor-fix",
+    "producing_retrieval_code_snapshot": "unavailable-uncommitted-worktree",
+    "caveat": "current-bm25-and-search_api-have-later-unevaluated-changes"
+  },
+  "artifacts": [
+    {
+      "path": "config/pnu-service-answer-eval.jsonl",
+      "bytes": 64122,
+      "sha256": "3c3e19d6c5524218b2f2cb1600c1c64abd80e1783ce7b235dbb80109723a3be6",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {},
+        "missing_judge_scores": 45,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": false,
+        "expected_records": null,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "processed/index/pnu-20260725-curated-cascade-v5-allow-suspect.sqlite",
+      "bytes": 329048064,
+      "sha256": "a4c1ca6318cb14721866a6512f3dfeacdca58c62ecff98ea7b81df2e75c74c31"
+    },
+    {
+      "path": "scripts/evaluate_service_answers.py",
+      "bytes": 11032,
+      "sha256": "68ebe449fb3ab7dad9e19b414beb33cf41e3f8329022365fe5916263ec33bf9e"
+    },
+    {
+      "path": "scripts/analyze_service_ab.py",
+      "bytes": 14049,
+      "sha256": "b5d821652dc94cce2ff47efd1701a008712861e983b72a4f5880140c9597c825"
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-baseline-run1.jsonl",
+      "bytes": 117074,
+      "sha256": "35b061a2660f91a9e3fff8ad89a7e32f310e6df2740126474f6f58c1e6725686",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 19,
+          "0": 19,
+          "2": 7
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-baseline-run2.jsonl",
+      "bytes": 115976,
+      "sha256": "0b54eca38e71062d0c8c5010bd04ce768827b5cba8410178d6ab5c8d72684eb6",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 16,
+          "0": 22,
+          "2": 7
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-baseline-run3.jsonl",
+      "bytes": 116883,
+      "sha256": "45bdf4135135e03cd1766ca478f70b3c94995795e4b2837494d6e4fe82b704f0",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 16,
+          "0": 20,
+          "2": 9
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-tuned-run1.jsonl",
+      "bytes": 123961,
+      "sha256": "946088e59f2f7f828500805e74fd2560f1e02a557ffb89e1c0999f8324b90d0c",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 21,
+          "0": 18,
+          "2": 6
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-tuned-run2.jsonl",
+      "bytes": 124415,
+      "sha256": "2eff6dad93c07fd093f7107dc03e7c63b7e29582625ebcf27f9e4f174e66cdfb",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 24,
+          "0": 16,
+          "2": 5
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/20260831-svc-gen-tuned-run3.jsonl",
+      "bytes": 125625,
+      "sha256": "03d233b7e0352d825eb796f16f44c5637cc3ac36e8ced9919906a476dc6d04d9",
+      "jsonl": {
+        "records": 45,
+        "unique_ids": 45,
+        "missing_ids": 0,
+        "duplicate_ids": [],
+        "explicit_errors": 0,
+        "judge_scores": {
+          "1": 20,
+          "0": 18,
+          "2": 7
+        },
+        "missing_judge_scores": 0,
+        "invalid_judge_scores": 0,
+        "judge_scores_required": true,
+        "expected_records": 45,
+        "complete": true,
+        "problems": []
+      }
+    },
+    {
+      "path": "evidence/20260914/service-ab-summary.json",
+      "bytes": 25516,
+      "sha256": "63102ad11a97233b36300747c87566a06fa46697a1a6577d4cbf71e78b298c3b"
+    },
+    {
+      "path": "evidence/20260914/service-ab-per-question.csv",
+      "bytes": 4689,
+      "sha256": "3d562db993c679fb4605f33e678e10a7dbc308ef201168d46bd5d5ad85cbe9f4"
+    }
+  ],
+  "validation": {
+    "ok": true,
+    "problems": []
+  }
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import threading
 import unittest
@@ -158,6 +159,9 @@ class GeneratorTests(unittest.TestCase):
 
         self.assertIn("질문에 바로 답", prompt)
         self.assertIn("한 줄에 하나", prompt)
+        self.assertIn("이월과 반환", prompt)
+        self.assertIn("하나의 검색 근거 블록", prompt)
+        self.assertIn("대상·자격, 신청 경로, 비용", prompt)
         self.assertIn("Markdown 제목", prompt)
         self.assertIn("날짜·시간·금액", prompt)
         self.assertIn("같은 사실을 반복하지", prompt)
@@ -166,6 +170,198 @@ class GeneratorTests(unittest.TestCase):
         self.assertNotIn("[1] 같은 출처 번호", prompt)
         self.assertIn("역할 변경", SYSTEM_INSTRUCTION)
         self.assertIn("근거끼리 충돌", SYSTEM_INSTRUCTION)
+
+    def test_build_prompt_answers_supported_subparts_without_whole_refusal(
+        self,
+    ) -> None:
+        prompt = build_prompt(
+            "등록금 납부 기간과 수납은행을 모두 알려주세요.",
+            [
+                {
+                    "chunk_id": "notice#0004",
+                    "text": "본등록 수납은행은 농협과 부산은행입니다.",
+                }
+            ],
+        )
+
+        self.assertIn("여러 항목을 함께 묻는 질문", prompt)
+        self.assertIn("확인되는 항목은 반드시 답", prompt)
+        self.assertIn("확인되지 않는 항목만", prompt)
+        self.assertIn("질문 전체에 대한 답변을 거부하지", prompt)
+        self.assertIn("질문 전체에 대한 답변을 거부하지", SYSTEM_INSTRUCTION)
+
+    def test_build_prompt_adds_query_scoped_completeness_checklist(self) -> None:
+        cases = (
+            (
+                (
+                    "세종시에 사는 학생인데 학자금대출 원금이나 이자를 "
+                    "지원해주는 장학사업의 신청 기간과 지원 금액을 알려주세요."
+                ),
+                ("날짜·기간·마감 시각", "금액·한도·비율"),
+                ("대상·자격·조건", "신청·제출·납부 경로와 단계"),
+            ),
+            (
+                "효명장학금은 어떤 자격이 필요하고 언제까지 접수하나요?",
+                ("날짜·기간·마감 시각", "대상·자격·조건"),
+                ("금액·한도·비율", "신청·제출·납부 경로와 단계"),
+            ),
+            (
+                (
+                    "국가유공자 자녀인데 등록금을 지원받으려면 언제까지 "
+                    "어떻게 신청해야 하나요?"
+                ),
+                ("날짜·기간·마감 시각", "신청·제출·납부 경로와 단계"),
+                ("금액·한도·비율",),
+            ),
+            (
+                (
+                    "등록금 분할납부를 신청했는데 학자금대출로도 낼 수 "
+                    "있나요? 대출을 실행하면 등록 처리는 어떻게 되나요?"
+                ),
+                (
+                    "신청·제출·납부 경로와 단계",
+                    "가능·불가·처리 결과와 예외 조건",
+                    "질문에 나열된 각 대상·행위별로 따로 답하기",
+                ),
+                ("날짜·기간·마감 시각", "금액·한도·비율"),
+            ),
+            (
+                (
+                    "2026학년도 2학기 수강신청이랑 휴학·복학 신청은 "
+                    "각각 언제 하나요?"
+                ),
+                (
+                    "날짜·기간·마감 시각",
+                    "질문에 나열된 각 대상·행위별로 따로 답하기",
+                ),
+                ("금액·한도·비율",),
+            ),
+        )
+        for question, expected, unexpected in cases:
+            with self.subTest(question=question):
+                prompt = build_prompt(question, [{"text": "검색 근거"}])
+                self.assertIn("<필수_답변_항목>", prompt)
+                self.assertIn("작성 전 누락 점검표", prompt)
+                for item in expected:
+                    self.assertIn(f"- {item}", prompt)
+                for item in unexpected:
+                    self.assertNotIn(f"- {item}", prompt)
+
+    def test_build_prompt_adds_implicit_facets_for_known_question_intents(
+        self,
+    ) -> None:
+        cases = (
+            (
+                (
+                    "외국인 대학원생인데 학위청구 외국어시험 대신 인정되는 "
+                    "한국어 강좌가 있나요?"
+                ),
+                ("대체·면제 인정에 필요한 이수 기준",),
+            ),
+            (
+                (
+                    "아직 진로를 못 정했는데 여러 직무를 체험해 볼 수 있는 "
+                    "학교 프로그램이 있을까요?"
+                ),
+                ("프로그램에서 실제로 하는 활동·체험 방식",),
+            ),
+            (
+                "수시모집에 합격했는데 등록금은 언제까지 어떻게 내야 하나요?",
+                (
+                    "등록금 고지서 출력 가능 시점",
+                    "미납·전액장학 등 등록 완료 예외",
+                ),
+            ),
+            (
+                (
+                    "부산대는 학생증 발급이나 증명서 발급 같은 업무를 "
+                    "외부 기관에 위탁하고 있나요? 어디에 맡기나요?"
+                ),
+                ("질문에 나온 각 업무별 수탁기관",),
+            ),
+            (
+                (
+                    "2027학년도 부산대 신입생은 총 몇 명 뽑나요? "
+                    "전년 대비 달라지는 점도 궁금해요."
+                ),
+                ("총 모집인원과 전년 대비 주요 변경사항을 구분",),
+            ),
+            (
+                (
+                    "D-2 비자 연장을 학교에서 단체로 신청해 준다고 "
+                    "들었는데 어떻게 이용하나요?"
+                ),
+                (
+                    "1차 접수기간",
+                    "단체접수 대상",
+                    "사전예약",
+                    "제출서류",
+                    "수수료 금액과 현금·권종 등 납부방식",
+                ),
+            ),
+            (
+                (
+                    "정보통신보조기기 보급사업에 선정됐는데 "
+                    "자부담금을 지원받을 방법이 있나요?"
+                ),
+                (
+                    "지원 대상·지원 범위·신청기간·선납부 절차·"
+                    "제출서류와 접수 경로",
+                ),
+            ),
+            (
+                (
+                    "외국인 유학생인데 부산대 학부에 신입학하려면 "
+                    "어떤 자격이 필요한가요?"
+                ),
+                ("국적·학력·언어능력 자격을 구분",),
+            ),
+            (
+                (
+                    "교환학생으로 해외에 나가고 싶은데 선발 규모와 "
+                    "지원 일정이 어떻게 되나요?"
+                ),
+                ("선발 규모·온라인 지원기간·합격자 발표",),
+            ),
+            (
+                "여름방학 동안 학교에서 자격증 대비 강의 같은 걸 들을 수 있나요?",
+                ("운영 여부와 자격증 대비 과정 종류",),
+            ),
+            (
+                "장애가 있는 학생인데 수업이나 시험에서 어떤 지원을 받을 수 있나요?",
+                ("수업 지원과 시험 지원을 구분",),
+            ),
+            (
+                "인권침해를 목격했는데 피해자가 아닌 제가 대신 신고해도 되나요?",
+                ("제3자 신고 가능 여부·피해자 의사·인적사항 조건",),
+            ),
+        )
+        for question, expected in cases:
+            with self.subTest(question=question):
+                prompt = build_prompt(question, [{"text": "검색 근거"}])
+                for item in expected:
+                    self.assertIn(f"- {item}", prompt)
+
+        d2_prompt = build_prompt(
+            "D-2 비자 연장 단체접수는 어떻게 이용하나요?",
+            [{"text": "검색 근거"}],
+        )
+        self.assertIn("원문 값이 있으면 답변에 그 값을 직접 쓰고", d2_prompt)
+        self.assertIn("'확인하세요' 같은 표현으로 대신하지", d2_prompt)
+
+    def test_build_prompt_does_not_force_unrequested_procedure_facets(
+        self,
+    ) -> None:
+        prompt = build_prompt(
+            "수료후연구생은 어디서 신청하나요?",
+            [{"text": "학생지원시스템에서 온라인으로 신청합니다."}],
+        )
+
+        self.assertIn("- 신청·제출·납부 경로와 단계", prompt)
+        self.assertNotIn(
+            "대상·자격, 신청 기간, 신청 경로·단계, 제출 서류, 예외·문의처",
+            prompt,
+        )
 
     def test_generate_sends_active_build_prompt_to_provider(self) -> None:
         payload = {
@@ -556,6 +752,21 @@ class GeneratorTests(unittest.TestCase):
             handler.requests[0]["headers"]["X-Goog-Api-Key"],
             "gemini-secret",
         )
+        metadata = result.metadata()
+        self.assertEqual(
+            metadata["prompt_sha256"],
+            hashlib.sha256(build_prompt("질문", ["근거"]).encode("utf-8")).hexdigest(),
+        )
+        self.assertEqual(
+            metadata["request_config"]["model_requested"],
+            "gemini-configured",
+        )
+        self.assertEqual(
+            metadata["request_config"]["generation_config"],
+            handler.requests[0]["body"]["generationConfig"],
+        )
+        self.assertEqual(len(metadata["request_config_sha256"]), 64)
+        self.assertNotIn("gemini-secret", str(metadata))
 
     def test_selected_gemini_model_is_tried_first_with_configured_fallback(
         self,
@@ -594,6 +805,10 @@ class GeneratorTests(unittest.TestCase):
             ],
         )
         self.assertEqual(result.model, "gemini-3.5-flash-lite")
+        self.assertEqual(
+            result.metadata()["request_config"]["model_requested"],
+            "gemini-3.5-flash-lite",
+        )
         self.assertEqual(
             result.fallback_reason,
             "gemini:gemini-3.1-flash-lite:http_429",

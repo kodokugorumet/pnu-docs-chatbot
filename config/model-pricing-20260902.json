@@ -1,0 +1,38 @@
+{
+  "schema_version": "pnu.model-pricing-snapshot/v1",
+  "captured_at": "2026-09-02T15:50:00+09:00",
+  "currency": "USD",
+  "billing_unit": "per_1m_tokens",
+  "source": {
+    "provider": "Google Gemini Developer API",
+    "url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "pricing_tier": "paid_standard",
+    "accessed_date": "2026-09-02"
+  },
+  "models": {
+    "gemini-3.5-flash-lite": {
+      "evaluation_role": "final_generator",
+      "input_text_usd_per_1m_tokens": 0.30,
+      "output_including_thinking_usd_per_1m_tokens": 2.50,
+      "context_cache_input_usd_per_1m_tokens": 0.03,
+      "status": "stable_ga",
+      "model_reference": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite"
+    },
+    "gemini-3.1-flash-lite": {
+      "evaluation_role": "structured_judge",
+      "input_text_usd_per_1m_tokens": 0.25,
+      "output_including_thinking_usd_per_1m_tokens": 1.50,
+      "context_cache_input_usd_per_1m_tokens": 0.025,
+      "status": "stable_ga",
+      "model_reference": "https://ai.google.dev/gemini-api/docs/models"
+    }
+  },
+  "estimation_policy": {
+    "formula": "input_tokens * input_rate / 1000000 + output_tokens * output_rate / 1000000",
+    "use_provider_reported_usage_only": true,
+    "missing_usage": "report usage=unavailable; do not estimate from characters",
+    "free_tier": "not_assumed",
+    "batch_or_flex_discount": "not_assumed",
+    "search_grounding": "not_used_in_evaluation"
+  }
+}

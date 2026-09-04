@@ -1,0 +1,46 @@
+id,category,role,scores_a,scores_b,mean_a,mean_b,delta_b_minus_a,retrieval_hit_a,retrieval_hit_b,rank_a,rank_b,evidence_hit_a,evidence_hit_b,sources_changed
+svc_reg_01,registration,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,4,2,True,True,True
+svc_reg_02,registration,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,2,1,True,True,True
+svc_reg_03,registration,,"[0, 0, 0]","[1, 1, 0]",0,0.6666666666666666,0.6666666666666666,False,True,,2,False,True,True
+svc_reg_04,registration,,"[0, 0, 0]","[1, 1, 2]",0,1.3333333333333333,1.3333333333333333,False,True,,5,False,True,True
+svc_reg_05,registration,,"[2, 2, 1]","[1, 1, 1]",1.6666666666666667,1,-0.6666666666666667,True,True,1,1,True,True,True
+svc_reg_06,registration,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,2,1,False,True,True
+svc_sch_01,scholarship,,"[0, 0, 0]","[1, 1, 1]",0,1,1,True,True,1,1,True,True,True
+svc_sch_02,scholarship,,"[1, 2, 2]","[0, 0, 1]",1.6666666666666667,0.3333333333333333,-1.3333333333333335,True,True,1,1,True,True,True
+svc_sch_03,scholarship,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,1,1,True,True,True
+svc_sch_04,scholarship,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,1,1,True,True,True
+svc_sch_05,scholarship,,"[2, 2, 2]","[1, 0, 0]",2,0.3333333333333333,-1.6666666666666667,True,True,1,1,True,True,True
+svc_sch_06,scholarship,,"[1, 2, 2]","[0, 1, 0]",1.6666666666666667,0.3333333333333333,-1.3333333333333335,True,True,3,2,True,True,True
+svc_acad_01,academic,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,4,3,True,True,True
+svc_acad_02,academic,,"[2, 2, 2]","[2, 2, 2]",2,2,0,True,True,3,2,True,True,True
+svc_acad_03,academic,,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,True,,2,True,True,True
+svc_acad_04,academic,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,1,1,True,True,True
+svc_acad_05,academic,,"[2, 2, 2]","[2, 2, 2]",2,2,0,True,True,1,1,True,True,True
+svc_grad_01,graduation,,"[2, 2, 2]","[2, 2, 2]",2,2,0,True,True,2,1,True,True,True
+svc_grad_02,graduation,,"[0, 0, 0]","[0, 0, 0]",0,0,0,True,True,1,1,False,False,True
+svc_grad_03,graduation,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,1,1,False,False,True
+svc_grad_04,graduation,,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,True,,1,False,False,True
+svc_grad_05,graduation,,"[1, 1, 1]","[2, 1, 1]",1,1.3333333333333333,0.33333333333333326,True,True,1,1,True,True,True
+svc_core_01,core,,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,True,,1,False,False,True
+svc_core_02,core,,"[0, 0, 0]","[0, 0, 0]",0,0,0,True,True,1,1,False,False,True
+svc_core_03,core,,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,False,,,False,False,True
+svc_adm_01,admissions,,"[1, 1, 2]","[1, 1, 2]",1.3333333333333333,1.3333333333333333,0.0,True,True,1,2,True,True,True
+svc_adm_02,admissions,,"[0, 0, 0]","[1, 1, 1]",0,1,1,False,True,,4,False,True,True
+svc_adm_03,admissions,,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,False,,,False,False,True
+svc_adm_04,admissions,,"[0, 0, 0]","[0, 0, 0]",0,0,0,True,True,2,2,True,True,False
+svc_intl_01,international,,"[1, 1, 1]","[0, 0, 0]",1,0,-1,False,False,,,False,False,True
+svc_intl_02,international,,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,True,,1,False,False,True
+svc_intl_03,international,,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,True,,1,False,False,True
+svc_intl_04,international,,"[2, 0, 2]","[2, 2, 2]",1.3333333333333333,2,0.6666666666666667,False,True,,4,False,True,True
+svc_emp_01,employment,,"[0, 0, 0]","[1, 1, 1]",0,1,1,False,False,,,False,False,True
+svc_emp_02,employment,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,3,2,True,True,True
+svc_emp_03,employment,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,2,1,True,True,True
+svc_sup_01,student_support,,"[2, 0, 2]","[2, 2, 2]",1.3333333333333333,2,0.6666666666666667,False,False,,,False,False,True
+svc_sup_02,student_support,,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,1,1,True,True,True
+svc_sup_03,student_support,,"[0, 0, 0]","[0, 1, 1]",0,0.6666666666666666,0.6666666666666666,True,True,1,1,False,False,True
+svc_reg_01_role_student,registration,부산대학교 학생,"[1, 0, 0]","[1, 1, 0]",0.3333333333333333,0.6666666666666666,0.3333333333333333,True,True,4,2,True,True,True
+svc_sch_03_role_student,scholarship,부산대학교 학생,"[1, 1, 1]","[0, 1, 1]",1,0.6666666666666666,-0.33333333333333337,True,True,1,1,True,True,True
+svc_core_01_role_staff,core,부산대학교 행정직원,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,True,,1,False,False,True
+svc_core_02_role_researcher,core,부산대학교 연구자,"[0, 0, 0]","[0, 0, 0]",0,0,0,True,True,1,1,False,False,True
+svc_grad_03_role_free,graduation,대학원 박사과정 수료생,"[1, 1, 1]","[1, 1, 1]",1,1,0,True,True,1,1,False,False,True
+svc_intl_03_role_free,international,외국인 유학생,"[0, 0, 0]","[0, 0, 0]",0,0,0,False,True,,1,False,False,True

@@ -1,0 +1,2671 @@
+{
+  "schema_version": 1,
+  "method": "official reference as known-good draft; no model/API calls",
+  "scope": "sentence splitting and critical-value preservation only",
+  "cases": 45,
+  "summary": {
+    "improved": 20,
+    "unchanged": 25,
+    "regressed": 0,
+    "legacy_mean_critical_value_retention": 0.7425661375661375,
+    "current_mean_critical_value_retention": 1.0,
+    "changed_claim_lists": 20
+  },
+  "results": [
+    {
+      "id": "svc_reg_01",
+      "category": "registration",
+      "legacy_claims": [
+        "2026학년도 2학기 재학생 본등록 납부기간은 2026.",
+        "24.(월) 10:00부터 학생지원시스템에서 출력할 수 있습니다.",
+        "본등록 수납은행은 농협·부산·하나·국민·신한·우리은행(전국지점)입니다."
+      ],
+      "current_claims": [
+        "2026학년도 2학기 재학생 본등록 납부기간은 2026. 8. 24.(월) ~ 8. 27.(목)이며, 고지서는 8. 24.(월) 10:00부터 학생지원시스템에서 출력할 수 있습니다.",
+        "본등록 수납은행은 농협·부산·하나·국민·신한·우리은행(전국지점)입니다.",
+        "이후 추가등록은 2026. 9. 1.(화) ~ 9. 3.(목), 최종등록은 2026. 9. 21.(월) ~ 9. 23.(수)에 진행됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "missing": [
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23"
+        ],
+        "rate": 0.2
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.8,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_reg_02",
+      "category": "registration",
+      "legacy_claims": [
+        "등록금을 납부한 뒤 휴학하면 등록금이 이월되어 복학 시 별도의 등록절차 없이 납부처리됩니다.",
+        "환불을 원하는 경우 2022학년도 1학기 이후 등록 휴학자부터 학적변동일 기준에 따라 등록금 반환이 가능하며, 학과사무실로 등록금 반환 신청서를 제출하면 반환까지 1~2주 정도 소요됩니다."
+      ],
+      "current_claims": [
+        "등록금을 납부한 뒤 휴학하면 등록금이 이월되어 복학 시 별도의 등록절차 없이 납부처리됩니다.",
+        "환불을 원하는 경우 2022학년도 1학기 이후 등록 휴학자부터 학적변동일 기준에 따라 등록금 반환이 가능하며, 학과사무실로 등록금 반환 신청서를 제출하면 반환까지 1~2주 정도 소요됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2022",
+          "semester:1"
+        ],
+        "retained": [
+          "academic_year:2022",
+          "semester:1"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2022",
+          "semester:1"
+        ],
+        "retained": [
+          "academic_year:2022",
+          "semester:1"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_reg_03",
+      "category": "registration",
+      "legacy_claims": [
+        "베트남 학생은 BIDV SMB 앱을 통해 한국 대학 등록금을 납부할 수 있습니다.",
+        "앱에 로그인해 국제송금 메뉴에서 '한국학비결제'를 선택한 뒤 상세정보를 입력하고 납부대상학교를 선택합니다.",
+        "이후 납부항목을 선택하고 관련 서류를 업로드한 뒤 출금계좌 선택과 OTP 코드 입력을 거치면 납부가 완료됩니다."
+      ],
+      "current_claims": [
+        "베트남 학생은 BIDV SMB 앱을 통해 한국 대학 등록금을 납부할 수 있습니다.",
+        "앱에 로그인해 국제송금 메뉴에서 '한국학비결제'를 선택한 뒤 상세정보를 입력하고 납부대상학교를 선택합니다.",
+        "이후 납부항목을 선택하고 관련 서류를 업로드한 뒤 출금계좌 선택과 OTP 코드 입력을 거치면 납부가 완료됩니다."
+      ],
+      "legacy": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_reg_04",
+      "category": "registration",
+      "legacy_claims": [
+        "7.(수) 개최된 2026학년도 제1차 등록금심의위원회 심의 결과 학부와 대학원 등록금이 모두 동결되었습니다.",
+        "학부대학 신설학부인 자유전공학부·첨단융합학부의 등록금은 수업료Ⅰ 412,000원, 수업료Ⅱ 1,952,000원으로 책정되었습니다."
+      ],
+      "current_claims": [
+        "2026. 1. 7.(수) 개최된 2026학년도 제1차 등록금심의위원회 심의 결과 학부와 대학원 등록금이 모두 동결되었습니다.",
+        "학부대학 신설학부인 자유전공학부·첨단융합학부의 등록금은 수업료Ⅰ 412,000원, 수업료Ⅱ 1,952,000원으로 책정되었습니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:1952000",
+          "amount_krw:412000",
+          "date:2026-01-07",
+          "month_day:01-07",
+          "round:1"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:1952000",
+          "amount_krw:412000",
+          "round:1"
+        ],
+        "missing": [
+          "date:2026-01-07",
+          "month_day:01-07"
+        ],
+        "rate": 0.6666666666666666
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:1952000",
+          "amount_krw:412000",
+          "date:2026-01-07",
+          "month_day:01-07",
+          "round:1"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:1952000",
+          "amount_krw:412000",
+          "date:2026-01-07",
+          "month_day:01-07",
+          "round:1"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.33333333333333337,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_reg_05",
+      "category": "registration",
+      "legacy_claims": [
+        "2025학년도 제1차 등록금심의위원회 심의 결과 학부 등록금은 동결, 대학원은 3.95% 인상(경영대학원 5.49% 인상, 법학전문대학원 4.44% 인상)으로 책정되었습니다.",
+        "정원 외 외국인 유학생 등록금은 학부 10%('25년 1학기부터), 대학원 5%('25년 2학기부터) 인상안이 원안 통과되었습니다."
+      ],
+      "current_claims": [
+        "2025학년도 제1차 등록금심의위원회 심의 결과 학부 등록금은 동결, 대학원은 3.95% 인상(경영대학원 5.49% 인상, 법학전문대학원 4.44% 인상)으로 책정되었습니다.",
+        "정원 외 외국인 유학생 등록금은 학부 10%('25년 1학기부터), 대학원 5%('25년 2학기부터) 인상안이 원안 통과되었습니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2025",
+          "percent:10",
+          "percent:3.95",
+          "percent:4.44",
+          "percent:5",
+          "percent:5.49",
+          "round:1",
+          "semester:1",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2025",
+          "percent:10",
+          "percent:3.95",
+          "percent:4.44",
+          "percent:5",
+          "percent:5.49",
+          "round:1",
+          "semester:1",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2025",
+          "percent:10",
+          "percent:3.95",
+          "percent:4.44",
+          "percent:5",
+          "percent:5.49",
+          "round:1",
+          "semester:1",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2025",
+          "percent:10",
+          "percent:3.95",
+          "percent:4.44",
+          "percent:5",
+          "percent:5.49",
+          "round:1",
+          "semester:1",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_reg_06",
+      "category": "registration",
+      "legacy_claims": [
+        "등록금 분할납부자는 분할 1회차에는 학자금대출을 받을 수 없습니다.",
+        "학자금대출은 한국장학재단 누리집이나 모바일 애플리케이션에서 신청하며, 대출 지급 실행은 등록금 납부 기간 중에만 가능합니다.",
+        "지급 실행 절차까지 진행해야 등록이 완료된 것으로 처리됩니다."
+      ],
+      "current_claims": [
+        "등록금 분할납부자는 분할 1회차에는 학자금대출을 받을 수 없습니다.",
+        "학자금대출은 한국장학재단 누리집이나 모바일 애플리케이션에서 신청하며, 대출 지급 실행은 등록금 납부 기간 중에만 가능합니다.",
+        "지급 실행 절차까지 진행해야 등록이 완료된 것으로 처리됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "quantity:1:회"
+        ],
+        "retained": [
+          "quantity:1:회"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "quantity:1:회"
+        ],
+        "retained": [
+          "quantity:1:회"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_sch_01",
+      "category": "scholarship",
+      "legacy_claims": [
+        "AI학업장려 학자금대출은 취업 후 상환 학자금대출(생활비) 상품으로, AI·SW중심대학 및 AI거점대학 사업 대상학과 학부생(정보컴퓨터공학부, 산업공학과 등 지정 학과)이 대상입니다.",
+        "대출금리는 1.70% 변동금리이며, 대출한도는 연간 200만 원(개인 총 한도 1,000만 원 이내)입니다.",
+        "등록금·생활비 대출과 별도 상품으로 중복지원이 가능합니다."
+      ],
+      "current_claims": [
+        "AI학업장려 학자금대출은 취업 후 상환 학자금대출(생활비) 상품으로, AI·SW중심대학 및 AI거점대학 사업 대상학과 학부생(정보컴퓨터공학부, 산업공학과 등 지정 학과)이 대상입니다.",
+        "대출금리는 1.70% 변동금리이며, 대출한도는 연간 200만 원(개인 총 한도 1,000만 원 이내)입니다.",
+        "등록금·생활비 대출과 별도 상품으로 중복지원이 가능합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "amount_krw:10000000",
+          "amount_krw:2000000",
+          "percent:1.7"
+        ],
+        "retained": [
+          "amount_krw:10000000",
+          "amount_krw:2000000",
+          "percent:1.7"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "amount_krw:10000000",
+          "amount_krw:2000000",
+          "percent:1.7"
+        ],
+        "retained": [
+          "amount_krw:10000000",
+          "amount_krw:2000000",
+          "percent:1.7"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_sch_02",
+      "category": "scholarship",
+      "legacy_claims": [
+        "2026년도 세종이도인재장학금 디딤돌장학사업(학자금대출 원금상환·이자지원)은 공고일 기준 1년 이상 세종시 계속 거주자(부·모 또는 본인)가 대상이며, 신청기간은 2026.",
+        "지원액은 원금상환 1인당 최대 1,000,000원, 이자지원 1인당 최대 500,000원이며, 이메일 개별 신청만 가능하고 오프라인 신청은 불가합니다."
+      ],
+      "current_claims": [
+        "2026년도 세종이도인재장학금 디딤돌장학사업(학자금대출 원금상환·이자지원)은 공고일 기준 1년 이상 세종시 계속 거주자(부·모 또는 본인)가 대상이며, 신청기간은 2026. 7. 6.(월) ~ 8. 31.(월) 18:00까지입니다.",
+        "지원액은 원금상환 1인당 최대 1,000,000원, 이자지원 1인당 최대 500,000원이며, 이메일 개별 신청만 가능하고 오프라인 신청은 불가합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "amount_krw:1000000",
+          "amount_krw:500000",
+          "date:2026-07-06",
+          "date:2026-08-31",
+          "month_day:07-06",
+          "month_day:08-31",
+          "time_minutes:1080"
+        ],
+        "retained": [
+          "amount_krw:1000000",
+          "amount_krw:500000"
+        ],
+        "missing": [
+          "date:2026-07-06",
+          "date:2026-08-31",
+          "month_day:07-06",
+          "month_day:08-31",
+          "time_minutes:1080"
+        ],
+        "rate": 0.2857142857142857
+      },
+      "current": {
+        "expected": [
+          "amount_krw:1000000",
+          "amount_krw:500000",
+          "date:2026-07-06",
+          "date:2026-08-31",
+          "month_day:07-06",
+          "month_day:08-31",
+          "time_minutes:1080"
+        ],
+        "retained": [
+          "amount_krw:1000000",
+          "amount_krw:500000",
+          "date:2026-07-06",
+          "date:2026-08-31",
+          "month_day:07-06",
+          "month_day:08-31",
+          "time_minutes:1080"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.7142857142857143,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_sch_03",
+      "category": "scholarship",
+      "legacy_claims": [
+        "학자금 대출이자 지원은 소득분위 제한이 없으며, 신청자가 많은 경우 예산 범위 내에서 학자금 지원구간이 낮은 순으로 선발됩니다.",
+        "지원액은 개인 통장이 아니라 한국장학재단에 개설된 개인별 원리금 상환계좌(상환용도의 일회성 가상계좌)로 입금되어 상환됩니다.",
+        "1인당 최대 지원액은 50만원입니다."
+      ],
+      "current_claims": [
+        "학자금 대출이자 지원은 소득분위 제한이 없으며, 신청자가 많은 경우 예산 범위 내에서 학자금 지원구간이 낮은 순으로 선발됩니다.",
+        "지원액은 개인 통장이 아니라 한국장학재단에 개설된 개인별 원리금 상환계좌(상환용도의 일회성 가상계좌)로 입금되어 상환됩니다.",
+        "1인당 최대 지원액은 50만원입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "amount_krw:500000"
+        ],
+        "retained": [
+          "amount_krw:500000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "amount_krw:500000"
+        ],
+        "retained": [
+          "amount_krw:500000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_sch_04",
+      "category": "scholarship",
+      "legacy_claims": [
+        "쌍용곰두리장학금은 생활보조비 성격의 교외장학금으로 국가장학금과 중복수혜가 가능합니다.",
+        "등록금 외에 교재 구입비, 주거비, 교통비 등 학업과 대학생활에 필요한 비용으로 사용할 수 있으며 별도의 사용 증빙 의무는 없습니다.",
+        "다만 선정 후에도 매 학기 성적증명서를 제출해야 하고, 100점 만점 환산점수 80점 이상과 대학교 최소 12학점 이상(대학원 6학점) 이수 기준을 유지해야 합니다."
+      ],
+      "current_claims": [
+        "쌍용곰두리장학금은 생활보조비 성격의 교외장학금으로 국가장학금과 중복수혜가 가능합니다.",
+        "등록금 외에 교재 구입비, 주거비, 교통비 등 학업과 대학생활에 필요한 비용으로 사용할 수 있으며 별도의 사용 증빙 의무는 없습니다.",
+        "다만 선정 후에도 매 학기 성적증명서를 제출해야 하고, 100점 만점 환산점수 80점 이상과 대학교 최소 12학점 이상(대학원 6학점) 이수 기준을 유지해야 합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "quantity:12:학점",
+          "quantity:6:학점"
+        ],
+        "retained": [
+          "quantity:12:학점",
+          "quantity:6:학점"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "quantity:12:학점",
+          "quantity:6:학점"
+        ],
+        "retained": [
+          "quantity:12:학점",
+          "quantity:6:학점"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_sch_05",
+      "category": "scholarship",
+      "legacy_claims": [
+        "2026년 하반기 효명장학사업은 국내 4년제 정규 대학·대학원(석사과정) 또는 로스쿨에 재학 중인 시각장애인, 혹은 석·박사과정으로 해외 유학 중인 시각장애인이 신청할 수 있으며, 2026년 2학기 등록 예정자여야 합니다.",
+        "접수기간은 26.7.8(수)~22(수) 2주간입니다.",
+        "학업에 필요한 추가비용을 지원하는 장학금이므로 대학교에서 장학금을 지원받았더라도 중복수령이 가능합니다."
+      ],
+      "current_claims": [
+        "2026년 하반기 효명장학사업은 국내 4년제 정규 대학·대학원(석사과정) 또는 로스쿨에 재학 중인 시각장애인, 혹은 석·박사과정으로 해외 유학 중인 시각장애인이 신청할 수 있으며, 2026년 2학기 등록 예정자여야 합니다.",
+        "접수기간은 26.7.8(수)~22(수) 2주간입니다.",
+        "학업에 필요한 추가비용을 지원하는 장학금이므로 대학교에서 장학금을 지원받았더라도 중복수령이 가능합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "date:2026-07-08",
+          "month_day:07-08",
+          "semester:2"
+        ],
+        "retained": [
+          "date:2026-07-08",
+          "month_day:07-08",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "date:2026-07-08",
+          "month_day:07-08",
+          "semester:2"
+        ],
+        "retained": [
+          "date:2026-07-08",
+          "month_day:07-08",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_sch_06",
+      "category": "scholarship",
+      "legacy_claims": [
+        "국가보훈대상자(국가유공자 자녀 등)는 2026학년도 2학기 우선선발장학금을 2026.",
+        "31.(금) 17:00까지 부산대학교 학생지원시스템에서 온라인으로 신청해야 합니다.",
+        "지원요건은 직전학기 평점평균 1.51(70/100) 이상이며, 수업연한 동안 등록금 전액이 지원됩니다(국가유공자 본인은 성적·수업연한 제한 없음).",
+        "장학금은 등록금 고지서에서 장학금액만큼 감면되는 방식으로 지급됩니다."
+      ],
+      "current_claims": [
+        "국가보훈대상자(국가유공자 자녀 등)는 2026학년도 2학기 우선선발장학금을 2026. 7. 29.(수) 10:00 ~ 7. 31.(금) 17:00까지 부산대학교 학생지원시스템에서 온라인으로 신청해야 합니다.",
+        "지원요건은 직전학기 평점평균 1.51(70/100) 이상이며, 수업연한 동안 등록금 전액이 지원됩니다(국가유공자 본인은 성적·수업연한 제한 없음).",
+        "장학금은 등록금 고지서에서 장학금액만큼 감면되는 방식으로 지급됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-07-29",
+          "date:2026-07-31",
+          "month_day:07-29",
+          "month_day:07-31",
+          "semester:2",
+          "time_minutes:1020",
+          "time_minutes:600"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "semester:2",
+          "time_minutes:1020"
+        ],
+        "missing": [
+          "date:2026-07-29",
+          "date:2026-07-31",
+          "month_day:07-29",
+          "month_day:07-31",
+          "time_minutes:600"
+        ],
+        "rate": 0.375
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-07-29",
+          "date:2026-07-31",
+          "month_day:07-29",
+          "month_day:07-31",
+          "semester:2",
+          "time_minutes:1020",
+          "time_minutes:600"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-07-29",
+          "date:2026-07-31",
+          "month_day:07-29",
+          "month_day:07-31",
+          "semester:2",
+          "time_minutes:1020",
+          "time_minutes:600"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.625,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_acad_01",
+      "category": "academic",
+      "legacy_claims": [
+        "영어 기초학력 진단평가는 수능영어 무등급이면서 진단평가에 응시한 적이 없는 학부 재학생 중 희망자가 응시할 수 있으며, 응시하지 않으면 대학영어(초급 수준)를 이수하게 됩니다.",
+        "2026학년도 2차 수강신청 대비 진단평가 신청기간은 2026.",
+        "24.(일) 23:45이고, 시험은 2026.",
+        "TOEIC 820점 이상 등 영어 공인성적 제출자는 신청자에 한해 대학영어 이수가 면제됩니다."
+      ],
+      "current_claims": [
+        "영어 기초학력 진단평가는 수능영어 무등급이면서 진단평가에 응시한 적이 없는 학부 재학생 중 희망자가 응시할 수 있으며, 응시하지 않으면 대학영어(초급 수준)를 이수하게 됩니다.",
+        "2026학년도 2차 수강신청 대비 진단평가 신청기간은 2026. 7. 13.(월) 00:00 ~ 7. 24.(일) 23:45이고, 시험은 2026. 7. 29.(수) ~ 7. 30.(목)에 시행됩니다.",
+        "TOEIC 820점 이상 등 영어 공인성적 제출자는 신청자에 한해 대학영어 이수가 면제됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-07-13",
+          "date:2026-07-24",
+          "date:2026-07-29",
+          "date:2026-07-30",
+          "month_day:07-13",
+          "month_day:07-24",
+          "month_day:07-29",
+          "month_day:07-30",
+          "round:2",
+          "time_minutes:0",
+          "time_minutes:1425"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "round:2",
+          "time_minutes:1425"
+        ],
+        "missing": [
+          "date:2026-07-13",
+          "date:2026-07-24",
+          "date:2026-07-29",
+          "date:2026-07-30",
+          "month_day:07-13",
+          "month_day:07-24",
+          "month_day:07-29",
+          "month_day:07-30",
+          "time_minutes:0"
+        ],
+        "rate": 0.25
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-07-13",
+          "date:2026-07-24",
+          "date:2026-07-29",
+          "date:2026-07-30",
+          "month_day:07-13",
+          "month_day:07-24",
+          "month_day:07-29",
+          "month_day:07-30",
+          "round:2",
+          "time_minutes:0",
+          "time_minutes:1425"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-07-13",
+          "date:2026-07-24",
+          "date:2026-07-29",
+          "date:2026-07-30",
+          "month_day:07-13",
+          "month_day:07-24",
+          "month_day:07-29",
+          "month_day:07-30",
+          "round:2",
+          "time_minutes:0",
+          "time_minutes:1425"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.75,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_acad_02",
+      "category": "academic",
+      "legacy_claims": [
+        "해외 파견대학 성적표가 국제처에 도착하면 국제처가 원본 진위를 확인하고, 학생이 귀국보고 등 파견자 의무사항을 이행한 뒤 소속학과를 방문해 학점인정 신청서와 교수계획표 등을 제출하면 학과·행정실·교육혁신과를 거쳐 성적이 처리됩니다.",
+        "이러한 순서 때문에 최종 성적 인정은 성적표가 국제처에 도착한 후 통상적으로 3~4개월이 소요됩니다."
+      ],
+      "current_claims": [
+        "해외 파견대학 성적표가 국제처에 도착하면 국제처가 원본 진위를 확인하고, 학생이 귀국보고 등 파견자 의무사항을 이행한 뒤 소속학과를 방문해 학점인정 신청서와 교수계획표 등을 제출하면 학과·행정실·교육혁신과를 거쳐 성적이 처리됩니다.",
+        "이러한 순서 때문에 최종 성적 인정은 성적표가 국제처에 도착한 후 통상적으로 3~4개월이 소요됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "quantity:4:개"
+        ],
+        "retained": [
+          "quantity:4:개"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "quantity:4:개"
+        ],
+        "retained": [
+          "quantity:4:개"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_acad_03",
+      "category": "academic",
+      "legacy_claims": [
+        "2026년도 2학기 수강신청(학부)은 2026.08.10 - 2026.08.12에 진행되고, 2026.08.18 - 2026.08.19에 추가 수강신청 기간이 있습니다.",
+        "휴·복학 신청기간은 2026.07.24 - 2026.07.31이며 2026.08.24 - 2026.08.27에 한 차례 더 열립니다.",
+        "수강신청에 앞서 희망과목담기는 2026.08.03 - 2026.08.04에 실시됩니다."
+      ],
+      "current_claims": [
+        "2026년도 2학기 수강신청(학부)은 2026.08.10 - 2026.08.12에 진행되고, 2026.08.18 - 2026.08.19에 추가 수강신청 기간이 있습니다.",
+        "휴·복학 신청기간은 2026.07.24 - 2026.07.31이며 2026.08.24 - 2026.08.27에 한 차례 더 열립니다.",
+        "수강신청에 앞서 희망과목담기는 2026.08.03 - 2026.08.04에 실시됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "date:2026-07-24",
+          "date:2026-07-31",
+          "date:2026-08-03",
+          "date:2026-08-04",
+          "date:2026-08-10",
+          "date:2026-08-12",
+          "date:2026-08-18",
+          "date:2026-08-19",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "month_day:07-24",
+          "month_day:07-31",
+          "month_day:08-03",
+          "month_day:08-04",
+          "month_day:08-10",
+          "month_day:08-12",
+          "month_day:08-18",
+          "month_day:08-19",
+          "month_day:08-24",
+          "month_day:08-27",
+          "semester:2"
+        ],
+        "retained": [
+          "date:2026-07-24",
+          "date:2026-07-31",
+          "date:2026-08-03",
+          "date:2026-08-04",
+          "date:2026-08-10",
+          "date:2026-08-12",
+          "date:2026-08-18",
+          "date:2026-08-19",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "month_day:07-24",
+          "month_day:07-31",
+          "month_day:08-03",
+          "month_day:08-04",
+          "month_day:08-10",
+          "month_day:08-12",
+          "month_day:08-18",
+          "month_day:08-19",
+          "month_day:08-24",
+          "month_day:08-27",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "date:2026-07-24",
+          "date:2026-07-31",
+          "date:2026-08-03",
+          "date:2026-08-04",
+          "date:2026-08-10",
+          "date:2026-08-12",
+          "date:2026-08-18",
+          "date:2026-08-19",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "month_day:07-24",
+          "month_day:07-31",
+          "month_day:08-03",
+          "month_day:08-04",
+          "month_day:08-10",
+          "month_day:08-12",
+          "month_day:08-18",
+          "month_day:08-19",
+          "month_day:08-24",
+          "month_day:08-27",
+          "semester:2"
+        ],
+        "retained": [
+          "date:2026-07-24",
+          "date:2026-07-31",
+          "date:2026-08-03",
+          "date:2026-08-04",
+          "date:2026-08-10",
+          "date:2026-08-12",
+          "date:2026-08-18",
+          "date:2026-08-19",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "month_day:07-24",
+          "month_day:07-31",
+          "month_day:08-03",
+          "month_day:08-04",
+          "month_day:08-10",
+          "month_day:08-12",
+          "month_day:08-18",
+          "month_day:08-19",
+          "month_day:08-24",
+          "month_day:08-27",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_acad_04",
+      "category": "academic",
+      "legacy_claims": [
+        "모듈은 3~5개 이상의 교과목을 조합한 동일 학과(부) 내 동일한 학문적 주제로 묶인 펜토미노 교육과정의 기본 구성단위이며, 마이크로디그리로 승인된 모듈만 이수 시 졸업증명서에 기재됩니다.",
+        "트랙은 특정 진로 또는 자격 취득 등을 위해 2개 이상의 모듈로 구성한 과정으로, 자·타 학과(전공)의 트랙 이수는 졸업증명서에 기재됩니다.",
+        "타 학과(전공)의 마이크로디그리 모듈(15학점)을 완료하면 소단위전공으로 인증되어 졸업증명서에 기재됩니다."
+      ],
+      "current_claims": [
+        "모듈은 3~5개 이상의 교과목을 조합한 동일 학과(부) 내 동일한 학문적 주제로 묶인 펜토미노 교육과정의 기본 구성단위이며, 마이크로디그리로 승인된 모듈만 이수 시 졸업증명서에 기재됩니다.",
+        "트랙은 특정 진로 또는 자격 취득 등을 위해 2개 이상의 모듈로 구성한 과정으로, 자·타 학과(전공)의 트랙 이수는 졸업증명서에 기재됩니다.",
+        "타 학과(전공)의 마이크로디그리 모듈(15학점)을 완료하면 소단위전공으로 인증되어 졸업증명서에 기재됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "quantity:15:학점",
+          "quantity:2:개",
+          "quantity:5:개"
+        ],
+        "retained": [
+          "quantity:15:학점",
+          "quantity:2:개",
+          "quantity:5:개"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "quantity:15:학점",
+          "quantity:2:개",
+          "quantity:5:개"
+        ],
+        "retained": [
+          "quantity:15:학점",
+          "quantity:2:개",
+          "quantity:5:개"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_acad_05",
+      "category": "academic",
+      "legacy_claims": [
+        "인문대학 국어국문학과의 오리엔테이션 및 수강신청 안내는 2026.",
+        "12.(목) 제2공학관(재료관) 2103호에서 진행됩니다.",
+        "문의 연락처는 051-510-1507입니다."
+      ],
+      "current_claims": [
+        "인문대학 국어국문학과의 오리엔테이션 및 수강신청 안내는 2026. 2. 12.(목) 제2공학관(재료관) 2103호에서 진행됩니다.",
+        "문의 연락처는 051-510-1507입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "date:2026-02-12",
+          "month_day:02-12",
+          "phone:0515101507"
+        ],
+        "retained": [
+          "phone:0515101507"
+        ],
+        "missing": [
+          "date:2026-02-12",
+          "month_day:02-12"
+        ],
+        "rate": 0.3333333333333333
+      },
+      "current": {
+        "expected": [
+          "date:2026-02-12",
+          "month_day:02-12",
+          "phone:0515101507"
+        ],
+        "retained": [
+          "date:2026-02-12",
+          "month_day:02-12",
+          "phone:0515101507"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.6666666666666667,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_grad_01",
+      "category": "graduation",
+      "legacy_claims": [
+        "졸업종합시험은 평균 60점 이상을 합격으로 하며, 졸업학기 졸업사정 결과보고일 3주 전까지 완료하여야 합니다.",
+        "시험 문제는 학과(부)나 전공의 전임교원 2명 이상이 공동 출제하고 학과(부)장이나 전공주임의 책임으로 관리하며, 답안도 전임교원 2명 이상이 채점·점검합니다."
+      ],
+      "current_claims": [
+        "졸업종합시험은 평균 60점 이상을 합격으로 하며, 졸업학기 졸업사정 결과보고일 3주 전까지 완료하여야 합니다.",
+        "시험 문제는 학과(부)나 전공의 전임교원 2명 이상이 공동 출제하고 학과(부)장이나 전공주임의 책임으로 관리하며, 답안도 전임교원 2명 이상이 채점·점검합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "quantity:2:명"
+        ],
+        "retained": [
+          "quantity:2:명"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "quantity:2:명"
+        ],
+        "retained": [
+          "quantity:2:명"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_grad_02",
+      "category": "graduation",
+      "legacy_claims": [
+        "영어능력 졸업인증 기준을 충족한 학생은 구비서류를 갖춰 학과(부) 사무실에 수시로 신청할 수 있습니다.",
+        "다만 졸업대상자는 졸업사정 결과보고일 3주전(전기졸업: 1월 10일 이전, 후기졸업: 7월 10일 이전)까지 졸업인증 관련 성적표를 제출하여야 합니다.",
+        "인증 기준을 충족하면 성적증명서 하단에 '영어인증졸업'이 표기되고, 대체과목 이수 등을 통한 경우는 인증 표기를 하지 않습니다."
+      ],
+      "current_claims": [
+        "영어능력 졸업인증 기준을 충족한 학생은 구비서류를 갖춰 학과(부) 사무실에 수시로 신청할 수 있습니다.",
+        "다만 졸업대상자는 졸업사정 결과보고일 3주전(전기졸업: 1월 10일 이전, 후기졸업: 7월 10일 이전)까지 졸업인증 관련 성적표를 제출하여야 합니다.",
+        "인증 기준을 충족하면 성적증명서 하단에 '영어인증졸업'이 표기되고, 대체과목 이수 등을 통한 경우는 인증 표기를 하지 않습니다."
+      ],
+      "legacy": {
+        "expected": [
+          "month_day:01-10",
+          "month_day:07-10"
+        ],
+        "retained": [
+          "month_day:01-10",
+          "month_day:07-10"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "month_day:01-10",
+          "month_day:07-10"
+        ],
+        "retained": [
+          "month_day:01-10",
+          "month_day:07-10"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_grad_03",
+      "category": "graduation",
+      "legacy_claims": [
+        "수료후연구생은 대학원 석사 또는 박사과정 수료자로서 학위취득에 필요한 연구를 희망하고 지도교수의 추천을 받은 학생이 신청할 수 있습니다.",
+        "2026학년도 2학기 1차 학생 신청기간은 26.",
+        "10.(월) 18:00, 2차는 26.",
+        "9.(수) 18:00이며, 학생지원시스템을 통한 온라인 신청이 원칙입니다."
+      ],
+      "current_claims": [
+        "수료후연구생은 대학원 석사 또는 박사과정 수료자로서 학위취득에 필요한 연구를 희망하고 지도교수의 추천을 받은 학생이 신청할 수 있습니다.",
+        "2026학년도 2학기 1차 학생 신청기간은 26. 8. 3.(월)~8. 10.(월) 18:00, 2차는 26. 9. 2.(수)~9. 9.(수) 18:00이며, 학생지원시스템을 통한 온라인 신청이 원칙입니다.",
+        "납부금액은 수업료Ⅱ의 10%입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "missing": [
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10"
+        ],
+        "rate": 0.35714285714285715
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.6428571428571428,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_grad_04",
+      "category": "graduation",
+      "legacy_claims": [
+        "일반대학원 기준으로 심사요구서·심사료·이력서·연구윤리서약서·표절방지프로그램 검사결과표는 2026.",
+        "09(목)까지 제출하며, 심사용 논문은 04월09일(목) 17시까지 심사위원(장)에게 제출합니다.",
+        "심사료는 석사 10만원, 박사 30만원입니다.",
+        "논문발표는 04월21일(화)이고, 최종논문은 2026.",
+        "04(화) 09:30-17:30에 개인별로 중앙도서관에 제출합니다."
+      ],
+      "current_claims": [
+        "일반대학원 기준으로 심사요구서·심사료·이력서·연구윤리서약서·표절방지프로그램 검사결과표는 2026. 04. 09(목)까지 제출하며, 심사용 논문은 04월09일(목) 17시까지 심사위원(장)에게 제출합니다.",
+        "심사료는 석사 10만원, 박사 30만원입니다.",
+        "논문발표는 04월21일(화)이고, 최종논문은 2026. 08. 04(화) 09:30-17:30에 개인별로 중앙도서관에 제출합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "amount_krw:100000",
+          "amount_krw:300000",
+          "date:2026-04-09",
+          "date:2026-04-21",
+          "date:2026-08-04",
+          "month_day:04-09",
+          "month_day:04-21",
+          "month_day:08-04",
+          "time_minutes:1020",
+          "time_minutes:1050",
+          "time_minutes:570"
+        ],
+        "retained": [
+          "amount_krw:100000",
+          "amount_krw:300000",
+          "month_day:04-09",
+          "month_day:04-21",
+          "time_minutes:1020",
+          "time_minutes:1050",
+          "time_minutes:570"
+        ],
+        "missing": [
+          "date:2026-04-09",
+          "date:2026-04-21",
+          "date:2026-08-04",
+          "month_day:08-04"
+        ],
+        "rate": 0.6363636363636364
+      },
+      "current": {
+        "expected": [
+          "amount_krw:100000",
+          "amount_krw:300000",
+          "date:2026-04-09",
+          "date:2026-04-21",
+          "date:2026-08-04",
+          "month_day:04-09",
+          "month_day:04-21",
+          "month_day:08-04",
+          "time_minutes:1020",
+          "time_minutes:1050",
+          "time_minutes:570"
+        ],
+        "retained": [
+          "amount_krw:100000",
+          "amount_krw:300000",
+          "date:2026-04-09",
+          "date:2026-04-21",
+          "date:2026-08-04",
+          "month_day:04-09",
+          "month_day:04-21",
+          "month_day:08-04",
+          "time_minutes:1020",
+          "time_minutes:1050",
+          "time_minutes:570"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.36363636363636365,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_grad_05",
+      "category": "graduation",
+      "legacy_claims": [
+        "언어교육원에서 2026학년도 여름학기 대학원 학위청구 외국어시험(한국어) 대체강좌를 개설하며, 수강대상은 대학원 외국인 석·박사(재학생, 휴학생, 수료생)입니다.",
+        "12.(금) 선착순 마감이고, 강의는 2026.",
+        "31.(금) 5주간 월·수·금 18:30∼21:30에 진행됩니다.",
+        "총 수업일수의 3분의 2 이상 출석하고 출석(20%)·과제(30%)·시험(50%)을 합하여 70점 이상이면 이수되며, 이수자에 한해 대학원 학위청구 외국어시험 면제신청이 가능합니다."
+      ],
+      "current_claims": [
+        "언어교육원에서 2026학년도 여름학기 대학원 학위청구 외국어시험(한국어) 대체강좌를 개설하며, 수강대상은 대학원 외국인 석·박사(재학생, 휴학생, 수료생)입니다.",
+        "신청기간은 2026. 6. 4.(목) ∼ 2026. 6. 12.(금) 선착순 마감이고, 강의는 2026. 6. 24.(수) ∼ 2026. 7. 31.(금) 5주간 월·수·금 18:30∼21:30에 진행됩니다.",
+        "총 수업일수의 3분의 2 이상 출석하고 출석(20%)·과제(30%)·시험(50%)을 합하여 70점 이상이면 이수되며, 이수자에 한해 대학원 학위청구 외국어시험 면제신청이 가능합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-06-04",
+          "date:2026-06-12",
+          "date:2026-06-24",
+          "date:2026-07-31",
+          "month_day:06-04",
+          "month_day:06-12",
+          "month_day:06-24",
+          "month_day:07-31",
+          "percent:20",
+          "percent:30",
+          "percent:50",
+          "time_minutes:1110",
+          "time_minutes:1290"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "percent:20",
+          "percent:30",
+          "percent:50",
+          "time_minutes:1110",
+          "time_minutes:1290"
+        ],
+        "missing": [
+          "date:2026-06-04",
+          "date:2026-06-12",
+          "date:2026-06-24",
+          "date:2026-07-31",
+          "month_day:06-04",
+          "month_day:06-12",
+          "month_day:06-24",
+          "month_day:07-31"
+        ],
+        "rate": 0.42857142857142855
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-06-04",
+          "date:2026-06-12",
+          "date:2026-06-24",
+          "date:2026-07-31",
+          "month_day:06-04",
+          "month_day:06-12",
+          "month_day:06-24",
+          "month_day:07-31",
+          "percent:20",
+          "percent:30",
+          "percent:50",
+          "time_minutes:1110",
+          "time_minutes:1290"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-06-04",
+          "date:2026-06-12",
+          "date:2026-06-24",
+          "date:2026-07-31",
+          "month_day:06-04",
+          "month_day:06-12",
+          "month_day:06-24",
+          "month_day:07-31",
+          "percent:20",
+          "percent:30",
+          "percent:50",
+          "time_minutes:1110",
+          "time_minutes:1290"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.5714285714285714,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_core_01",
+      "category": "core",
+      "legacy_claims": [
+        "2026학년도 교육·연구 및 학생지도비는 교연비 예산 범위 내에서 개인별 연간 지급한도액을 설정합니다.",
+        "교원의 연간 지급한도액은 교육 470만원+α, 연구 1,150만원+α, 학생지도 180만원+α로 합계 1,800만원+α이며, 직원 및 조교는 685만원+α입니다.",
+        "별도지원 사업(+α)에는 영어강의담당, 교양과목담당, 신임교수 연구정착금, 기획연구과제지원사업, 지도교수상담(인센티브) 등이 있습니다."
+      ],
+      "current_claims": [
+        "2026학년도 교육·연구 및 학생지도비는 교연비 예산 범위 내에서 개인별 연간 지급한도액을 설정합니다.",
+        "교원의 연간 지급한도액은 교육 470만원+α, 연구 1,150만원+α, 학생지도 180만원+α로 합계 1,800만원+α이며, 직원 및 조교는 685만원+α입니다.",
+        "별도지원 사업(+α)에는 영어강의담당, 교양과목담당, 신임교수 연구정착금, 기획연구과제지원사업, 지도교수상담(인센티브) 등이 있습니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_core_02",
+      "category": "core",
+      "legacy_claims": [
+        "2025학년도 교연비 예산액은 합계 30,405,200천원으로, 2024학년도 최종예산액 28,871,600천원 대비 1,533,600천원 증가했습니다.",
+        "영역별로는 교육영역 6,502,600천원(21.39%), 연구영역 16,936,679천원(55.70%), 학생지도영역 6,965,921천원(22.91%)으로 편성되어 연구영역 비중이 가장 큽니다."
+      ],
+      "current_claims": [
+        "2025학년도 교연비 예산액은 합계 30,405,200천원으로, 2024학년도 최종예산액 28,871,600천원 대비 1,533,600천원 증가했습니다.",
+        "영역별로는 교육영역 6,502,600천원(21.39%), 연구영역 16,936,679천원(55.70%), 학생지도영역 6,965,921천원(22.91%)으로 편성되어 연구영역 비중이 가장 큽니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "retained": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "retained": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_core_03",
+      "category": "core",
+      "legacy_claims": [
+        "부산대학교는 개인정보 처리가 수반되는 일부 업무를 외부에 위탁하고 있습니다.",
+        "학생처 학생과의 학생증발급업무는 KEB하나은행 온천장역지점이, 교육혁신본부의 전자증명 시스템을 통한 각종 증명서 발급은 ㈜아이앤텍이 수탁기관입니다.",
+        "이 밖에 입학처 입학과의 원서접수는 ㈜진학어플라이(대교협), 국제처의 외국인 유학생 보험 가입은 DB손해보험에 위탁되어 있습니다."
+      ],
+      "current_claims": [
+        "부산대학교는 개인정보 처리가 수반되는 일부 업무를 외부에 위탁하고 있습니다.",
+        "학생처 학생과의 학생증발급업무는 KEB하나은행 온천장역지점이, 교육혁신본부의 전자증명 시스템을 통한 각종 증명서 발급은 ㈜아이앤텍이 수탁기관입니다.",
+        "이 밖에 입학처 입학과의 원서접수는 ㈜진학어플라이(대교협), 국제처의 외국인 유학생 보험 가입은 DB손해보험에 위탁되어 있습니다."
+      ],
+      "legacy": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_adm_01",
+      "category": "admissions",
+      "legacy_claims": [
+        "일반편입과 학사편입 모두 3학년 1학기로 편입되며, 보통 4개 학기 이상 이수하고 학칙에서 정한 졸업 소요 학점을 취득하면 졸업할 수 있습니다.",
+        "일반편입학은 공인영어시험(토익, 토플, 텝스 중 택1) 공식성적이 필수이고, 전문학사 학위 취득(예정)자 또는 4년제 대학에서 2학년(4개 학기) 이상 수료(예정)한 사람 등의 자격이 필요합니다.",
+        "편입학전형은 1회만 지원 가능하며 일반편입과 학사편입 간 중복 지원은 할 수 없습니다."
+      ],
+      "current_claims": [
+        "일반편입과 학사편입 모두 3학년 1학기로 편입되며, 보통 4개 학기 이상 이수하고 학칙에서 정한 졸업 소요 학점을 취득하면 졸업할 수 있습니다.",
+        "일반편입학은 공인영어시험(토익, 토플, 텝스 중 택1) 공식성적이 필수이고, 전문학사 학위 취득(예정)자 또는 4년제 대학에서 2학년(4개 학기) 이상 수료(예정)한 사람 등의 자격이 필요합니다.",
+        "편입학전형은 1회만 지원 가능하며 일반편입과 학사편입 간 중복 지원은 할 수 없습니다."
+      ],
+      "legacy": {
+        "expected": [
+          "quantity:1:회",
+          "quantity:4:개",
+          "semester:1"
+        ],
+        "retained": [
+          "quantity:1:회",
+          "quantity:4:개",
+          "semester:1"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "quantity:1:회",
+          "quantity:4:개",
+          "semester:1"
+        ],
+        "retained": [
+          "quantity:1:회",
+          "quantity:4:개",
+          "semester:1"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_adm_02",
+      "category": "admissions",
+      "legacy_claims": [
+        "수시모집 합격자는 학생지원시스템에서 등록금 고지서를 2026.",
+        "3.(화) 10:00부터 출력할 수 있고, 납부기간은 2026.",
+        "납부기간 내 등록금을 납부하지 않으면 합격하였더라도 등록을 포기한 것으로 처리됩니다.",
+        "전액 장학생이어도 고지서상 납입금액인 학생의료공제회비 3,000원을 납부해야 등록이 완료됩니다."
+      ],
+      "current_claims": [
+        "수시모집 합격자는 학생지원시스템에서 등록금 고지서를 2026. 2. 3.(화) 10:00부터 출력할 수 있고, 납부기간은 2026. 2. 3.(화) 10:00 ~ 2. 5.(목) 16:00입니다.",
+        "납부기간 내 등록금을 납부하지 않으면 합격하였더라도 등록을 포기한 것으로 처리됩니다.",
+        "전액 장학생이어도 고지서상 납입금액인 학생의료공제회비 3,000원을 납부해야 등록이 완료됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "amount_krw:3000",
+          "date:2026-02-03",
+          "date:2026-02-05",
+          "month_day:02-03",
+          "month_day:02-05",
+          "time_minutes:600",
+          "time_minutes:960"
+        ],
+        "retained": [
+          "amount_krw:3000",
+          "time_minutes:600"
+        ],
+        "missing": [
+          "date:2026-02-03",
+          "date:2026-02-05",
+          "month_day:02-03",
+          "month_day:02-05",
+          "time_minutes:960"
+        ],
+        "rate": 0.2857142857142857
+      },
+      "current": {
+        "expected": [
+          "amount_krw:3000",
+          "date:2026-02-03",
+          "date:2026-02-05",
+          "month_day:02-03",
+          "month_day:02-05",
+          "time_minutes:600",
+          "time_minutes:960"
+        ],
+        "retained": [
+          "amount_krw:3000",
+          "date:2026-02-03",
+          "date:2026-02-05",
+          "month_day:02-03",
+          "month_day:02-05",
+          "time_minutes:600",
+          "time_minutes:960"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.7142857142857143,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_adm_03",
+      "category": "admissions",
+      "legacy_claims": [
+        "2027학년도에는 총 4,845명을 모집하며, 수시 3,328명(68.7%) 대 정시 1,517명(31.3%)입니다.",
+        "논술전형의 반영비율은 '26학년도 논술 70% + 학생부 교과 30%에서 '27학년도 논술 80% + 학생부 교과 20%로 논술 비중이 확대됩니다.",
+        "7.(월) ~ 11.(금) 중 3일 이상 진행됩니다."
+      ],
+      "current_claims": [
+        "2027학년도에는 총 4,845명을 모집하며, 수시 3,328명(68.7%) 대 정시 1,517명(31.3%)입니다.",
+        "논술전형의 반영비율은 '26학년도 논술 70% + 학생부 교과 30%에서 '27학년도 논술 80% + 학생부 교과 20%로 논술 비중이 확대됩니다.",
+        "수시모집 원서접수는 2026. 9. 7.(월) ~ 11.(금) 중 3일 이상 진행됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2027",
+          "date:2026-09-07",
+          "month_day:09-07",
+          "percent:20",
+          "percent:30",
+          "percent:31.3",
+          "percent:68.7",
+          "percent:70",
+          "percent:80",
+          "quantity:1517:명",
+          "quantity:3328:명",
+          "quantity:4845:명"
+        ],
+        "retained": [
+          "academic_year:2027",
+          "percent:20",
+          "percent:30",
+          "percent:31.3",
+          "percent:68.7",
+          "percent:70",
+          "percent:80",
+          "quantity:1517:명",
+          "quantity:3328:명",
+          "quantity:4845:명"
+        ],
+        "missing": [
+          "date:2026-09-07",
+          "month_day:09-07"
+        ],
+        "rate": 0.8333333333333334
+      },
+      "current": {
+        "expected": [
+          "academic_year:2027",
+          "date:2026-09-07",
+          "month_day:09-07",
+          "percent:20",
+          "percent:30",
+          "percent:31.3",
+          "percent:68.7",
+          "percent:70",
+          "percent:80",
+          "quantity:1517:명",
+          "quantity:3328:명",
+          "quantity:4845:명"
+        ],
+        "retained": [
+          "academic_year:2027",
+          "date:2026-09-07",
+          "month_day:09-07",
+          "percent:20",
+          "percent:30",
+          "percent:31.3",
+          "percent:68.7",
+          "percent:70",
+          "percent:80",
+          "quantity:1517:명",
+          "quantity:3328:명",
+          "quantity:4845:명"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.16666666666666663,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_adm_04",
+      "category": "admissions",
+      "legacy_claims": [
+        "2027학년도 재외국민 특별전형 원서접수는 2026.",
+        "10.(금) 17:00이며 입학정보 홈페이지를 통한 인터넷 접수만 가능합니다.",
+        "18.(금) 16:00(예정)입니다.",
+        "한편 사전 예고에 따라 부산대학교 재외국민 특별전형은 2028학년도부터 폐지됩니다."
+      ],
+      "current_claims": [
+        "2027학년도 재외국민 특별전형 원서접수는 2026. 7. 7.(화) 10:00 ~ 7. 10.(금) 17:00이며 입학정보 홈페이지를 통한 인터넷 접수만 가능합니다.",
+        "합격자 발표는 2026. 9. 18.(금) 16:00(예정)입니다.",
+        "한편 사전 예고에 따라 부산대학교 재외국민 특별전형은 2028학년도부터 폐지됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2027",
+          "academic_year:2028",
+          "date:2026-07-07",
+          "date:2026-07-10",
+          "date:2026-09-18",
+          "month_day:07-07",
+          "month_day:07-10",
+          "month_day:09-18",
+          "time_minutes:1020",
+          "time_minutes:600",
+          "time_minutes:960"
+        ],
+        "retained": [
+          "academic_year:2027",
+          "academic_year:2028",
+          "time_minutes:1020",
+          "time_minutes:960"
+        ],
+        "missing": [
+          "date:2026-07-07",
+          "date:2026-07-10",
+          "date:2026-09-18",
+          "month_day:07-07",
+          "month_day:07-10",
+          "month_day:09-18",
+          "time_minutes:600"
+        ],
+        "rate": 0.36363636363636365
+      },
+      "current": {
+        "expected": [
+          "academic_year:2027",
+          "academic_year:2028",
+          "date:2026-07-07",
+          "date:2026-07-10",
+          "date:2026-09-18",
+          "month_day:07-07",
+          "month_day:07-10",
+          "month_day:09-18",
+          "time_minutes:1020",
+          "time_minutes:600",
+          "time_minutes:960"
+        ],
+        "retained": [
+          "academic_year:2027",
+          "academic_year:2028",
+          "date:2026-07-07",
+          "date:2026-07-10",
+          "date:2026-09-18",
+          "month_day:07-07",
+          "month_day:07-10",
+          "month_day:09-18",
+          "time_minutes:1020",
+          "time_minutes:600",
+          "time_minutes:960"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.6363636363636364,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_intl_01",
+      "category": "international",
+      "legacy_claims": [
+        "학부 외국인 특별전형은 지원자 및 부모가 모두 외국 국적 소지자여야 하며, 대한민국과의 이중국적자는 지원할 수 없습니다.",
+        "언어능력 기준은 모집단위에 따라 TOPIK 3급~5급 이상 또는 본교 언어교육원 해당 급 수료가 요구되고, 국제학부는 TOEFL 등 영어성적 기준을 적용합니다.",
+        "2026학년도 전기 원서접수는 2025.",
+        "24.(금) 18:00에 진학어플라이(www.jinhakapply.com)를 통해 진행됩니다."
+      ],
+      "current_claims": [
+        "학부 외국인 특별전형은 지원자 및 부모가 모두 외국 국적 소지자여야 하며, 대한민국과의 이중국적자는 지원할 수 없습니다.",
+        "언어능력 기준은 모집단위에 따라 TOPIK 3급~5급 이상 또는 본교 언어교육원 해당 급 수료가 요구되고, 국제학부는 TOEFL 등 영어성적 기준을 적용합니다.",
+        "2026학년도 전기 원서접수는 2025. 10. 1.(수) 9:00 ~ 10. 24.(금) 18:00에 진학어플라이(www.jinhakapply.com)를 통해 진행됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2025-10-01",
+          "date:2025-10-24",
+          "month_day:10-01",
+          "month_day:10-24",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "time_minutes:1080"
+        ],
+        "missing": [
+          "date:2025-10-01",
+          "date:2025-10-24",
+          "month_day:10-01",
+          "month_day:10-24",
+          "time_minutes:540"
+        ],
+        "rate": 0.2857142857142857
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2025-10-01",
+          "date:2025-10-24",
+          "month_day:10-01",
+          "month_day:10-24",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2025-10-01",
+          "date:2025-10-24",
+          "month_day:10-01",
+          "month_day:10-24",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.7142857142857143,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_intl_02",
+      "category": "international",
+      "legacy_claims": [
+        "2027학년도 1학기 교환 및 교비 프로그램은 7개언어, 34개국, 129개 대학, 404명 내외 규모로 선발합니다.",
+        "26.(일) 18:00에 스마트학생정보시스템으로 접수하며, 1차 합격자 발표는 2026."
+      ],
+      "current_claims": [
+        "2027학년도 1학기 교환 및 교비 프로그램은 7개언어, 34개국, 129개 대학, 404명 내외 규모로 선발합니다.",
+        "1차 온라인 지원은 2026. 7. 17.(금) 9:00 ~ 7. 26.(일) 18:00에 스마트학생정보시스템으로 접수하며, 1차 합격자 발표는 2026. 8. 7.(금) 18:00(예정)입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2027",
+          "date:2026-07-17",
+          "date:2026-07-26",
+          "date:2026-08-07",
+          "month_day:07-17",
+          "month_day:07-26",
+          "month_day:08-07",
+          "quantity:129:개",
+          "quantity:34:개",
+          "quantity:404:명",
+          "quantity:7:개",
+          "round:1",
+          "semester:1",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "retained": [
+          "academic_year:2027",
+          "quantity:129:개",
+          "quantity:34:개",
+          "quantity:404:명",
+          "quantity:7:개",
+          "round:1",
+          "semester:1",
+          "time_minutes:1080"
+        ],
+        "missing": [
+          "date:2026-07-17",
+          "date:2026-07-26",
+          "date:2026-08-07",
+          "month_day:07-17",
+          "month_day:07-26",
+          "month_day:08-07",
+          "time_minutes:540"
+        ],
+        "rate": 0.5333333333333333
+      },
+      "current": {
+        "expected": [
+          "academic_year:2027",
+          "date:2026-07-17",
+          "date:2026-07-26",
+          "date:2026-08-07",
+          "month_day:07-17",
+          "month_day:07-26",
+          "month_day:08-07",
+          "quantity:129:개",
+          "quantity:34:개",
+          "quantity:404:명",
+          "quantity:7:개",
+          "round:1",
+          "semester:1",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "retained": [
+          "academic_year:2027",
+          "date:2026-07-17",
+          "date:2026-07-26",
+          "date:2026-08-07",
+          "month_day:07-17",
+          "month_day:07-26",
+          "month_day:08-07",
+          "quantity:129:개",
+          "quantity:34:개",
+          "quantity:404:명",
+          "quantity:7:개",
+          "round:1",
+          "semester:1",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.4666666666666667,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_intl_03",
+      "category": "international",
+      "legacy_claims": [
+        "국제처 비자 단체접수는 D-2 체류기간 연장과 D-4에서 D-2로의 체류자격 변경(국내 체류 신입생)이 대상으로, 출입국을 대신 방문하여 서류를 제출해 주는 서비스이며 제출서류는 개별접수와 동일합니다.",
+        "사전 예약 없이는 서류 제출이 불가능하며, 2026학년도 2학기 1차 접수기간은 2026.",
+        "D-2 체류기간 연장 수수료는 60,000원으로 현금만 가능합니다."
+      ],
+      "current_claims": [
+        "국제처 비자 단체접수는 D-2 체류기간 연장과 D-4에서 D-2로의 체류자격 변경(국내 체류 신입생)이 대상으로, 출입국을 대신 방문하여 서류를 제출해 주는 서비스이며 제출서류는 개별접수와 동일합니다.",
+        "사전 예약 없이는 서류 제출이 불가능하며, 2026학년도 2학기 1차 접수기간은 2026. 8. 3.(월) ~ 5.(수)입니다.",
+        "D-2 체류기간 연장 수수료는 60,000원으로 현금만 가능합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "date:2026-08-03",
+          "month_day:08-03",
+          "round:1",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "round:1",
+          "semester:2"
+        ],
+        "missing": [
+          "date:2026-08-03",
+          "month_day:08-03"
+        ],
+        "rate": 0.6666666666666666
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "date:2026-08-03",
+          "month_day:08-03",
+          "round:1",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "date:2026-08-03",
+          "month_day:08-03",
+          "round:1",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.33333333333333337,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_intl_04",
+      "category": "international",
+      "legacy_claims": [
+        "2026학년도 2학기 PNU Buddy 프로그램은 활동기간이 2026.",
+        "12.이며 335명 내외를 모집합니다.",
+        "총 16시간 이상 활동하고 활동 보고서를 제출하면 이수증 발급과 비교과 마일리지 10점이 부여되고, 교환학생 지원 시 버디 활동 1회당 가산점 3점(최대 10점)을 받을 수 있습니다."
+      ],
+      "current_claims": [
+        "2026학년도 2학기 PNU Buddy 프로그램은 활동기간이 2026.",
+        "12.이며 335명 내외를 모집합니다.",
+        "총 16시간 이상 활동하고 활동 보고서를 제출하면 이수증 발급과 비교과 마일리지 10점이 부여되고, 교환학생 지원 시 버디 활동 1회당 가산점 3점(최대 10점)을 받을 수 있습니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "quantity:1:회",
+          "quantity:335:명",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "quantity:1:회",
+          "quantity:335:명",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "quantity:1:회",
+          "quantity:335:명",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "quantity:1:회",
+          "quantity:335:명",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_emp_01",
+      "category": "employment",
+      "legacy_claims": [
+        "취업전략과(PNU 대학일자리플러스센터)는 취업 경쟁력 강화와 자격증 취득을 지원하는 2026학년도 하계방학 취업역량 강화 비교과 프로그램을 운영하며, 한국사능력검정시험 대비반, NCS 직무역량 강화 특강, 컴퓨터활용능력 1급 실기 대비 특강, 스마트해상물류 자격 대비 특강 등 6주 과정으로 진행됩니다.",
+        "신청대상은 부산대학교 학부생 및 졸업생, 지역청년이고 교재는 전 과정 무상 제공됩니다.",
+        "출석 80% 이상(24회 중 19회 이상) 참여 시 수료증이 발급됩니다."
+      ],
+      "current_claims": [
+        "취업전략과(PNU 대학일자리플러스센터)는 취업 경쟁력 강화와 자격증 취득을 지원하는 2026학년도 하계방학 취업역량 강화 비교과 프로그램을 운영하며, 한국사능력검정시험 대비반, NCS 직무역량 강화 특강, 컴퓨터활용능력 1급 실기 대비 특강, 스마트해상물류 자격 대비 특강 등 6주 과정으로 진행됩니다.",
+        "신청대상은 부산대학교 학부생 및 졸업생, 지역청년이고 교재는 전 과정 무상 제공됩니다.",
+        "출석 80% 이상(24회 중 19회 이상) 참여 시 수료증이 발급됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "percent:80",
+          "quantity:19:회",
+          "quantity:24:회"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "percent:80",
+          "quantity:19:회",
+          "quantity:24:회"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "percent:80",
+          "quantity:19:회",
+          "quantity:24:회"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "percent:80",
+          "quantity:19:회",
+          "quantity:24:회"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_emp_02",
+      "category": "employment",
+      "legacy_claims": [
+        "취업전략과는 서류전형 합격률 제고를 위해 데이터분석준전문가(ADsP)와 AI 프롬프트 활용능력(AI-POT) 교육 특강인 2026학년도 1차 취업 Skill Up 프로그램을 운영합니다.",
+        "신청대상은 본교 대학(원) 전학년 여학생 및 SAM 분야 재적생이며, 학생역량지원시스템의 비교과프로그램에서 희망 과정을 선택해 신청합니다.",
+        "과정별 모집인원은 30명이고 신청기간은 2026."
+      ],
+      "current_claims": [
+        "취업전략과는 서류전형 합격률 제고를 위해 데이터분석준전문가(ADsP)와 AI 프롬프트 활용능력(AI-POT) 교육 특강인 2026학년도 1차 취업 Skill Up 프로그램을 운영합니다.",
+        "신청대상은 본교 대학(원) 전학년 여학생 및 SAM 분야 재적생이며, 학생역량지원시스템의 비교과프로그램에서 희망 과정을 선택해 신청합니다.",
+        "과정별 모집인원은 30명이고 신청기간은 2026. 7. 27.(월) 00:00 ~ 8. 4.(화) 17:00입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-07-27",
+          "date:2026-08-04",
+          "month_day:07-27",
+          "month_day:08-04",
+          "quantity:30:명",
+          "round:1",
+          "time_minutes:0",
+          "time_minutes:1020"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "quantity:30:명",
+          "round:1"
+        ],
+        "missing": [
+          "date:2026-07-27",
+          "date:2026-08-04",
+          "month_day:07-27",
+          "month_day:08-04",
+          "time_minutes:0",
+          "time_minutes:1020"
+        ],
+        "rate": 0.3333333333333333
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-07-27",
+          "date:2026-08-04",
+          "month_day:07-27",
+          "month_day:08-04",
+          "quantity:30:명",
+          "round:1",
+          "time_minutes:0",
+          "time_minutes:1020"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-07-27",
+          "date:2026-08-04",
+          "month_day:07-27",
+          "month_day:08-04",
+          "quantity:30:명",
+          "round:1",
+          "time_minutes:0",
+          "time_minutes:1020"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.6666666666666667,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_emp_03",
+      "category": "employment",
+      "legacy_claims": [
+        "취업전략과의 2026학년도 1차 진로부트캠프(온라인)는 전체 학과(부) 1~3학년 재학생을 대상으로 80명(대기인원 25명)을 모집합니다.",
+        "24.(수) 18:00이며 학생역량지원시스템에서 신청하고, 프로그램은 2026.",
+        "90여종의 직무 VOD 수강 후 관심 분야 실무과제 수행과 현직자 피드백으로 직무를 체험하며, 수료 시 수료증 수여와 비교과 마일리지 10점이 지급됩니다."
+      ],
+      "current_claims": [
+        "취업전략과의 2026학년도 1차 진로부트캠프(온라인)는 전체 학과(부) 1~3학년 재학생을 대상으로 80명(대기인원 25명)을 모집합니다.",
+        "신청기간은 2026. 6. 11.(목) 09:00 ~ 6. 24.(수) 18:00이며 학생역량지원시스템에서 신청하고, 프로그램은 2026. 7. 2.(목) ~ 7. 22.(수) 3주간 운영됩니다.",
+        "90여종의 직무 VOD 수강 후 관심 분야 실무과제 수행과 현직자 피드백으로 직무를 체험하며, 수료 시 수료증 수여와 비교과 마일리지 10점이 지급됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-06-11",
+          "date:2026-06-24",
+          "date:2026-07-02",
+          "date:2026-07-22",
+          "month_day:06-11",
+          "month_day:06-24",
+          "month_day:07-02",
+          "month_day:07-22",
+          "quantity:25:명",
+          "quantity:80:명",
+          "round:1",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "quantity:25:명",
+          "quantity:80:명",
+          "round:1",
+          "time_minutes:1080"
+        ],
+        "missing": [
+          "date:2026-06-11",
+          "date:2026-06-24",
+          "date:2026-07-02",
+          "date:2026-07-22",
+          "month_day:06-11",
+          "month_day:06-24",
+          "month_day:07-02",
+          "month_day:07-22",
+          "time_minutes:540"
+        ],
+        "rate": 0.35714285714285715
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-06-11",
+          "date:2026-06-24",
+          "date:2026-07-02",
+          "date:2026-07-22",
+          "month_day:06-11",
+          "month_day:06-24",
+          "month_day:07-02",
+          "month_day:07-22",
+          "quantity:25:명",
+          "quantity:80:명",
+          "round:1",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-06-11",
+          "date:2026-06-24",
+          "date:2026-07-02",
+          "date:2026-07-22",
+          "month_day:06-11",
+          "month_day:06-24",
+          "month_day:07-02",
+          "month_day:07-22",
+          "quantity:25:명",
+          "quantity:80:명",
+          "round:1",
+          "time_minutes:1080",
+          "time_minutes:540"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.6428571428571428,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_sup_01",
+      "category": "student_support",
+      "legacy_claims": [
+        "부산대학교는 2004년 장애학생지원센터를 설립하여 장애학생을 지원하고 있습니다.",
+        "교수·학습 지원으로 학습보조 기자재 대여, 대필지원과 시험시간에 확대 시험지 제공 및 시험 시간 연장 등의 강의지원, 점자교재 등 교재지원을 제공합니다.",
+        "또한 수강신청 전날 우선적으로 수강신청이 가능하고, 튜터링과 학습도우미 지원도 받을 수 있습니다."
+      ],
+      "current_claims": [
+        "부산대학교는 2004년 장애학생지원센터를 설립하여 장애학생을 지원하고 있습니다.",
+        "교수·학습 지원으로 학습보조 기자재 대여, 대필지원과 시험시간에 확대 시험지 제공 및 시험 시간 연장 등의 강의지원, 점자교재 등 교재지원을 제공합니다.",
+        "또한 수강신청 전날 우선적으로 수강신청이 가능하고, 튜터링과 학습도우미 지원도 받을 수 있습니다."
+      ],
+      "legacy": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_sup_02",
+      "category": "student_support",
+      "legacy_claims": [
+        "장애학생 성장 자립 지원사업은 과학기술정보통신부 '2026년 정보통신보조기기 보급 활성화 사업' 선정자를 대상으로 자부담금(개인부담금)을 전액 지원합니다.",
+        "신청기간은 2026년 7월 16일(목) ~ 8월 13일(목)이며 구글폼으로 접수합니다.",
+        "제출서류는 보급결정 통지문, 재학증명서, 자부담금 납부 증빙자료(이체확인증, 온라인 뱅킹 캡처 화면 등), 통장사본입니다."
+      ],
+      "current_claims": [
+        "장애학생 성장 자립 지원사업은 과학기술정보통신부 '2026년 정보통신보조기기 보급 활성화 사업' 선정자를 대상으로 자부담금(개인부담금)을 전액 지원합니다.",
+        "신청기간은 2026년 7월 16일(목) ~ 8월 13일(목)이며 구글폼으로 접수합니다.",
+        "제출서류는 보급결정 통지문, 재학증명서, 자부담금 납부 증빙자료(이체확인증, 온라인 뱅킹 캡처 화면 등), 통장사본입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "date:2026-07-16",
+          "date:2026-08-13",
+          "month_day:07-16",
+          "month_day:08-13"
+        ],
+        "retained": [
+          "date:2026-07-16",
+          "date:2026-08-13",
+          "month_day:07-16",
+          "month_day:08-13"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "date:2026-07-16",
+          "date:2026-08-13",
+          "month_day:07-16",
+          "month_day:08-13"
+        ],
+        "retained": [
+          "date:2026-07-16",
+          "date:2026-08-13",
+          "month_day:07-16",
+          "month_day:08-13"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_sup_03",
+      "category": "student_support",
+      "legacy_claims": [
+        "인권센터 신고는 피해자가 아닌 제3자도 할 수 있으며, 이 경우 「부산대학교 인권센터 규정」에 따라 피해자 본인의 의사를 확인하여 상담·조사 여부를 결정합니다.",
+        "가해자와 피해자 중 한쪽만 우리 대학 구성원이어도 신고가 가능하지만 사건처리에 제약이 있을 수 있습니다.",
+        "다만 사건처리를 위해서는 피해자 본인의 인적사항을 인권센터에 알려야 합니다."
+      ],
+      "current_claims": [
+        "인권센터 신고는 피해자가 아닌 제3자도 할 수 있으며, 이 경우 「부산대학교 인권센터 규정」에 따라 피해자 본인의 의사를 확인하여 상담·조사 여부를 결정합니다.",
+        "가해자와 피해자 중 한쪽만 우리 대학 구성원이어도 신고가 가능하지만 사건처리에 제약이 있을 수 있습니다.",
+        "다만 사건처리를 위해서는 피해자 본인의 인적사항을 인권센터에 알려야 합니다."
+      ],
+      "legacy": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [],
+        "retained": [],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_reg_01_role_student",
+      "category": "registration",
+      "legacy_claims": [
+        "2026학년도 2학기 재학생 본등록 납부기간은 2026.",
+        "24.(월) 10:00부터 학생지원시스템에서 출력할 수 있습니다.",
+        "본등록 수납은행은 농협·부산·하나·국민·신한·우리은행(전국지점)입니다."
+      ],
+      "current_claims": [
+        "2026학년도 2학기 재학생 본등록 납부기간은 2026. 8. 24.(월) ~ 8. 27.(목)이며, 고지서는 8. 24.(월) 10:00부터 학생지원시스템에서 출력할 수 있습니다.",
+        "본등록 수납은행은 농협·부산·하나·국민·신한·우리은행(전국지점)입니다.",
+        "이후 추가등록은 2026. 9. 1.(화) ~ 9. 3.(목), 최종등록은 2026. 9. 21.(월) ~ 9. 23.(수)에 진행됩니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "missing": [
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23"
+        ],
+        "rate": 0.2
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-08-24",
+          "date:2026-08-27",
+          "date:2026-09-01",
+          "date:2026-09-03",
+          "date:2026-09-21",
+          "date:2026-09-23",
+          "month_day:08-24",
+          "month_day:08-27",
+          "month_day:09-01",
+          "month_day:09-03",
+          "month_day:09-21",
+          "month_day:09-23",
+          "semester:2",
+          "time_minutes:600"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.8,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_sch_03_role_student",
+      "category": "scholarship",
+      "legacy_claims": [
+        "학자금 대출이자 지원은 소득분위 제한이 없으며, 신청자가 많은 경우 예산 범위 내에서 학자금 지원구간이 낮은 순으로 선발됩니다.",
+        "지원액은 개인 통장이 아니라 한국장학재단에 개설된 개인별 원리금 상환계좌(상환용도의 일회성 가상계좌)로 입금되어 상환됩니다.",
+        "1인당 최대 지원액은 50만원입니다."
+      ],
+      "current_claims": [
+        "학자금 대출이자 지원은 소득분위 제한이 없으며, 신청자가 많은 경우 예산 범위 내에서 학자금 지원구간이 낮은 순으로 선발됩니다.",
+        "지원액은 개인 통장이 아니라 한국장학재단에 개설된 개인별 원리금 상환계좌(상환용도의 일회성 가상계좌)로 입금되어 상환됩니다.",
+        "1인당 최대 지원액은 50만원입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "amount_krw:500000"
+        ],
+        "retained": [
+          "amount_krw:500000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "amount_krw:500000"
+        ],
+        "retained": [
+          "amount_krw:500000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_core_01_role_staff",
+      "category": "core",
+      "legacy_claims": [
+        "2026학년도 교육·연구 및 학생지도비는 교연비 예산 범위 내에서 개인별 연간 지급한도액을 설정합니다.",
+        "교원의 연간 지급한도액은 교육 470만원+α, 연구 1,150만원+α, 학생지도 180만원+α로 합계 1,800만원+α이며, 직원 및 조교는 685만원+α입니다.",
+        "별도지원 사업(+α)에는 영어강의담당, 교양과목담당, 신임교수 연구정착금, 기획연구과제지원사업, 지도교수상담(인센티브) 등이 있습니다."
+      ],
+      "current_claims": [
+        "2026학년도 교육·연구 및 학생지도비는 교연비 예산 범위 내에서 개인별 연간 지급한도액을 설정합니다.",
+        "교원의 연간 지급한도액은 교육 470만원+α, 연구 1,150만원+α, 학생지도 180만원+α로 합계 1,800만원+α이며, 직원 및 조교는 685만원+α입니다.",
+        "별도지원 사업(+α)에는 영어강의담당, 교양과목담당, 신임교수 연구정착금, 기획연구과제지원사업, 지도교수상담(인센티브) 등이 있습니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:11500000",
+          "amount_krw:1800000",
+          "amount_krw:18000000",
+          "amount_krw:4700000",
+          "amount_krw:6850000"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_core_02_role_researcher",
+      "category": "core",
+      "legacy_claims": [
+        "2025학년도 교연비 예산액은 합계 30,405,200천원으로, 2024학년도 최종예산액 28,871,600천원 대비 1,533,600천원 증가했습니다.",
+        "영역별로는 교육영역 6,502,600천원(21.39%), 연구영역 16,936,679천원(55.70%), 학생지도영역 6,965,921천원(22.91%)으로 편성되어 연구영역 비중이 가장 큽니다."
+      ],
+      "current_claims": [
+        "2025학년도 교연비 예산액은 합계 30,405,200천원으로, 2024학년도 최종예산액 28,871,600천원 대비 1,533,600천원 증가했습니다.",
+        "영역별로는 교육영역 6,502,600천원(21.39%), 연구영역 16,936,679천원(55.70%), 학생지도영역 6,965,921천원(22.91%)으로 편성되어 연구영역 비중이 가장 큽니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "retained": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "current": {
+        "expected": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "retained": [
+          "academic_year:2024",
+          "academic_year:2025",
+          "amount_krw:1533600000",
+          "amount_krw:16936679000",
+          "amount_krw:28871600000",
+          "amount_krw:30405200000",
+          "amount_krw:6502600000",
+          "amount_krw:6965921000",
+          "percent:21.39",
+          "percent:22.91",
+          "percent:55.7"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.0,
+      "claims_changed": false
+    },
+    {
+      "id": "svc_grad_03_role_free",
+      "category": "graduation",
+      "legacy_claims": [
+        "수료후연구생은 대학원 석사 또는 박사과정 수료자로서 학위취득에 필요한 연구를 희망하고 지도교수의 추천을 받은 학생이 신청할 수 있습니다.",
+        "2026학년도 2학기 1차 학생 신청기간은 26.",
+        "10.(월) 18:00, 2차는 26.",
+        "9.(수) 18:00이며, 학생지원시스템을 통한 온라인 신청이 원칙입니다."
+      ],
+      "current_claims": [
+        "수료후연구생은 대학원 석사 또는 박사과정 수료자로서 학위취득에 필요한 연구를 희망하고 지도교수의 추천을 받은 학생이 신청할 수 있습니다.",
+        "2026학년도 2학기 1차 학생 신청기간은 26. 8. 3.(월)~8. 10.(월) 18:00, 2차는 26. 9. 2.(수)~9. 9.(수) 18:00이며, 학생지원시스템을 통한 온라인 신청이 원칙입니다.",
+        "납부금액은 수업료Ⅱ의 10%입니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "missing": [
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10"
+        ],
+        "rate": 0.35714285714285715
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "date:2026-08-03",
+          "date:2026-08-10",
+          "date:2026-09-02",
+          "date:2026-09-09",
+          "month_day:08-03",
+          "month_day:08-10",
+          "month_day:09-02",
+          "month_day:09-09",
+          "percent:10",
+          "round:1",
+          "round:2",
+          "semester:2",
+          "time_minutes:1080"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.6428571428571428,
+      "claims_changed": true
+    },
+    {
+      "id": "svc_intl_03_role_free",
+      "category": "international",
+      "legacy_claims": [
+        "국제처 비자 단체접수는 D-2 체류기간 연장과 D-4에서 D-2로의 체류자격 변경(국내 체류 신입생)이 대상으로, 출입국을 대신 방문하여 서류를 제출해 주는 서비스이며 제출서류는 개별접수와 동일합니다.",
+        "사전 예약 없이는 서류 제출이 불가능하며, 2026학년도 2학기 1차 접수기간은 2026.",
+        "D-2 체류기간 연장 수수료는 60,000원으로 현금만 가능합니다."
+      ],
+      "current_claims": [
+        "국제처 비자 단체접수는 D-2 체류기간 연장과 D-4에서 D-2로의 체류자격 변경(국내 체류 신입생)이 대상으로, 출입국을 대신 방문하여 서류를 제출해 주는 서비스이며 제출서류는 개별접수와 동일합니다.",
+        "사전 예약 없이는 서류 제출이 불가능하며, 2026학년도 2학기 1차 접수기간은 2026. 8. 3.(월) ~ 5.(수)입니다.",
+        "D-2 체류기간 연장 수수료는 60,000원으로 현금만 가능합니다."
+      ],
+      "legacy": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "date:2026-08-03",
+          "month_day:08-03",
+          "round:1",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "round:1",
+          "semester:2"
+        ],
+        "missing": [
+          "date:2026-08-03",
+          "month_day:08-03"
+        ],
+        "rate": 0.6666666666666666
+      },
+      "current": {
+        "expected": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "date:2026-08-03",
+          "month_day:08-03",
+          "round:1",
+          "semester:2"
+        ],
+        "retained": [
+          "academic_year:2026",
+          "amount_krw:60000",
+          "date:2026-08-03",
+          "month_day:08-03",
+          "round:1",
+          "semester:2"
+        ],
+        "missing": [],
+        "rate": 1.0
+      },
+      "critical_value_retention_delta": 0.33333333333333337,
+      "claims_changed": true
+    }
+  ]
+}

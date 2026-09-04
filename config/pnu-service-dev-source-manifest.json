@@ -1,0 +1,635 @@
+{
+  "cases_sha256": "3c3e19d6c5524218b2f2cb1600c1c64abd80e1783ce7b235dbb80109723a3be6",
+  "corpus_index_path": "processed/index/pnu-20260725-curated-cascade-v5-allow-suspect.sqlite",
+  "corpus_index_sha256": "a4c1ca6318cb14721866a6512f3dfeacdca58c62ecff98ea7b81df2e75c74c31",
+  "corpus_revisions": [
+    "20260725-pnu-curated-cascade-v5:cascade:5d1b5fee3d2eafa1a7c77d33"
+  ],
+  "document_count": 39,
+  "documents": [
+    {
+      "case_ids": [
+        "svc_sup_01"
+      ],
+      "document_id": "doc_042e29f765515f40dba2527f",
+      "evidence_chunk_ids": [
+        "doc_042e29f765515f40dba2527f:cascade#0006",
+        "doc_042e29f765515f40dba2527f:cascade#0008"
+      ],
+      "normalized_title_without_year": "장애학생지원센터 > 학생지원기관 > 대학생활 부산대학교",
+      "source_document_family_id": "dev-title-family-d70b246578d90167357f",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/웹페이지/www.pusan.ac.kr/Contents-022095da09feec4adad4.html",
+      "source_sha256": "9145ecff07cb579da835703c4c8905ee2aee1d234abb5a8a782db5783e00c156",
+      "source_title": "장애학생지원센터 > 학생지원기관 > 대학생활 | 부산대학교",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Contents/Contents.do?mCode=MN085"
+    },
+    {
+      "case_ids": [
+        "svc_reg_05"
+      ],
+      "document_id": "doc_062432fc0889474b6c714ab4",
+      "evidence_chunk_ids": [
+        "doc_062432fc0889474b6c714ab4:cascade#0004"
+      ],
+      "normalized_title_without_year": "제1차 등록금심의위원회 회의록 공시",
+      "source_document_family_id": "dev-title-family-d4948694c1b1fac54e09",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/3ffb2ab2ad7eb3ec-2025학년도 제1차 등록금심의위원회 회의록(공시).pdf",
+      "source_sha256": "3ffb2ab2ad7eb3ec278c56075362dad31f2f5acd7add37d9d8a1bfba73f46b61",
+      "source_title": "2025학년도 제1차 등록금심의위원회 회의록(공시).pdf (46KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1500525&mCode=MN227&mgr_seq=46&mode=view"
+    },
+    {
+      "case_ids": [
+        "svc_sch_02"
+      ],
+      "document_id": "doc_068852ab3e764496382622ee",
+      "evidence_chunk_ids": [
+        "doc_068852ab3e764496382622ee:cascade#0002",
+        "doc_068852ab3e764496382622ee:cascade#0004"
+      ],
+      "normalized_title_without_year": "1 세종이도인재장학금 디딤돌장학사업 학자금대출 관련분야 신청 공고",
+      "source_document_family_id": "dev-title-family-f98737a772dc681b211e",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/838d7ed2fa184255-1. 2026년도 세종이도인재장학금 디딤돌장학사업 학자금대출 관련분야 신청 공고.pdf",
+      "source_sha256": "838d7ed2fa18425541048d09f204bec067efc2d2b467b9f3e0a8ac2b9aafd474",
+      "source_title": "1. 2026년도 세종이도인재장학금 디딤돌장학사업 학자금대출 관련분야 신청 공고.pdf (313KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1509768&mCode=MN095&mgr_seq=3&mgr_seq=3&mode=view&page=4"
+    },
+    {
+      "case_ids": [
+        "svc_core_03"
+      ],
+      "document_id": "doc_280eff65b1e795d5db014e1b",
+      "evidence_chunk_ids": [
+        "doc_280eff65b1e795d5db014e1b:cascade#0000"
+      ],
+      "normalized_title_without_year": "제5조 개인정보처리 위탁현황 다운로드",
+      "source_document_family_id": "dev-title-family-c29c18970a7673cfc52e",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/fb2ca1584175d2d7-「부산대학교+개인정보+처리방침」제5조(개인정보처리+위탁현황).pdf",
+      "source_sha256": "fb2ca1584175d2d70cbb3c8d1e42794cd96ba600162370afbcde164b9ac36630",
+      "source_title": "제5조 개인정보처리 위탁현황 다운로드",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?mCode=MN186"
+    },
+    {
+      "case_ids": [
+        "svc_adm_04"
+      ],
+      "document_id": "doc_2f849217190621e22bcb659a",
+      "evidence_chunk_ids": [
+        "doc_2f849217190621e22bcb659a:cascade#0003",
+        "doc_2f849217190621e22bcb659a:cascade#0008"
+      ],
+      "normalized_title_without_year": "재외국민특별전형 모집요강 공고용",
+      "source_document_family_id": "dev-title-family-8fd0a025e00456023e09",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/go.pusan.ac.kr/25ac49196e4df38e-2027학년도 재외국민특별전형 모집요강_공고용.pdf",
+      "source_sha256": "25ac49196e4df38e91e026c05e9c243d04729008722ef3931b72563300b9df25",
+      "source_title": "2027학년도 재외국민특별전형 모집요강_공고용.pdf",
+      "source_url": "https://go.pusan.ac.kr/college_2016/pages/index.asp?b=B_1_1&bn=49495&m=read&p=50"
+    },
+    {
+      "case_ids": [
+        "svc_sch_06"
+      ],
+      "document_id": "doc_2fb575610cfd2f32899fa36b",
+      "evidence_chunk_ids": [
+        "doc_2fb575610cfd2f32899fa36b:cascade#0001",
+        "doc_2fb575610cfd2f32899fa36b:cascade#0002"
+      ],
+      "normalized_title_without_year": "2학기 학부 우선선발장학금 신청 안내문 1차",
+      "source_document_family_id": "dev-title-family-5d406cd8e1b077091cb2",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/archaeology.pusan.ac.kr/c60465fdfa6d2ad1-2026학년도 2학기 학부 우선선발장학금 신청 안내문(1차).hwp",
+      "source_sha256": "c60465fdfa6d2ad189a54f7bf4c64c22fb67d17dd58cb7a92f9b58f31e6e272c",
+      "source_title": "2026학년도 2학기 학부 우선선발장학금 신청 안내문(1차).hwp",
+      "source_url": "https://archaeology.pusan.ac.kr/bbs/archaeology/208/1448296/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_reg_02"
+      ],
+      "document_id": "doc_42a5d988dc5b54ee5c5759f2",
+      "evidence_chunk_ids": [
+        "doc_42a5d988dc5b54ee5c5759f2:cascade#0001",
+        "doc_42a5d988dc5b54ee5c5759f2:cascade#0002"
+      ],
+      "normalized_title_without_year": "재학생 등록금 관련 자주하는 질문 faq 안내",
+      "source_document_family_id": "dev-title-family-ab01f651b42d3218241f",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/76c8667ed41314a7-재학생 등록금 관련 자주하는 질문(FAQ) 안내.pdf",
+      "source_sha256": "76c8667ed41314a7b5f4303c4cd2e4f2293802e1b82ca9a1b1e59235c86bcf4f",
+      "source_title": "재학생 등록금 관련 자주하는 질문(FAQ) 안내.pdf (146KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1510073&mCode=MN095&mgr_seq=3&mode=view"
+    },
+    {
+      "case_ids": [
+        "svc_reg_01",
+        "svc_reg_01_role_student"
+      ],
+      "document_id": "doc_4ce82561e3e142c4f92fe306",
+      "evidence_chunk_ids": [
+        "doc_4ce82561e3e142c4f92fe306:cascade#0002",
+        "doc_4ce82561e3e142c4f92fe306:cascade#0004"
+      ],
+      "normalized_title_without_year": "2학기 재학생 등록금 납부 계획",
+      "source_document_family_id": "dev-title-family-63fe7ac3038825a7bde1",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/20aadfc59700b582-2026학년도 2학기 재학생 등록금 납부 계획.pdf",
+      "source_sha256": "20aadfc59700b5828784a201d9195d03b801dc38562c4ef47f4fcec2b3aa01e6",
+      "source_title": "2026학년도 2학기 재학생 등록금 납부 계획.pdf (233KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1510073&mCode=MN095&mgr_seq=3&mode=view"
+    },
+    {
+      "case_ids": [
+        "svc_core_01",
+        "svc_core_01_role_staff"
+      ],
+      "document_id": "doc_4d26f3f285a8e24c292e1365",
+      "evidence_chunk_ids": [
+        "doc_4d26f3f285a8e24c292e1365:cascade#0016",
+        "doc_4d26f3f285a8e24c292e1365:cascade#0017"
+      ],
+      "normalized_title_without_year": "1 교육 연구 및 학생지도 비용 지급계획 부산대학교",
+      "source_document_family_id": "dev-title-family-a9fb7024f1555404bb09",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/5182811ed42db269-1. 2026학년도 교육·연구 및 학생지도 비용 지급계획(부산대학교).pdf",
+      "source_sha256": "5182811ed42db269268fc00a1ad22a3129dea47c4e603305f83188fd3f3063b6",
+      "source_title": "1. 2026학년도 교육·연구 및 학생지도 비용 지급계획(부산대학교).pdf (470KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1508906&mCode=MN228&mgr_seq=69&mode=view"
+    },
+    {
+      "case_ids": [
+        "svc_grad_02"
+      ],
+      "document_id": "doc_52dfb2e2420bbbebec113b36",
+      "evidence_chunk_ids": [
+        "doc_52dfb2e2420bbbebec113b36:cascade#0001"
+      ],
+      "normalized_title_without_year": "부산대학교 영어 능력 졸업인증제도 시행 지침",
+      "source_document_family_id": "dev-title-family-71f6139a2ed9037c0501",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/archaeology.pusan.ac.kr/aab40156aadf86ac-부산대학교 영어 능력 졸업인증제도 시행 지침.hwp",
+      "source_sha256": "aab40156aadf86aca2fc9c3fa25a89e09c1746236f82996599d295070c352393",
+      "source_title": "부산대학교 영어 능력 졸업인증제도 시행 지침.hwp",
+      "source_url": "https://archaeology.pusan.ac.kr/bbs/archaeology/208/1014288/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_intl_02"
+      ],
+      "document_id": "doc_52e62fe616319007a0a14c54",
+      "evidence_chunk_ids": [
+        "doc_52e62fe616319007a0a14c54:cascade#0001",
+        "doc_52e62fe616319007a0a14c54:cascade#0004"
+      ],
+      "normalized_title_without_year": "1 1학기 교환 및 교비 프로그램 1차 선발 요강 공지",
+      "source_document_family_id": "dev-title-family-c44a6fb8fd3f2c2c70df",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/international.pusan.ac.kr/1859eee19f5c5688-1. 2027학년도 1학기 교환 및 교비 프로그램 1차 선발 요강_공지.hwp",
+      "source_sha256": "1859eee19f5c5688f4450b3fc12a39e95d73db00515b793d935f7fb131e9594c",
+      "source_title": "1. 2027학년도 1학기 교환 및 교비 프로그램 1차 선발 요강_공지.hwp",
+      "source_url": "https://international.pusan.ac.kr/bbs/international/2080/1451924/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_emp_01"
+      ],
+      "document_id": "doc_5adccc90949f7bf6605d84d7",
+      "evidence_chunk_ids": [
+        "doc_5adccc90949f7bf6605d84d7:cascade#0017",
+        "doc_5adccc90949f7bf6605d84d7:cascade#0023",
+        "doc_5adccc90949f7bf6605d84d7:cascade#0024"
+      ],
+      "normalized_title_without_year": "pnu 대학일자리플러스센터 하계방학 취업역량 강화 비교과 프로그램 프로그램별 선착순 모집 중 부산대 취업전략과",
+      "source_document_family_id": "dev-title-family-daad384fb13d24d32a60",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/웹페이지/job.pusan.ac.kr/204067-69c0415be14795b6a02e.html",
+      "source_sha256": "ae5273ba58107f73dfed544d8421699b73db93a8ad3a37417b4bb634aab0e0b1",
+      "source_title": "[PNU 대학일자리플러스센터] 2026년도 하계방학 취업역량 강화 비교과 프로그램 (프로그램별 선착순 모집 중) - 부산대 취업전략과",
+      "source_url": "https://job.pusan.ac.kr/ko/notice/notice/view/204067"
+    },
+    {
+      "case_ids": [
+        "svc_adm_02"
+      ],
+      "document_id": "doc_662ec99c328cc32414712c9a",
+      "evidence_chunk_ids": [
+        "doc_662ec99c328cc32414712c9a:cascade#0004",
+        "doc_662ec99c328cc32414712c9a:cascade#0005"
+      ],
+      "normalized_title_without_year": "수시모집 합격자 유의사항",
+      "source_document_family_id": "dev-title-family-7a8017321aa6bd2bc7a8",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/go.pusan.ac.kr/db698e40f4ba46c0-2026학년도 수시모집 합격자 유의사항.pdf",
+      "source_sha256": "db698e40f4ba46c07aca668d63be4279154470eca2ae97c9632f64db07ff8258",
+      "source_title": "2026학년도 수시모집 합격자 유의사항.pdf",
+      "source_url": "https://go.pusan.ac.kr/college_2016/pages/index.asp?b=B_1_1&bn=49130&m=read&p=50"
+    },
+    {
+      "case_ids": [
+        "svc_intl_01"
+      ],
+      "document_id": "doc_66cf45b6dad164f23b0e50c0",
+      "evidence_chunk_ids": [
+        "doc_66cf45b6dad164f23b0e50c0:cascade#0026",
+        "doc_66cf45b6dad164f23b0e50c0:cascade#0043"
+      ],
+      "normalized_title_without_year": "전기 학부 외국인 특별전형 모집요강 국문 eng 中文",
+      "source_document_family_id": "dev-title-family-ccf0437c3edf0a43e31d",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/international.pusan.ac.kr/e64f719a26148089-2026학년도 전기 학부 외국인 특별전형 모집요강(국문, ENG, 中文).pdf",
+      "source_sha256": "e64f719a261480890fc4f8b903293d320e1010560dbc6a7ec5520beb59b3704c",
+      "source_title": "2026학년도 전기 학부 외국인 특별전형 모집요강(국문, ENG, 中文).pdf",
+      "source_url": "https://international.pusan.ac.kr/bbs/international/2089/1364700/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_grad_03",
+        "svc_grad_03_role_free"
+      ],
+      "document_id": "doc_73d10733f4e0844af12d2a56",
+      "evidence_chunk_ids": [
+        "doc_73d10733f4e0844af12d2a56:cascade#0001",
+        "doc_73d10733f4e0844af12d2a56:cascade#0003",
+        "doc_73d10733f4e0844af12d2a56:cascade#0008"
+      ],
+      "normalized_title_without_year": "1 2학기 수료후연구생 신청 안내문",
+      "source_document_family_id": "dev-title-family-ba06f4f841b391816be0",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/international.pusan.ac.kr/a2a6aa2da7003c61-1. 2026학년도 2학기 수료후연구생 신청 안내문.pdf",
+      "source_sha256": "a2a6aa2da7003c61470904150adafd1966b58f75356a2de524899c1d88866ea3",
+      "source_title": "1. 2026학년도 2학기 수료후연구생 신청 안내문.pdf",
+      "source_url": "https://international.pusan.ac.kr/bbs/international/2081/1452466/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_sch_05"
+      ],
+      "document_id": "doc_74d8351fa19b523c6a78f851",
+      "evidence_chunk_ids": [
+        "doc_74d8351fa19b523c6a78f851:cascade#0000",
+        "doc_74d8351fa19b523c6a78f851:cascade#0002",
+        "doc_74d8351fa19b523c6a78f851:cascade#0005"
+      ],
+      "normalized_title_without_year": "1 하반기 시각장애인대학생 및 대학원생을 위한 효명장학사업 모집 공고",
+      "source_document_family_id": "dev-title-family-7adfe2039a81821b3a06",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/sedu-support.pusan.ac.kr/cdbdadbce4997ddf-1. 2026년 하반기 시각장애인대학생 및 대학원생을 위한 [효명장학사업] 모집 공고.hwp",
+      "source_sha256": "cdbdadbce4997ddfa8de9a5f943ee852d36c08333f982ec58f194f006e7b351f",
+      "source_title": "1. 2026년 하반기 시각장애인대학생 및 대학원생을 위한 [효명장학사업] 모집 공고.hwp",
+      "source_url": "https://sedu-support.pusan.ac.kr/bbs/sedu-support/8226/1762526/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_sch_03",
+        "svc_sch_03_role_student"
+      ],
+      "document_id": "doc_77566652b6e17fd16eb9bed8",
+      "evidence_chunk_ids": [
+        "doc_77566652b6e17fd16eb9bed8:cascade#0010",
+        "doc_77566652b6e17fd16eb9bed8:cascade#0011",
+        "doc_77566652b6e17fd16eb9bed8:cascade#0012"
+      ],
+      "normalized_title_without_year": "2 학자금대출 이자지원 q a",
+      "source_document_family_id": "dev-title-family-858de157b4a4bb39fc15",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/5d6874a3bd244097-2. 학자금대출 이자지원 Q&A.pdf",
+      "source_sha256": "5d6874a3bd244097275e6401b487a801ae56b07c1870f75be357c4836acb976a",
+      "source_title": "2. 학자금대출 이자지원 Q&A.pdf (494KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1509768&mCode=MN095&mgr_seq=3&mgr_seq=3&mode=view&page=4"
+    },
+    {
+      "case_ids": [
+        "svc_grad_01"
+      ],
+      "document_id": "doc_803057a227fec1e76290d531",
+      "evidence_chunk_ids": [
+        "doc_803057a227fec1e76290d531:cascade#0003"
+      ],
+      "normalized_title_without_year": "부산대학교 졸업논문 등에 관한 시행 세칙",
+      "source_document_family_id": "dev-title-family-e8d4a4c51c18540e5c39",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/archaeology.pusan.ac.kr/56b3e69880d8af0f-「부산대학교 졸업논문 등에 관한 시행 세칙」.hwp",
+      "source_sha256": "56b3e69880d8af0f70002eaa1497cc97b140b9a29a56dfc9c5a54f0b875bc4d3",
+      "source_title": "「부산대학교 졸업논문 등에 관한 시행 세칙」.hwp",
+      "source_url": "https://archaeology.pusan.ac.kr/bbs/archaeology/208/1014288/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_sch_01"
+      ],
+      "document_id": "doc_8e29a0983ea7d5759bb215b2",
+      "evidence_chunk_ids": [
+        "doc_8e29a0983ea7d5759bb215b2:cascade#0006",
+        "doc_8e29a0983ea7d5759bb215b2:cascade#0014"
+      ],
+      "normalized_title_without_year": "2학기 ai학업장려 학자금대출 안내",
+      "source_document_family_id": "dev-title-family-f2f64259769cc4156703",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/ade64b2d9166ac1d-2026학년도 2학기 AI학업장려 학자금대출 안내.hwp",
+      "source_sha256": "ade64b2d9166ac1d5c163482d3af556cd7e5bd74aa17f137502d2103cbaff456",
+      "source_title": "2026학년도 2학기 AI학업장려 학자금대출 안내.hwp (120KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1509722&mCode=MN095&mgr_seq=3&mgr_seq=3&mode=view&page=4"
+    },
+    {
+      "case_ids": [
+        "svc_reg_04"
+      ],
+      "document_id": "doc_8fbcd6ccad4f511d1dbb900f",
+      "evidence_chunk_ids": [
+        "doc_8fbcd6ccad4f511d1dbb900f:cascade#0002",
+        "doc_8fbcd6ccad4f511d1dbb900f:cascade#0004"
+      ],
+      "normalized_title_without_year": "제1차 등록금심의위원회 회의록",
+      "source_document_family_id": "dev-title-family-004928188091e6526f46",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/9c478fbf63e7c93c-2026학년도 제1차 등록금심의위원회 회의록.pdf",
+      "source_sha256": "9c478fbf63e7c93cc5c8e1fb97a0a631d07401dcd4311b0cf5cb555e1f2556bd",
+      "source_title": "2026학년도 제1차 등록금심의위원회 회의록.pdf (45KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1506960&mCode=MN227&mgr_seq=46&mode=view"
+    },
+    {
+      "case_ids": [
+        "svc_acad_05"
+      ],
+      "document_id": "doc_94c11f5688951ec5a9951434",
+      "evidence_chunk_ids": [
+        "doc_94c11f5688951ec5a9951434:cascade#0001"
+      ],
+      "normalized_title_without_year": "별첨3 학과 부 별 오리엔테이션 및 수강신청 일시 장소 연락처 다운로드",
+      "source_document_family_id": "dev-title-family-a845704f0cecae33d2f1",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/go.pusan.ac.kr/c0d2a98acd1ad119-2026학년도_학부_정시모집_오리엔테이션_및_수강신청_일시장소_안내.xlsx",
+      "source_sha256": "c0d2a98acd1ad11993e4473eb577de38d849191aa8f0a54876a6018986c18b20",
+      "source_title": "[별첨3] 학과(부)별 오리엔테이션 및 수강신청 일시.장소.연락처(다운로드)",
+      "source_url": "https://go.pusan.ac.kr/college_2016/pages/index.asp?b=B_1_1&bn=49245&m=read&p=50"
+    },
+    {
+      "case_ids": [
+        "svc_intl_04"
+      ],
+      "document_id": "doc_94db18d0d5f06e24ae9a5308",
+      "evidence_chunk_ids": [
+        "doc_94db18d0d5f06e24ae9a5308:cascade#0002"
+      ],
+      "normalized_title_without_year": "2 pnu buddy 프로그램 운영 계획 및 지원서",
+      "source_document_family_id": "dev-title-family-3617c612f0412fd0cfff",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/international.pusan.ac.kr/89809bad942126e8-2026-2 PNU Buddy 프로그램 운영 계획 및 지원서.pdf",
+      "source_sha256": "89809bad942126e8097485e13c7a4a0bdf9c8e3c3764df798a0aa96a5e00766a",
+      "source_title": "2026-2 PNU Buddy 프로그램 운영 계획 및 지원서.pdf",
+      "source_url": "https://international.pusan.ac.kr/bbs/international/2080/1448481/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_emp_02"
+      ],
+      "document_id": "doc_acd1775a787ac3229222344c",
+      "evidence_chunk_ids": [
+        "doc_acd1775a787ac3229222344c:cascade#0017",
+        "doc_acd1775a787ac3229222344c:cascade#0018"
+      ],
+      "normalized_title_without_year": "1차 취업 skill up ai pot과정 adsp과정 프로그램 모집 안내 부산대 취업전략과",
+      "source_document_family_id": "dev-title-family-d922cadb575152077d3f",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/웹페이지/job.pusan.ac.kr/204131-47bdc11339435b850d41.html",
+      "source_sha256": "0dacda0d0d32e8da52abc9d35b8071c6db40c71f067aee8b6da63398b437c6f0",
+      "source_title": "2026학년도 1차 취업 Skill Up (AI-POT과정 & ADsP과정) 프로그램 모집 안내 - 부산대 취업전략과",
+      "source_url": "https://job.pusan.ac.kr/ko/notice/notice/view/204131"
+    },
+    {
+      "case_ids": [
+        "svc_adm_03"
+      ],
+      "document_id": "doc_b485af1557b44f1840a55678",
+      "evidence_chunk_ids": [
+        "doc_b485af1557b44f1840a55678:cascade#0012",
+        "doc_b485af1557b44f1840a55678:cascade#0022"
+      ],
+      "normalized_title_without_year": "대학입학전형 기본계획 공고",
+      "source_document_family_id": "dev-title-family-5edd88a382d654b1eb18",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/go.pusan.ac.kr/9962e80d91835ab7-2027학년도 대학입학전형 기본계획(공고).pdf",
+      "source_sha256": "9962e80d91835ab75495689fc344ed90bebacc6d7f17955c70c00b033f1d8b2d",
+      "source_title": "2027학년도 대학입학전형 기본계획(공고).pdf",
+      "source_url": "https://go.pusan.ac.kr/college_2016/pages/index.asp?b=B_1_1&bn=48439&f=ALL&m=read&nPage=1&p=50"
+    },
+    {
+      "case_ids": [
+        "svc_adm_01"
+      ],
+      "document_id": "doc_c0c57469256cd45dee604dce",
+      "evidence_chunk_ids": [
+        "doc_c0c57469256cd45dee604dce:cascade#0001",
+        "doc_c0c57469256cd45dee604dce:cascade#0002"
+      ],
+      "normalized_title_without_year": "편입학 전형 faq",
+      "source_document_family_id": "dev-title-family-338e461237e36dd002aa",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/go.pusan.ac.kr/ecc9ac2a3aed60a0-2026학년도 편입학 전형 FAQ.hwp",
+      "source_sha256": "ecc9ac2a3aed60a02d51b111a8c35a93316d8bc6b29a7d462ce6bfda43062b15",
+      "source_title": "2026학년도 편입학 전형 FAQ.hwp",
+      "source_url": "https://go.pusan.ac.kr/college_2016/pages/index.asp?b=B_1_1&bn=49026&m=read&p=50"
+    },
+    {
+      "case_ids": [
+        "svc_acad_03"
+      ],
+      "document_id": "doc_c91a0e3eec5ccf849e582073",
+      "evidence_chunk_ids": [
+        "doc_c91a0e3eec5ccf849e582073:cascade#0006"
+      ],
+      "normalized_title_without_year": "학사일정 > 학사 학술 > 대학생활 부산대학교",
+      "source_document_family_id": "dev-title-family-d5fb74e7c5aeb39b5c7f",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/웹페이지/www.pusan.ac.kr/view-30cf3a496c88f55c2e96.html",
+      "source_sha256": "63282e90beae8048d8ab97145b92c3a76f43acf715e232cad2f6ed15c95f42cb",
+      "source_title": "학사일정 > 학사/학술 > 대학생활 | 부산대학교",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Haksailjung/view.do?mCode=MN076"
+    },
+    {
+      "case_ids": [
+        "svc_intl_03",
+        "svc_intl_03_role_free"
+      ],
+      "document_id": "doc_cca2e9f2c5889b6e42294799",
+      "evidence_chunk_ids": [
+        "doc_cca2e9f2c5889b6e42294799:cascade#0000",
+        "doc_cca2e9f2c5889b6e42294799:cascade#0006",
+        "doc_cca2e9f2c5889b6e42294799:cascade#0014"
+      ],
+      "normalized_title_without_year": "1 2학기 비자 단체접수 안내 7 9월 v2 kor",
+      "source_document_family_id": "dev-title-family-aca1aa80c5115f6424c4",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/international.pusan.ac.kr/3daefb6c39f1d094-1. 2026학년도 2학기 비자 단체접수 안내(7-9월)_v2_KOR.pdf",
+      "source_sha256": "3daefb6c39f1d0946c5637c8eec5e07c26defb2577b432515f4362298d7b8abb",
+      "source_title": "1. 2026학년도 2학기 비자 단체접수 안내(7-9월)_v2_KOR.pdf",
+      "source_url": "https://international.pusan.ac.kr/bbs/international/2081/1451845/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_acad_02"
+      ],
+      "document_id": "doc_d0b015f5f2844cb3bcd6ddb4",
+      "evidence_chunk_ids": [
+        "doc_d0b015f5f2844cb3bcd6ddb4:cascade#0001"
+      ],
+      "normalized_title_without_year": "2 ★성적인정 절차 안내",
+      "source_document_family_id": "dev-title-family-f43572a21750876fab5c",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/international.pusan.ac.kr/ac2f555691289f7b-(2025-2)★성적인정 절차 안내.pdf",
+      "source_sha256": "ac2f555691289f7bc92a5dea40a3a92690192dcd0deb546f4b10e0ef3229ea85",
+      "source_title": "(2025-2)★성적인정 절차 안내.pdf",
+      "source_url": "https://international.pusan.ac.kr/bbs/international/2080/1451658/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_emp_03"
+      ],
+      "document_id": "doc_d17602c3f7e0f1f7099b81ff",
+      "evidence_chunk_ids": [
+        "doc_d17602c3f7e0f1f7099b81ff:cascade#0017"
+      ],
+      "normalized_title_without_year": "취업전략과 1차 진로부트캠프 온라인 모집 안내 부산대 취업전략과",
+      "source_document_family_id": "dev-title-family-1ff1eff3bcbbed537ff8",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/웹페이지/job.pusan.ac.kr/204029-516c6d9ed353ec7441ea.html",
+      "source_sha256": "515ff75e9d29cd0bc64b30265ca3ede616164d8096a64ef93235c34a9861119a",
+      "source_title": "[취업전략과] 2026학년도 1차 진로부트캠프(온라인) 모집 안내 - 부산대 취업전략과",
+      "source_url": "https://job.pusan.ac.kr/ko/notice/notice/view/204029"
+    },
+    {
+      "case_ids": [
+        "svc_grad_04"
+      ],
+      "document_id": "doc_d7c3ae81debc1aebe1fa9435",
+      "evidence_chunk_ids": [
+        "doc_d7c3ae81debc1aebe1fa9435:cascade#0001"
+      ],
+      "normalized_title_without_year": "1 학위청구논문 심사계획일정 및 서류전체 후기",
+      "source_document_family_id": "dev-title-family-df0ffdbe006f2835a9f3",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/physicaledu.pusan.ac.kr/7574e1881436f802-1.학위청구논문 심사계획일정 및 서류전체(2025 후기).hwp",
+      "source_sha256": "7574e1881436f8024d589de52b83d1d0818b77ffc0d434375daf00e4f66ca86b",
+      "source_title": "1.학위청구논문 심사계획일정 및 서류전체(2025 후기).hwp",
+      "source_url": "https://physicaledu.pusan.ac.kr/bbs/physicaledu/930/1401039/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_acad_01"
+      ],
+      "document_id": "doc_db16de11660b2c33d6bc2e94",
+      "evidence_chunk_ids": [
+        "doc_db16de11660b2c33d6bc2e94:cascade#0004",
+        "doc_db16de11660b2c33d6bc2e94:cascade#0006"
+      ],
+      "normalized_title_without_year": "2학기 수강신청 대비 영어 기초학력 진단평가 실시 안내",
+      "source_document_family_id": "dev-title-family-3ead00afebce47d3aa6b",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/archaeology.pusan.ac.kr/0ea3a7a0551c0242-2026학년도 2학기 수강신청 대비 영어 기초학력 진단평가 실시 안내.hwp",
+      "source_sha256": "0ea3a7a0551c0242d12be7bee0e2d93bec14081327c8c9de3b60645ca708ce34",
+      "source_title": "2026학년도 2학기 수강신청 대비 영어 기초학력 진단평가 실시 안내.hwp",
+      "source_url": "https://archaeology.pusan.ac.kr/bbs/archaeology/208/1451669/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_sch_04"
+      ],
+      "document_id": "doc_dc8a9ae6fc90038a3a307cde",
+      "evidence_chunk_ids": [
+        "doc_dc8a9ae6fc90038a3a307cde:cascade#0015",
+        "doc_dc8a9ae6fc90038a3a307cde:cascade#0017",
+        "doc_dc8a9ae6fc90038a3a307cde:cascade#0019"
+      ],
+      "normalized_title_without_year": "붙임3 쌍용곰두리장학생 faq",
+      "source_document_family_id": "dev-title-family-55d14fd70258b4d9d8e5",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/sedu-support.pusan.ac.kr/e6012c396189eadd-붙임3. 2026년도 쌍용곰두리장학생 FAQ.hwp",
+      "source_sha256": "e6012c396189eaddfe823c6d61bb359bceb76fba5c6dc0545f77890bbf9c2b28",
+      "source_title": "붙임3. 2026년도 쌍용곰두리장학생 FAQ.hwp",
+      "source_url": "https://sedu-support.pusan.ac.kr/bbs/sedu-support/8226/1762490/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_sup_02"
+      ],
+      "document_id": "doc_def2efd3bed70cdd221ae886",
+      "evidence_chunk_ids": [
+        "doc_def2efd3bed70cdd221ae886:cascade#0002",
+        "doc_def2efd3bed70cdd221ae886:cascade#0007"
+      ],
+      "normalized_title_without_year": "붙임 1 장애학생 성장 자립 지원사업 정보통신보조기기 보급 자부담금 지원사업 신청 안내문",
+      "source_document_family_id": "dev-title-family-45f8fcdba55293b4f3aa",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/sedu-support.pusan.ac.kr/c158b91601c37b66-[붙임 1] 장애학생 성장 자립 지원사업(정보통신보조기기 보급 자부담금 지원사업) 신청 안내문.hwpx",
+      "source_sha256": "c158b91601c37b6659f69a98269cacc94a3077d91fd848f66ec07c8cf28c16c1",
+      "source_title": "[붙임 1] 장애학생 성장 자립 지원사업(정보통신보조기기 보급 자부담금 지원사업) 신청 안내문.hwpx",
+      "source_url": "https://sedu-support.pusan.ac.kr/bbs/sedu-support/8226/1762750/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_reg_03"
+      ],
+      "document_id": "doc_e0f74703863ca52afbcf3828",
+      "evidence_chunk_ids": [
+        "doc_e0f74703863ca52afbcf3828:cascade#0000",
+        "doc_e0f74703863ca52afbcf3828:cascade#0002"
+      ],
+      "normalized_title_without_year": "bidv 등록금 납부 방법 bidv how to use",
+      "source_document_family_id": "dev-title-family-7d08b7a3897450068ff1",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/0dec2e3598488c3e-BIDV 등록금 납부 방법(BIDV-How to Use).pdf",
+      "source_sha256": "0dec2e3598488c3e307d0f687c3c030d83ade22668d43ac7517ac534d0ac0741",
+      "source_title": "BIDV 등록금 납부 방법(BIDV-How to Use).pdf (1MB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1509643&mCode=MN095&mgr_seq=3&mode=view"
+    },
+    {
+      "case_ids": [
+        "svc_grad_05"
+      ],
+      "document_id": "doc_e58f4d76b8b4e06cfe70f242",
+      "evidence_chunk_ids": [
+        "doc_e58f4d76b8b4e06cfe70f242:cascade#0000"
+      ],
+      "normalized_title_without_year": "여름학기 대학원 학위청구 외국어시험 한국어 대체강좌 수강생 모집",
+      "source_document_family_id": "dev-title-family-7dc17f678017ddf62aed",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/archaeology.pusan.ac.kr/fe81d986d67ffb88-2026학년도 여름학기 대학원 학위청구 외국어시험(한국어) 대체강좌 수강생 모집.pdf",
+      "source_sha256": "fe81d986d67ffb885c38dd78ee4da36c999a096eacfa6b5c60f356b32dfe367e",
+      "source_title": "2026학년도 여름학기 대학원 학위청구 외국어시험(한국어) 대체강좌 수강생 모집.pdf",
+      "source_url": "https://archaeology.pusan.ac.kr/bbs/archaeology/392/1441579/artclView.do"
+    },
+    {
+      "case_ids": [
+        "svc_reg_06"
+      ],
+      "document_id": "doc_e940e2e25425621089dc6dad",
+      "evidence_chunk_ids": [
+        "doc_e940e2e25425621089dc6dad:cascade#0004"
+      ],
+      "normalized_title_without_year": "★ 2학기 학자금 대출 기본계획",
+      "source_document_family_id": "dev-title-family-b6c2597fa70cd8aeef8a",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/1596b5ef94f127fa-★ 2026학년도 2학기 학자금 대출 기본계획.hwp",
+      "source_sha256": "1596b5ef94f127fa54799dfb30a56ef892949608f8c1420fc6f01b42f7e7d968",
+      "source_title": "★ 2026학년도 2학기 학자금 대출 기본계획.hwp (190KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1509723&mCode=MN095&mgr_seq=3&mgr_seq=3&mode=view&page=4"
+    },
+    {
+      "case_ids": [
+        "svc_acad_04"
+      ],
+      "document_id": "doc_e9c2bb88fc8a797bce06189b",
+      "evidence_chunk_ids": [
+        "doc_e9c2bb88fc8a797bce06189b:cascade#0015"
+      ],
+      "normalized_title_without_year": "다운로드 받기",
+      "source_document_family_id": "dev-title-family-96eb6cb5e495fff8d393",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/archaeology.pusan.ac.kr/8de780db3cf987e5-2025 PNU 펜토미노 교육과정 가이드북_고고학과.pdf",
+      "source_sha256": "8de780db3cf987e52712957e1e1bb0e72dcfea794a12d9c9d64138942e1462c7",
+      "source_title": "다운로드 받기",
+      "source_url": "https://archaeology.pusan.ac.kr/archaeology/3486/subview.do"
+    },
+    {
+      "case_ids": [
+        "svc_core_02",
+        "svc_core_02_role_researcher"
+      ],
+      "document_id": "doc_f2b85b3ef83ed3f4084f293d",
+      "evidence_chunk_ids": [
+        "doc_f2b85b3ef83ed3f4084f293d:cascade#0023"
+      ],
+      "normalized_title_without_year": "1 교육 연구 및 학생지도비 지급 기본계획",
+      "source_document_family_id": "dev-title-family-69473406b97cdac7d8c6",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/첨부파일/www.pusan.ac.kr/b24f74f8444021cd-1. 2025학년도 교육·연구 및 학생지도비 지급 기본계획.pdf",
+      "source_sha256": "b24f74f8444021cdc8291fe622e861c523097387c1d5e6e8b96d4b788545ae99",
+      "source_title": "1. 2025학년도 교육·연구 및 학생지도비 지급 기본계획.pdf (465KB)",
+      "source_url": "https://www.pusan.ac.kr/kor/CMS/Board/Board.do?board_seq=1502878&mCode=MN228&mgr_seq=69&mode=view"
+    },
+    {
+      "case_ids": [
+        "svc_sup_03"
+      ],
+      "document_id": "doc_fa4289e74c7d60b3fa20f2e9",
+      "evidence_chunk_ids": [
+        "doc_fa4289e74c7d60b3fa20f2e9:cascade#0004",
+        "doc_fa4289e74c7d60b3fa20f2e9:cascade#0005",
+        "doc_fa4289e74c7d60b3fa20f2e9:cascade#0007"
+      ],
+      "normalized_title_without_year": "센터이용 q a",
+      "source_document_family_id": "dev-title-family-3d66a8aade7d957029a9",
+      "source_path": "downloads/pnu-web-crawl/content/부산대학교/웹페이지/equality.pusan.ac.kr/subview-e4958fae3183af58e568.html",
+      "source_sha256": "aaa9fd2409448c7480c8b6bd165c57dd1fc4e55543e12fd9a33b439c6db8470d",
+      "source_title": "센터이용 Q&A",
+      "source_url": "https://equality.pusan.ac.kr/equality/41349/subview.do"
+    }
+  ],
+  "schema_version": "pnu.service-dev-source-manifest.v1"
+}
