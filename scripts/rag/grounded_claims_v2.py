@@ -107,8 +107,42 @@ _KOREAN_SUFFIXES = (
 _RELATION_GROUPS: tuple[frozenset[str], ...] = (
     frozenset({"동결", "인상", "인하"}),
     frozenset({"가능", "불가", "금지", "제외", "중단", "폐지"}),
-    frozenset({"필수", "선택", "면제"}),
+    frozenset({"필수", "선택사항", "면제"}),
     frozenset({"온라인", "방문", "우편", "이메일", "현금", "신용카드"}),
+)
+
+_RELATION_SUFFIXES = (
+    "되었습니다",
+    "됩니다",
+    "됐습니다",
+    "됐나요",
+    "되나요",
+    "되며",
+    "되어",
+    "되는",
+    "된",
+    "될",
+    "입니다",
+    "인가요",
+    "이라고",
+    "이며",
+    "사항입니다",
+    "사항",
+    "한가요",
+    "합니다",
+    "하며",
+    "하여",
+    "해야",
+    "할",
+    "으로",
+    "로",
+    "은",
+    "는",
+    "이",
+    "가",
+    "을",
+    "를",
+    "",
 )
 
 
@@ -310,7 +344,6 @@ def parse_response(raw: str | Mapping[str, Any]) -> dict[str, Any]:
                 f"{MAX_EVIDENCE_PER_CLAIM} rows"
             )
         evidence: list[dict[str, Any]] = []
-        seen_sources: set[int] = set()
         for evidence_index, raw_item in enumerate(raw_evidence):
             if not isinstance(raw_item, dict) or set(raw_item) != {
                 "source_number",
@@ -322,9 +355,8 @@ def parse_response(raw: str | Mapping[str, Any]) -> dict[str, Any]:
             source_number = raw_item["source_number"]
             if isinstance(source_number, bool) or not isinstance(source_number, int):
                 raise GroundedClaimsError("source_number must be an integer")
-            if source_number <= 0 or source_number in seen_sources:
-                raise GroundedClaimsError("source_number must be positive and unique")
-            seen_sources.add(source_number)
+            if source_number <= 0:
+                raise GroundedClaimsError("source_number must be positive")
             quote = normalize_text(raw_item["quote"])
             if not 8 <= len(quote) <= MAX_QUOTE_CHARS:
                 raise GroundedClaimsError("evidence quote length is invalid")
@@ -366,14 +398,46 @@ def _numbers(value: str) -> set[str]:
     return {match.group(0).replace(",", "") for match in _NUMBER_RE.finditer(value)}
 
 
+def _number_supported(value: str, support_numbers: set[str]) -> bool:
+    if value in support_numbers:
+        return True
+    if value.isdigit():
+        normalized_value = value.lstrip("0") or "0"
+        for candidate in support_numbers:
+            match = re.fullmatch(r"(\d+):00", candidate)
+            if match and (match.group(1).lstrip("0") or "0") == normalized_value:
+                return True
+            components = re.split(r"[.,:]", candidate)
+            if len(components) > 1 and normalized_value in {
+                component.lstrip("0") or "0" for component in components
+            }:
+                return True
+    return False
+
+
+def _has_relation_marker(value: str, marker: str) -> bool:
+    for token in _TOKEN_RE.findall(normalize_text(value)):
+        if token == marker or token.endswith(marker):
+            return True
+        position = token.find(marker)
+        while position >= 0:
+            suffix = token[position + len(marker) :]
+            if suffix in _RELATION_SUFFIXES:
+                return True
+            position = token.find(marker, position + 1)
+    return False
+
+
 def _relation_conflict(claim: str, evidence: str) -> bool:
-    normalized_claim = normalize_text(claim)
-    normalized_evidence = normalize_text(evidence)
     for group in _RELATION_GROUPS:
-        claim_markers = {marker for marker in group if marker in normalized_claim}
+        claim_markers = {
+            marker for marker in group if _has_relation_marker(claim, marker)
+        }
         if not claim_markers:
             continue
-        evidence_markers = {marker for marker in group if marker in normalized_evidence}
+        evidence_markers = {
+            marker for marker in group if _has_relation_marker(evidence, marker)
+        }
         if evidence_markers and not (claim_markers & evidence_markers):
             return True
         if not evidence_markers:
@@ -383,6 +447,25 @@ def _relation_conflict(claim: str, evidence: str) -> bool:
 
 def _quote_is_present(quote: str, source_text: str) -> bool:
     return bool(quote and quote in normalize_text(source_text))
+
+
+def _anchor_overlap(claim_tokens: set[str], evidence_tokens: set[str]) -> set[str]:
+    return {
+        claim_token
+        for claim_token in claim_tokens
+        if any(
+            claim_token == evidence_token
+            or (
+                len(claim_token) >= 2
+                and len(evidence_token) >= 2
+                and (
+                    claim_token in evidence_token
+                    or evidence_token in claim_token
+                )
+            )
+            for evidence_token in evidence_tokens
+        )
+    }
 
 
 def _citation(source_number: int, quote: str, context: Any) -> dict[str, Any]:
@@ -409,6 +492,7 @@ def _verify_claim(claim: Mapping[str, Any], contexts: Sequence[Any]) -> dict[str
     checked_evidence: list[dict[str, Any]] = []
     invalid_reason: str | None = None
     combined_quotes: list[str] = []
+    combined_metadata: list[str] = []
     source_numbers: list[int] = []
     source_ids: list[str] = []
 
@@ -424,29 +508,51 @@ def _verify_claim(claim: Mapping[str, Any], contexts: Sequence[Any]) -> dict[str
             break
         checked_evidence.append(_citation(source_number, quote, context))
         combined_quotes.append(quote)
-        source_numbers.append(source_number)
+        combined_metadata.extend(
+            [
+                _context_field(context, "source_title"),
+                _context_field(context, "section_path"),
+            ]
+        )
+        if source_number not in source_numbers:
+            source_numbers.append(source_number)
         source_id = _context_field(context, "chunk_id")
-        if source_id:
+        if source_id and source_id not in source_ids:
             source_ids.append(source_id)
 
     combined = " ".join(combined_quotes)
     claim_numbers = _numbers(text)
     evidence_numbers = _numbers(combined)
-    missing_numbers = sorted(claim_numbers - evidence_numbers)
+    metadata_numbers = _numbers(" ".join(combined_metadata))
+    support_numbers = evidence_numbers | metadata_numbers
+    missing_numbers = sorted(
+        value for value in claim_numbers if not _number_supported(value, support_numbers)
+    )
+    metadata_supported_numbers = sorted(
+        value
+        for value in claim_numbers
+        if not _number_supported(value, evidence_numbers)
+        and _number_supported(value, metadata_numbers)
+    )
     claim_tokens = _tokens(text)
-    evidence_tokens = _tokens(combined)
-    overlap = claim_tokens & evidence_tokens
-    minimum_overlap = 1 if len(claim_tokens) <= 3 else 2
+    semantic_support = " ".join([combined, *combined_metadata])
+    evidence_tokens = _tokens(semantic_support)
+    overlap = _anchor_overlap(claim_tokens, evidence_tokens)
+    minimum_overlap = 1 if len(claim_tokens) <= 3 or claim_numbers else 2
     anchor_coverage = len(overlap) / len(claim_tokens) if claim_tokens else 1.0
 
     if invalid_reason is None and missing_numbers:
         invalid_reason = "critical_value_not_in_quote"
     if invalid_reason is None and (
         len(overlap) < minimum_overlap
-        or claim_tokens and anchor_coverage < 0.20
+        or (
+            claim_tokens
+            and not claim_numbers
+            and anchor_coverage < 0.20
+        )
     ):
         invalid_reason = "insufficient_anchor_overlap"
-    if invalid_reason is None and _relation_conflict(text, combined):
+    if invalid_reason is None and _relation_conflict(text, semantic_support):
         invalid_reason = "relation_marker_mismatch"
 
     supported = invalid_reason is None
@@ -459,6 +565,7 @@ def _verify_claim(claim: Mapping[str, Any], contexts: Sequence[Any]) -> dict[str
         "evidence": list(claim["evidence"]),
         "validation_reason": "quote_bound_supported" if supported else invalid_reason,
         "missing_critical_values": missing_numbers,
+        "metadata_supported_critical_values": metadata_supported_numbers,
         "anchor_overlap": sorted(overlap),
         "anchor_coverage": round(anchor_coverage, 3),
     }

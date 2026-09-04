@@ -107,6 +107,57 @@ class GroundedClaimsV2Tests(unittest.TestCase):
         )
         self.assertEqual(result.claims[0]["missing_critical_values"], ["16:00"])
 
+    def test_document_title_can_supply_academic_year_scope(self) -> None:
+        response = self.response(
+            text="2026학년도 학부 등록금은 동결되었습니다.",
+            source=1,
+            quote="학부 동결, 대학원 동결",
+        )
+        result = verify_response(response, self.contexts)
+
+        self.assertEqual(result.accepted_count, 1)
+        self.assertEqual(
+            result.claims[0]["metadata_supported_critical_values"], ["2026"]
+        )
+
+    def test_whole_hour_matches_colon_zero_format(self) -> None:
+        contexts = [{"text": "접수 시간은 10:00부터 17:00까지입니다."}]
+        response = self.response(
+            text="접수 시간은 10시부터 17시까지입니다.",
+            source=1,
+            quote="접수 시간은 10:00부터 17:00까지입니다.",
+        )
+        result = verify_response(response, contexts)
+
+        self.assertEqual(result.accepted_count, 1)
+
+    def test_split_date_numbers_match_dotted_source_date(self) -> None:
+        contexts = [{"text": "접수기간 26.7.8(수)~22(수) (2주간)"}]
+        response = self.response(
+            text="접수기간은 26년 7월 8일부터 22일까지 2주간입니다.",
+            source=1,
+            quote="접수기간 26.7.8(수)~22(수) (2주간)",
+        )
+        result = verify_response(response, contexts)
+
+        self.assertEqual(result.accepted_count, 1)
+
+    def test_numeric_dense_table_claim_uses_source_title_for_entity_anchor(self) -> None:
+        contexts = [
+            {
+                "source_title": "2025학년도 교육·연구 및 학생지도비 지급 기본계획",
+                "text": "교육영역 6,271,600 21.72 6,502,600 21.39 231,000",
+            }
+        ]
+        response = self.response(
+            text="2025학년도 교육영역 예산액은 6,502,600이며 구성비는 21.39퍼센트입니다.",
+            source=1,
+            quote="교육영역 6,271,600 21.72 6,502,600 21.39 231,000",
+        )
+        result = verify_response(response, contexts)
+
+        self.assertEqual(result.accepted_count, 1)
+
     def test_unrelated_time_does_not_support_credit_card_claim(self) -> None:
         response = self.response(
             text="신용카드 납부는 매일 18:00까지 가능합니다.",
@@ -118,7 +169,7 @@ class GroundedClaimsV2Tests(unittest.TestCase):
         self.assertEqual(result.accepted_count, 0)
         self.assertEqual(
             result.claims[0]["validation_reason"],
-            "insufficient_anchor_overlap",
+            "relation_marker_mismatch",
         )
 
     def test_relation_direction_must_match_quote(self) -> None:
@@ -135,6 +186,28 @@ class GroundedClaimsV2Tests(unittest.TestCase):
             result.claims[0]["validation_reason"],
             "relation_marker_mismatch",
         )
+
+    def test_login_word_does_not_trigger_price_decrease_marker(self) -> None:
+        contexts = [{"text": "온라인 신청은 시스템에 로그인하여 진행합니다."}]
+        response = self.response(
+            text="온라인 신청은 시스템에 로그인하여 진행합니다.",
+            source=1,
+            quote="온라인 신청은 시스템에 로그인하여 진행합니다.",
+        )
+        result = verify_response(response, contexts)
+
+        self.assertEqual(result.accepted_count, 1)
+
+    def test_compound_evidence_token_can_match_split_claim_anchor(self) -> None:
+        contexts = [{"text": "선발시기 : 매년 2월, 8월"}]
+        response = self.response(
+            text="프로그램 선발 시기는 매년 2월과 8월입니다.",
+            source=1,
+            quote="선발시기 : 매년 2월, 8월",
+        )
+        result = verify_response(response, contexts)
+
+        self.assertEqual(result.accepted_count, 1)
 
     def test_partial_answer_keeps_supported_claim_and_explicit_gap(self) -> None:
         payload = {
@@ -158,6 +231,26 @@ class GroundedClaimsV2Tests(unittest.TestCase):
         self.assertEqual(result.accepted_count, 1)
         self.assertIn("모두 동결", result.answer)
         self.assertIn("인상률은 확인할 수 없습니다", result.answer)
+
+    def test_two_quotes_from_same_source_keep_one_citation_marker(self) -> None:
+        payload = {
+            "claims": [
+                {
+                    "text": "2026학년도 학부 등록금은 동결되었습니다.",
+                    "evidence": [
+                        {"source_number": 1, "quote": "2026학년도 학부"},
+                        {"source_number": 1, "quote": "학부 동결, 대학원 동결"},
+                    ],
+                }
+            ],
+            "unanswered": [],
+        }
+        result = verify_response(payload, self.contexts)
+
+        self.assertEqual(result.accepted_count, 1)
+        self.assertEqual(result.claims[0]["source_numbers"], [1])
+        self.assertEqual(len(result.claims[0]["citations"]), 2)
+        self.assertEqual(result.cited_answer.count("[1]"), 1)
 
     def test_strict_schema_rejects_markdown_and_extra_keys(self) -> None:
         fenced = "```json\n{\"claims\": [], \"unanswered\": []}\n```"

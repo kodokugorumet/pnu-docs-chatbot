@@ -565,6 +565,110 @@ def collect_planned(
     return collected
 
 
+def load_projection_answers(
+    path: Path,
+) -> tuple[dict[str, dict[str, Any]], str]:
+    """Load prior C2 rows whose raw model responses will be re-verified."""
+
+    if _forbidden_dev_path(path):
+        raise ValueError("C2 reprojection accepts DEV inputs only")
+    reject_symlink_inputs([path])
+    before = sha256_file(path)
+    rows: dict[str, dict[str, Any]] = {}
+    for line_number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        if not line.strip():
+            continue
+        value = json.loads(line)
+        if not isinstance(value, dict):
+            raise ValueError(f"{path}:{line_number}: expected JSON object")
+        validate_answer_record(value)
+        if value.get("condition_id") != "c2":
+            raise ValueError("reprojection source must be a C2 answer artifact")
+        case_id = str(value.get("case_id") or "")
+        if not case_id or case_id in rows:
+            raise ValueError(f"duplicate or empty reprojection case id: {case_id}")
+        trace = value.get("evaluation_trace")
+        if not isinstance(trace, Mapping) or not isinstance(trace.get("raw_draft"), str):
+            raise ValueError(f"C2 answer {case_id} omitted raw_draft")
+        rows[case_id] = value
+    if sha256_file(path) != before:
+        raise ValueError("C2 projection source changed while it was being read")
+    if not rows:
+        raise ValueError("C2 projection source is empty")
+    return rows, before
+
+
+def reproject_planned(
+    planned: Sequence[tuple[Mapping[str, Any], str]],
+    projection_rows: Mapping[str, Mapping[str, Any]],
+    *,
+    experiment_id: str,
+    generation_run_id: str,
+    model: str,
+    max_output_tokens: int,
+    source_artifact_sha256: str,
+    projection_artifact_sha256: str,
+) -> list[dict[str, Any]]:
+    """Apply the current verifier to prior raw responses without an API call."""
+
+    expected_cases = {str(base["case_id"]) for base, _ in planned}
+    if set(projection_rows) != expected_cases:
+        raise ValueError(
+            "reprojection case set mismatch: "
+            f"missing={sorted(expected_cases - set(projection_rows))} "
+            f"extra={sorted(set(projection_rows) - expected_cases)}"
+        )
+    results: list[dict[str, Any]] = []
+    for base, prompt in planned:
+        case_id = str(base["case_id"])
+        source = projection_rows[case_id]
+        generation = source.get("generation")
+        if not isinstance(generation, Mapping):
+            raise ValueError(f"C2 answer {case_id} omitted generation metadata")
+        if generation.get("prompt_sha256") != sha256_text(prompt):
+            raise ValueError(f"C2 answer {case_id} prompt hash changed")
+        if generation.get("model") != model:
+            raise ValueError(f"C2 answer {case_id} model mismatch")
+        trace = source["evaluation_trace"]
+        raw_response = str(trace["raw_draft"])
+        verified = verify_response(raw_response, _final_contexts(base))
+        attempts = generation.get("attempts")
+        if not isinstance(attempts, list):
+            raise ValueError(f"C2 answer {case_id} omitted request attempts")
+        answer = build_c2_answer(
+            base=base,
+            raw_response=raw_response,
+            prompt=prompt,
+            verified=verified,
+            experiment_id=experiment_id,
+            generation_run_id=generation_run_id,
+            model=model,
+            max_output_tokens=max_output_tokens,
+            attempts=attempts,
+            latency_ms=float(source.get("latency_ms") or 0.0),
+            source_artifact_sha256=source_artifact_sha256,
+        )
+        for key in ("answer_id", "answer_sha256", "record_sha256"):
+            answer.pop(key, None)
+        reprojection = {
+            "mode": "offline_raw_response_reprojection",
+            "source_artifact_sha256": projection_artifact_sha256,
+            "source_answer_id": source["answer_id"],
+            "source_answer_sha256": source["answer_sha256"],
+            "source_record_sha256": source["record_sha256"],
+            "new_external_calls": 0,
+        }
+        answer["collector_config"]["reprojection"] = reprojection
+        answer["collector_config_sha256"] = sha256_json(answer["collector_config"])
+        answer["generation"]["response_reused_from"] = reprojection
+        answer = build_answer_identity(answer)
+        validate_answer_record(answer)
+        results.append(answer)
+    return results
+
+
 def _jsonl(records: Sequence[Mapping[str, Any]]) -> str:
     return "".join(canonical_json(record) + "\n" for record in records)
 
@@ -591,6 +695,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--only", help="comma-separated DEV case ids")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--reproject-from",
+        type=Path,
+        help="re-verify prior C2 raw responses locally; performs zero API calls",
+    )
     parser.add_argument("--api-key-env", default="GEMINI_API_KEY")
     parser.add_argument("--env-file", type=Path, default=REPO_ROOT / ".env")
     parser.add_argument(
@@ -642,6 +751,57 @@ def main() -> int:
     if args.dry_run:
         print(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
+    if args.reproject_from is not None:
+        try:
+            projection_rows, projection_sha = load_projection_answers(
+                args.reproject_from
+            )
+            collected = reproject_planned(
+                planned,
+                projection_rows,
+                experiment_id=args.experiment_id,
+                generation_run_id=args.generation_run_id,
+                model=args.model,
+                max_output_tokens=args.max_output_tokens,
+                source_artifact_sha256=source_sha,
+                projection_artifact_sha256=projection_sha,
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(str(exc))
+        output_text = _jsonl(collected)
+        summary = {
+            **{
+                key: value
+                for key, value in plan.items()
+                if key not in {"prompts", "external_calls"}
+            },
+            "mode": "offline-raw-response-reprojection",
+            "external_calls": 0,
+            "completed_answers": len(collected),
+            "projection_source": str(args.reproject_from),
+            "projection_source_sha256": projection_sha,
+            "accepted_claims": sum(
+                int(record["postprocessing"]["accepted_claim_count"])
+                for record in collected
+            ),
+            "rejected_claims": sum(
+                int(record["postprocessing"]["rejected_claim_count"])
+                for record in collected
+            ),
+            "answers_sha256": sha256_text(output_text),
+        }
+        publish_immutable_texts(
+            {
+                args.out: output_text,
+                summary_path: json.dumps(
+                    summary, ensure_ascii=False, indent=2, sort_keys=True
+                )
+                + "\n",
+            },
+            authoritative_path=args.out,
+        )
+        print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
     if args.authorize_experimental_collection != AUTHORIZATION_PHRASE:
         parser.error(
             "live C2 collection requires --authorize-experimental-collection "
@@ -677,8 +837,17 @@ def main() -> int:
                 time.sleep(args.sleep)
     except Exception as exc:  # noqa: BLE001 - persist an auditable failed batch
         error = {
-            **{key: value for key, value in plan.items() if key != "prompts"},
+            **{
+                key: value
+                for key, value in plan.items()
+                if key not in {"prompts", "external_calls"}
+            },
             "mode": "live-error",
+            "external_calls": None,
+            "external_calls_note": (
+                "terminal failures may include retries not represented by completed rows"
+            ),
+            "verified_successful_external_calls": len(collected),
             "completed_calls": len(collected),
             "failed_case_id": planned[len(collected)][0]["case_id"],
             "error_type": type(exc).__name__,
@@ -693,8 +862,22 @@ def main() -> int:
 
     output_text = _jsonl(collected)
     summary = {
-        **{key: value for key, value in plan.items() if key != "prompts"},
+        **{
+            key: value
+            for key, value in plan.items()
+            if key not in {"prompts", "external_calls"}
+        },
         "mode": "live-complete",
+        "external_calls": sum(
+            len(record["generation"]["attempts"]) for record in collected
+        ),
+        "successful_external_calls": sum(
+            sum(
+                attempt.get("status") == "ok"
+                for attempt in record["generation"]["attempts"]
+            )
+            for record in collected
+        ),
         "completed_calls": len(collected),
         "accepted_claims": sum(
             int(record["postprocessing"]["accepted_claim_count"])

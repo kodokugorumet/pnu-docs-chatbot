@@ -16,6 +16,7 @@ from scripts.evaluate_grounded_claims_v2 import (
     load_dev_answers,
     main,
     plan_collection,
+    reproject_planned,
 )
 from scripts.rag.grounded_claims_v2 import build_prompt, verify_response
 from scripts.service_eval_artifacts import (
@@ -205,6 +206,47 @@ class EvaluateGroundedClaimsV2Tests(unittest.TestCase):
                 source_artifact_sha256="b" * 64,
                 post_json=fake_post,
             )
+
+    def test_offline_reprojection_reuses_raw_response_without_call(self) -> None:
+        base = self.base_record()
+        planned, _ = plan_collection(
+            [base], model="gemini-test", max_output_tokens=500
+        )
+        first = collect_planned(
+            planned,
+            api_key="secret",
+            experiment_id="dev45-c2-v1",
+            generation_run_id="run1",
+            model="gemini-test",
+            max_output_tokens=500,
+            timeout=10.0,
+            retries=1,
+            sleep_seconds=0.0,
+            source_artifact_sha256="b" * 64,
+            post_json=lambda *_: (self.structured_payload(), 200),
+        )[0]
+
+        projected = reproject_planned(
+            planned,
+            {first["case_id"]: first},
+            experiment_id="dev45-c2-v2",
+            generation_run_id="run1-reproject-v2",
+            model="gemini-test",
+            max_output_tokens=500,
+            source_artifact_sha256="b" * 64,
+            projection_artifact_sha256="c" * 64,
+        )[0]
+
+        validate_answer_record(projected)
+        self.assertEqual(projected["answer"], first["answer"])
+        self.assertEqual(
+            projected["collector_config"]["reprojection"]["new_external_calls"],
+            0,
+        )
+        self.assertEqual(
+            projected["generation"]["response_reused_from"]["source_answer_id"],
+            first["answer_id"],
+        )
 
     def test_live_mode_requires_exact_authorization(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:
