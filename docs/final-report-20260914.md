@@ -666,6 +666,36 @@ guard는 명시적 회피, 자기모순, 인용 불일치를 점수를 낮추는
 개발셋 결과다. 원천 집계는
 `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/dev45-3run-service-ab-v11.json`이다.[^dev45-v11]
 
+#### 동결 후 C2 quote-bound 생성 실험
+
+검색 결과가 있어도 자유 서술 답변과 사후 휴리스틱 attribution 사이에서 claim이
+누락되는 병목을 분리하기 위해, 서비스에 연결하지 않은 C2 실험 lane을 만들었다.
+C2는 모델이 각 claim과 함께 `source_number` 및 원문에서 복사한 연속 quote를
+구조화해 반환하도록 하고, application이 출처 번호·quote 포함·숫자·핵심 주체·
+관계 방향을 결정적으로 검증한다. C1의 동결된 검색 trace와 context를 그대로
+재사용했으므로 아래 차이는 검색 개선이 아니라 생성–근거 결속 방식의 차이다.
+
+| DEV45 독립 생성 n=3 | C1 | C2 v3 | 차이 |
+|---|---:|---:|---:|
+| run별 GFC | 18/45, 20/45, 20/45 | 28/45, 25/45, 23/45 | — |
+| 3-run 0–2점 평균 | 1.2148 | 1.3630 | +0.1481 |
+| 2/3 majority GFC | 20/45 (.444) | 26/45 (.578) | +6문항, +.1333 |
+
+평균 점수 차이의 family-cluster bootstrap 95% CI는 `[-.0000, +.3116]`이었다.
+majority GFC는 paired gain/loss가 9/3, family-cluster bootstrap 95% CI가
+`[.0000, +.2826]`, exact McNemar 양측 `p=.1460`이었다. 따라서 C2의 점 추정치는
+일관되게 높지만 DEV45만으로 완전정답률 개선을 확정할 통계적 근거는 충분하지
+않다. majority 비GFC 19문항 중 13문항은 필수 근거가 context@8에 모두 없었고,
+6문항은 필수 근거가 모두 있었는데도 실패해, 남은 병목이 검색과 생성 양쪽에
+있음을 보여준다.[^c2-v3]
+
+이 실험의 run1은 최초 응답에서 발견한 일반 verifier false negative를 고친 뒤
+같은 raw response를 API 호출 없이 v3로 재투영했고, run2·run3만 commit
+`85709b5`의 동결 verifier로 새로 생성했다. 따라서 세 run은 서로 다른 모델
+응답이지만 verifier 설계에 대해 run1까지 완전히 독립인 confirmatory 평가가
+아니다. C2를 서비스에 채택하거나 일반화 성능으로 표현하지 않고, 독립 holdout과
+사람 calibration 전까지 post-freeze exploratory 결과로만 유지한다.
+
 이 평가 뒤 실패 답변을 추적해 등록금 관계문 두 종류의 후처리 false negative를
 수정했다. 저장된 동일 초안·동일 full context 270개를 오프라인으로 재처리했을 때
 답변 텍스트는 9개만 바뀌고 261개는 그대로였으며, 바뀐 9개를 같은 Judge v11로
@@ -966,6 +996,10 @@ negative가 0건이었다. 이 결과는 규칙 기반 attribution 구성요소�
     binding으로 사용했으며 독립 2인 원문 화면 검수를 하지 않았다.
 12. **Holdout 사람 검수 미완료:** AI 검토 12건 수정과 기계 gate는 완료했지만
     실제 2인 human signoff와 최종 파일 동결 전이다.
+13. **C2 확인 편향:** C2 v3 verifier는 첫 DEV run의 거부 사례를 보고 일반화된
+    시간·날짜·복합어·관계 경계 규칙을 보정한 뒤 동결했다. run2·run3는 동결 뒤
+    fresh 실행이지만, 전체 n=3 집계의 run1은 같은 raw response 재투영이므로
+    독립 holdout 확인 전에는 탐색 결과다.
 
 ## 9. 결론
 
@@ -990,6 +1024,11 @@ GFC 6/9였지만, 표적 선택 n=1이라는 경계 때문에 전체 성능 수�
 최종 국제 문항 수정도 fresh LLM 생성과 동결 holdout에서 재현되지 않았으므로
 최종 일반화 성능이 아니다.
 
+별도 C2 quote-bound 실험은 동일한 C1 검색 context에서 3-run 평균을 1.2148에서
+1.3630으로, majority GFC를 20/45에서 26/45로 높였다. 그러나 GFC 신뢰구간의
+하한이 0이고 exact McNemar `p=.1460`이며 verifier 개발에 DEV run1을 사용했으므로,
+이는 생성–근거 결속 개선의 유망한 후보이지 최종 성능 향상 확정이 아니다.
+
 파서 감사의 표적 기계 평가와 DEV45 생성 n=3·Judge v11은 완료했지만, 최종
 결론은 holdout 36문항, Judge-사람 calibration, 실제 사람 검증, 필요 시 파서 원문 육안검수, 경쟁 서비스 최신
 재수집·순서 교환 평가와 clean 전체 회귀를 완료한 뒤 갱신한다. 제출본은 성능이
@@ -999,6 +1038,7 @@ GFC 6/9였지만, 표적 선택 n=1이라는 경계 때문에 전체 성능 수�
 [^rule-inventory]: `docs/rule-inventory-20260904.md` (68개 규칙의 위치·트리거·분류·DEV 근거와 검증 명령). 정본 경로와 SHA는 `docs/progress-log-20260901.md`의 “2026-09-04 규칙 인벤토리 고정” 절에 기록했다.
 [^dev45-v11]: 정본 결과는 `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/dev45-3run-service-ab-v11.json`; 결합 재검증은 `processed/eval/post-freeze-analysis-20260904/generation-failures-v2/dev45-c0-c1-n3-generation-failures.json`이다. SHA는 progress log의 해당 두 절에 기록했다.
 [^freeze-snapshot]: 동결 시점 코드 줄 수·SHA와 세 index SHA는 `evidence/20260914/tuning-freeze-snapshot-20260904.json`; 정본 기록은 progress log의 “2026-09-04 튜닝 동결” 절이다.
+[^c2-v3]: 정본은 `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/analysis/c1-vs-c2-v3-3run-majority-gfc.json`과 `c1-vs-c2-v3-3run-ab.json`이다. 입력 answer/Judge 및 분석 SHA, 호출 수, 실패 분해는 progress log의 “2026-09-04 C2 v3 동결·독립 n=3 평가” 절에 기록했다.
 
 ## 참고문헌
 

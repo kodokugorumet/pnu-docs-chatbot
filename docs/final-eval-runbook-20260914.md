@@ -549,6 +549,17 @@ lint, build가 모두 통과했고 unittest는 **755 tests OK, 6 skipped, 실패
 Vite는 1,735 modules를 변환했다. 이는 아직 commit/tag 전 결과이며, staging 뒤
 `git diff --cached --check`와 exact staged-path 대조를 한 번 더 수행한다.
 
+이후 승인 목록 127개와 C2 준비 addendum 4개를 exact path로 stage해 commit
+`8d1f29a`(`chore: freeze PNU final evaluation code`)로 기록했고, 기존
+`origin/main`을 병합한 commit `731b7a0`까지 GitHub `origin/main`에 push했다.
+C2 verifier의 일반 시간·날짜·복합어·관계 경계 보정과 재투영 검증은 별도
+post-freeze 실험 commit `85709b5`로 다시 동결해 push했다. 이 시점의 전체 gate는
+**779 tests OK, 6 skipped, 실패 0**, lint/build PASS, Vite 1,735 modules다.
+holdout draft·검토 packet·Reviewer A/B 4개는 여전히 미추적·미검수 상태이고 tag도
+만들지 않았으므로, 이 commit들을 사람 signoff가 끝난 최종 holdout code-freeze로
+간주하지 않는다. C2는 서비스와 아래 final schedule에 연결하지 않은 DEV
+exploratory lane이다.
+
 사용자 승인 뒤에만 승인된 정확한 파일 목록을 stage하고 freeze한다.
 
 ```bash
@@ -1403,6 +1414,10 @@ Tag를 만든 뒤 manifest, summary, 최종 보고서 PDF의 SHA-256을 별도 �
 - Calibration 실패 시 사람 run-1 결과가 headline이고 Judge 결과는 exploratory다.
 - Parser 18문서/54 anchor, DEV45, DEV `p0g` n=3는 각각 component/개발 진단이며
   final holdout 일반화 성능을 대신하지 않는다.
+- post-freeze C2 DEV45 n=3도 같은 제한을 적용한다. 동일 C1 retrieval context에서
+  majority GFC가 20/45에서 26/45로 변했지만 CI 하한이 0이고, run1 raw response가
+  verifier 개발에 사용됐으므로 final schedule이나 headline 조건으로 승격하지
+  않는다.
 
 ## 18. 실패 시 처리
 

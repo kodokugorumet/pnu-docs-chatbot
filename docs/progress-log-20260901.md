@@ -1258,6 +1258,142 @@ C2 성능 수치는 아직 생성·Judge를 호출하지 않았으므로 존재�
 post-freeze 실험 파일이지만, 사용자의 2026-09-04 git merge 승인에 따라 승인 목록의
 별도 C2 addendum으로 포함했다.
 
+### 2026-09-04 GitHub 반영과 C2 v3 생성기 동결
+
+사용자가 로컬 merge가 아니라 GitHub 반영을 뜻한다고 명확히 했고 push 및 외부
+API 호출을 승인했다. 승인된 freeze 목록만 exact path로 stage한 commit
+`8d1f29a`(`chore: freeze PNU final evaluation code`)를 기존 `origin/main`과
+병합한 `731b7a0`까지 `origin/main`에 push했다. holdout draft·검토 packet·
+Reviewer A/B 파일 4개는 stage하지 않았다. tag는 요청받지 않아 만들지 않았다.
+
+C2 최초 live run은 세 번째 응답의 같은 `source_number` 복수 quote를 local
+verifier가 중복으로 잘못 거부해 중단됐다. 정상 2행 partial과 error 기록은
+덮어쓰지 않고 각각 다음 경로에 보존했다.
+
+- `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v1/c2-run1.answers.jsonl.partial.jsonl`:
+  `37b1c821075d0343b636100de8dc1388af40363d9647190a049c4ba3f1028eca`
+- 같은 디렉터리 `c2-run1.answers.jsonl.error.json`:
+  `9337407f68fb002f2b0d93e0b4533f642ed2d0b28095511ffa618395093c333e`
+
+중복 출처 번호를 허용하되 서로 다른 quote identity를 요구하도록 C2 parser를
+고쳤다. `c2-run1b`는 45/45 응답, 수용 claim 75·거부 44로 완료됐고 answer SHA는
+`f088b752db2d2dbd881c6a4ca8c586f1be705aef7ffdf5c05a651453668f9b6a`다.
+최초 summary가 dry-run 계획의 `external_calls=0`을 잘못 계승한 결함은 기존
+summary를 수정하지 않고 실제 45회 호출을 기록한
+`c2-run1b.calls-audit-v1.json`
+(`b66fe04208a97be2154228827aad1ada3c2e108bd08a432891a99a5b3ee3445d`)을
+추가하고 collector의 후속 summary 계산만 고쳤다.
+
+이 답변의 첫 Judge v11은 평균 .9778·GFC 14/45로 C1보다 낮았다. 44개 local
+거부를 분해하자 critical numeric 31, anchor 7, relation 6이었고 `10시`와
+`10:00`, 점 표기 날짜, 제목에만 있는 학년도, 한국어 복합어, `로그인하여` 안의
+`인하`, `선택하고`와 선택사항 혼동 같은 일반 false negative가 확인됐다. 특정
+DEV 정답값을 규칙에 넣지 않고 시간·날짜 정규화, metadata scope, 복합어 anchor,
+관계어 경계만 일반화해 수정했다. 같은 raw response를 외부 호출 0회로 재검증한
+v3는 수용 claim 116·거부 3이며 다음 경로가 정본이다.
+
+- `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/c2-run1b-reproject-v3.answers.jsonl`:
+  `047c2898001c266c8c2b0248963dc484ff3a4aeefb49abf85dca803961950836`
+- 같은 디렉터리 `judge/c2-run1b-reproject-v3-judge-v11-r1.jsonl`:
+  `13ebc1767288cc3b4aa066832df8acfd0b5782fe40e6e78f62c1c3460ad1e56a`
+
+v3 run1은 평균 1.4222·GFC 28/45였고 C1 run1보다 평균 +.2222, GFC +10문항이었다.
+GFC paired gain/loss는 11/1, exact McNemar p=.00635였지만 이는 verifier 수정에
+사용한 같은 DEV raw response의 재투영 결과라 confirmatory 성능으로 보지 않았다.
+
+다음 네 파일만 다시 검증·stage해 commit
+`85709b5`(`fix: harden quote-bound claim verification`)로 동결하고
+`origin/main`에 push했다.
+
+- `scripts/evaluate_grounded_claims_v2.py`:
+  `86bf30dab92e02970475db2566c4982f41e7552e54db45738127c060028e972b`
+- `scripts/rag/grounded_claims_v2.py`:
+  `65779d9dca5ba11233d23f8082a87f605def143d3b96941ca1d2b118b149aa13`
+- `tests/test_evaluate_grounded_claims_v2.py`:
+  `cfb92b740a1c6bc6a4129f6fa196f9c05d54dddad76f6139ad412d90f7d3ecc1`
+- `tests/test_grounded_claims_v2.py`:
+  `fb1aba6f1363f77d52e7b2dd97aa80b9b5ae57f2f769cde0e5fbe7b22914e253`
+
+동결 직전 `git diff --check`, 전체 unittest, `bun run lint`, `bun run build`는
+모두 통과했다. unittest는 **779 tests OK, 6 skipped, 실패 0**, Vite build는
+1,735 modules였다. frozen 서비스 파일 3개와 holdout 파일은 변경하지 않았다.
+
+### 2026-09-04 C2 v3 동결·독립 n=3 평가
+
+동결 commit `85709b5`에서 C1 run2/run3의 기존 retrieval trace를 입력으로 C2
+run2/run3를 각각 단일 스트림으로 생성했다. 명령은
+`evaluate_grounded_claims_v2.py`에 model `gemini-3.5-flash-lite`,
+`--max-output-tokens 1200 --timeout 180 --retries 3 --sleep 3`과 정확한 승인
+문구를 사용했다. run2는 45/45·수용/거부 claim 120/7, run3는
+45/45·103/7이었고 terminal error는 없었다.
+
+- `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/c2-run2.answers.jsonl`:
+  `5f3b4e67b01c36c63ef02a44e89bd5cdaed34bd8e814735a7f88b63fbdcb9e7a`
+- 같은 파일의 `.summary.json`:
+  `3652d14b99235b209f0bd9c355c75e7e1477a8c63761c5ef0df4462ccfd3979d`
+- 같은 디렉터리 `c2-run3.answers.jsonl`:
+  `8f13c280e14442d912eb745097cb5e06d3711d28b8126c7e9606b68661c95c85`
+- 같은 파일의 `.summary.json`:
+  `76189061b1ce03303a75c7fff1c75b1d4f045cf092ccd77bceae477eb9b113ee`
+
+각 answer를 `judge_service_answers.py`의 model `gemini-3.1-flash-lite`,
+Judge v11, `--max-output-tokens 1600 --timeout 180 --retries 6 --sleep 3`으로 한
+번씩 판정했다. validate-only는 두 run 모두 45/45 eligible, service error 0,
+judge config SHA `c165059daa5903b74d9b7fe260856419b697721ecc1e869a701aa0c85dc18fce`로
+통과했다. run2는 평균 1.3556·GFC 25/45, run3는 1.3111·GFC 23/45였다.
+
+- `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/judge/c2-run2-judge-v11-r1.jsonl`:
+  `285dc828d9f85221767364d9c64c570f64de8149274fbad572f3042344dec24f`
+- 같은 디렉터리 `c2-run3-judge-v11-r1.jsonl`:
+  `0726deed223ab1dd90d95c6830673273d39ad070fee612a7922afa859096a7f5`
+
+v3 n=3에 직접 사용한 외부 호출은 generation 135회 모두 성공(run1b 45,
+run2 45, run3 45), Judge 139 HTTP attempts 중 성공 135·일시적 503 4회였다.
+개발 중 중단된 최초 generation 3회와 낮은 점수를 확인한 최초 run1b Judge
+47 attempts(성공 45·503 2)를 포함하면 C2 전체 작업은 324 HTTP attempts,
+성공 응답 318·일시적 실패 6이다. fallback은 없었고 사용량 token metadata가
+없는 호출의 비용은 추정하지 않는다.
+
+`analyze_service_ab.py`로 질문별 3-run 평균을 비교하면 C1 1.2148에서 C2 v3
+1.3630으로 +.1481이었다. paired 개선/동률/악화는 15/21/9이고 100,000회
+family-cluster bootstrap 95% CI는 `[-.0000,+.3116]`으로 0을 포함한다.
+검색 trace를 재사용했으므로 두 조건의 Hit@5 .889, MRR .714,
+RequiredGoldChunkRecall@5 .693, @8 .715는 정확히 같다.
+
+새 `analyze_generation_gfc_repeats.py`는 세 generation을 135개의 독립 표본으로
+세지 않고 각 질문에서 strict 2/3 majority 하나를 만든다. C1 run별 GFC는
+18/20/20, C2는 28/25/23이고 majority는 **20/45(.4444) → 26/45(.5778)**,
+차이 +6문항·+.1333이다. paired gain/loss 9/3, family-cluster bootstrap
+100,000회 95% CI `[.0000,+.2826]`, exact McNemar 양측 p=.145996이므로
+개선 방향은 관측됐지만 통계적 확정이나 “대폭 향상”으로 표현하지 않는다.
+
+- `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/analysis/c1-vs-c2-v3-3run-ab.json`:
+  `db29150f2d7b93ef18085664cd6df7d7ee1b1b9910293b847df78d3b1dd2d21d`
+- 같은 디렉터리 `c1-vs-c2-v3-3run-ab.csv`:
+  `751fbb3935ce2c683aa342ba5ab300c0d86357cdb5418287430038352c76b7d0`
+- 같은 디렉터리 `c1-vs-c2-v3-3run-majority-gfc.json`:
+  `aff4456e070c4818f4c5a92c027d9f822701a43871d0a60d851046bd0d685955`
+- 같은 디렉터리 `c1-vs-c2-v3-3run-majority-gfc.csv`:
+  `651561a2e754436e63287eacd1105402bf7f5fbfa4873e2d691f71cb4051841b`
+
+majority 비GFC 19문항 중 13문항은 필수 근거가 context@8에 모두 없었고,
+6문항은 필수 근거가 모두 있었는데도 실패했다. 즉 동결 뒤 남은 병목은 우선 검색
+13건, 생성·Judge 6건으로 분리된다. run별 실패 분해 JSON SHA는 run1
+`78cd24adbb7732a9432b2d56de0e1c7a9986f8100d14dc44f20f3d92e927b16a`,
+run2 `452ce5c3e99eb877c1d539fff255aa71456fb9dfbef852e64ca976fe80f7cfda`,
+run3 `e3fba8c705eb49833bffaa92191a035c53f629a591de9f80706ca976feb6640c`다.
+코드를 더 튜닝하지 않고 이 항목을 **동결 후 발견**으로 기록한다.
+
+분석기와 단위 테스트 SHA는 각각
+`6b41f1d2d97a2ad0799714369cb2b2d602c079900c3c8bcedd09850ba381b1de`,
+`03d539aec67a16485ce2fdc4350bec8c71aaaf990fc745f700fc1cc5cdc3636d`이고
+표적 테스트 5개가 통과했다. 보고서·런북 SHA는 각각
+`55a764564eb252b3194b8ed128b246a8357b18d8ea2b4a876caaae71955d957d`,
+`e26cd936e509e8c3fc43ca2f958b8cc758b27d9728b0b7157c68356641871508`다.
+최종 `git diff --check`, 전체 unittest, lint, build는 모두 통과했고 unittest는
+**784 tests OK, 6 skipped, 실패 0**, build는 1,735 modules였다. holdout 내용
+접근·수정과 frozen 서비스 규칙 변경은 모두 0회다.
+
 ## 다음 우선순위
 
 1. 현재 cases/packet SHA에 대해 사람 2인이 읽기 전용
