@@ -1394,6 +1394,44 @@ run3 `e3fba8c705eb49833bffaa92191a035c53f629a591de9f80706ca976feb6640c`다.
 **784 tests OK, 6 skipped, 실패 0**, build는 1,735 modules였다. holdout 내용
 접근·수정과 frozen 서비스 규칙 변경은 모두 0회다.
 
+### 2026-09-04 C1/C2 v3 육안 비교판
+
+기존 `build_service_ab_review.py`가 조건명을 `Baseline`/`검색 튜닝`으로
+하드코딩해, 검색 context가 동일한 C1/C2 생성 비교를 검색 개선처럼 보이게 하는
+표시 결함을 브라우저 렌더링에서 발견했다. summary의 `labels.a/b`를 검증해 제목·
+카드·승패 기준에 사용하고, 신뢰구간 경고도 실제 CI의 0 포함 여부로 표시하도록
+일반화했다. 기존 잘못 표시된 HTML은 수정하지 않고 v2 새 경로를 생성했다.
+
+- `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/analysis/c1-vs-c2-v3-3run-review-v2.html`:
+  `90d5dd8500f1119c2180d185ed0ced1d120dae1fb0e2ad37638a09a41bebe927`
+- `scripts/build_service_ab_review.py`:
+  `040f1c6319a86aeb20f39bb7eed13189745f934f6dc17055c2cf974b775974d7`
+- `tests/test_build_service_ab_review.py`:
+  `661f7b983d336b3c52f87233b60ec209b5d2fef85a02f1bdc5a186c4eaf3e93d`
+
+합성 label 테스트 2개가 통과했고, Chrome에서 `C1 → C2-v3`, 평균
+`1.215 → 1.363`, 승/무/패 `15/21/9`, CI가 0을 포함한다는 경고, 45/45문항이
+표시되는 것을 직접 확인했다. 로컬 `127.0.0.1:8765`에서 비교판을 열어 두었다.
+비교판 경로를 부록에 추가한 최종 보고서 SHA는
+`9a2ceca5355945f3c1a6d2d7563aa4740771345bb2df007ebf21307254b4ca56`이다.
+비교판 코드까지 포함한 최종 gate는 `git diff --check`, 전체 unittest, lint,
+build가 모두 통과했고 **786 tests OK, 6 skipped, 실패 0**, Vite 1,735 modules였다.
+
+### 2026-09-04 C0/C1 Judge v11 안정성 반복 권한 상태
+
+C0/C1 run1 각 45개 answer는 validate-only에서 45/45 eligible, terminal service
+error 0, Judge config SHA
+`c165059daa5903b74d9b7fe260856419b697721ecc1e869a701aa0c85dc18fce`로
+통과했고 r2/r3 네 output 경로가 모두 미존재임을 확인했다. 그러나 live C0 r2의
+첫 요청 전에 권한 검토가 C2 전송 승인과 C0/C1 payload 승인을 별개로 판정해
+중단했다. **외부 전송과 새 judgment 파일은 0건**이며 우회하지 않았다.
+
+재개하려면 기존 DEV45 C0/C1 run1 답변·PNU 검색 context·평가 rubric을 Google
+Gemini 3.1 Flash Lite로 전송해 r2/r3 판정 180개를 만드는 작업에 대한 명시적
+승인이 필요하다. 승인 뒤에도 모델을 3.5로 섞지 않고
+`--max-output-tokens 1600 --timeout 180 --retries 6 --sleep 3` 단일 스트림을
+유지한다.
+
 ## 다음 우선순위
 
 1. 현재 cases/packet SHA에 대해 사람 2인이 읽기 전용

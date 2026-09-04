@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a self-contained visual review board for service baseline/tuned n=3."""
+"""Build a self-contained visual review board for paired service runs."""
 
 from __future__ import annotations
 
@@ -42,6 +42,15 @@ def build_payload(
     cases = by_id(load_jsonl(cases_path))
     records_a = [by_id(load_jsonl(path)) for path in runs_a]
     records_b = [by_id(load_jsonl(path)) for path in runs_b]
+    labels = summary.get("labels") or {"a": "A", "b": "B"}
+    if not isinstance(labels, dict):
+        raise ValueError("summary.labels must be an object")
+    label_a = labels.get("a")
+    label_b = labels.get("b")
+    if not isinstance(label_a, str) or not label_a.strip():
+        raise ValueError("summary.labels.a must be a non-empty string")
+    if not isinstance(label_b, str) or not label_b.strip():
+        raise ValueError("summary.labels.b must be a non-empty string")
 
     questions: list[dict[str, Any]] = []
     for row in summary["questions"]:
@@ -74,6 +83,7 @@ def build_payload(
             "runs_b": [str(path) for path in runs_b],
         },
         "summary": {
+            "labels": {"a": label_a, "b": label_b},
             "a": summary["a"],
             "b": summary["b"],
             "comparison": summary["comparison"],
@@ -95,10 +105,10 @@ header{padding:42px max(24px,calc((100vw - 1240px)/2));background:#183f37;color:
 </style>
 </head>
 <body>
-<header><h1>서비스 45문항 A/B 직접 비교</h1><p>Baseline과 검색 튜닝의 3회 답변, judge 점수, 검색 문서·DEV gold chunk 변화를 문항별로 확인합니다. 평균보다 악화 문항과 근거 변화부터 검토하세요.</p></header>
+<header><h1>서비스 45문항 A/B 직접 비교</h1><p id="subtitle"></p></header>
 <main class="wrap">
   <section id="metrics" class="metrics"></section>
-  <div class="warning"><strong>해석 주의:</strong> 검색 개선은 크지만 생성 평균 차이의 cluster bootstrap 95% CI가 0을 포함합니다. 이 화면의 judge 점수는 정답률이 아니라 0–2점 rubric 결과입니다.</div>
+  <div class="warning"><strong>해석 주의:</strong> <span id="warning-text"></span></div>
   <div class="toolbar">
     <input id="search" placeholder="질문·ID·기준답안 검색">
     <select id="outcome"><option value="all">전체 결과</option><option value="down">악화만</option><option value="up">개선만</option><option value="same">동일만</option></select>
@@ -109,14 +119,15 @@ header{padding:42px max(24px,calc((100vw - 1240px)/2));background:#183f37;color:
 </main>
 <script>const DATA=__PAYLOAD__;
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LABEL_A=DATA.summary.labels.a,LABEL_B=DATA.summary.labels.b;
 const pct=v=>(v*100).toFixed(1)+"%";const n=v=>Number(v).toFixed(3);const outcome=q=>q.delta_b_minus_a>0?"up":q.delta_b_minus_a<0?"down":"same";
 function metric(label,a,b,fmt=n){return `<article class="metric"><span class="label">${label}</span><strong>${fmt(a)} → ${fmt(b)}</strong><small>Δ ${(b-a)>=0?"+":""}${fmt(b-a)}</small></article>`}
-function renderMetrics(){const a=DATA.summary.a,b=DATA.summary.b,c=DATA.summary.comparison;document.querySelector("#metrics").innerHTML=metric("문서 Hit@5",a.retrieval.hit_rate,b.retrieval.hit_rate,pct)+metric("MRR",a.retrieval.mrr,b.retrieval.mrr)+metric("Any-Gold-Chunk@8 (DEV)",a.retrieval.evidence_hit_rate,b.retrieval.evidence_hit_rate,pct)+metric("생성 n=3 평균",a.mean,b.mean)+`<article class="metric"><span class="label">문항 승/무/패</span><strong>${c.wins_b} / ${c.ties} / ${c.losses_b}</strong><small>B 기준</small></article>`}
+function renderMetrics(){const a=DATA.summary.a,b=DATA.summary.b,c=DATA.summary.comparison;document.querySelector("#metrics").innerHTML=metric("문서 Hit@5",a.retrieval.hit_rate,b.retrieval.hit_rate,pct)+metric("MRR",a.retrieval.mrr,b.retrieval.mrr)+metric("Any-Gold-Chunk@8 (DEV)",a.retrieval.evidence_hit_rate,b.retrieval.evidence_hit_rate,pct)+metric("생성 n=3 평균",a.mean,b.mean)+`<article class="metric"><span class="label">문항 승/무/패</span><strong>${c.wins_b} / ${c.ties} / ${c.losses_b}</strong><small>${esc(LABEL_B)} 기준</small></article>`}
 function sourceList(rows){const seen=new Set;return `<ul class="sources">${rows.filter(x=>{const k=(x.source_title||"")+"|"+(x.chunk_id||"");if(seen.has(k))return false;seen.add(k);return true}).map(x=>`<li>${esc(x.source_title||"제목 없음")} · ${esc(x.chunk_id||"")}</li>`).join("")}</ul>`}
 function runs(q,key){const answers=q["answers_"+key],scores=q["scores_"+key],reasons=q["reasons_"+key];return answers.map((answer,i)=>`<article class="run"><div class="run-head"><span>run ${i+1}</span><span>${scores[i]}점</span></div><div class="answer">${esc(answer)}</div><div class="reason">${esc(reasons[i])}</div></article>`).join("")}
-function caseHtml(q){const o=outcome(q),delta=q.delta_b_minus_a;return `<article class="case ${o}"><div class="topline"><span class="id">${esc(q.id)}</span><span class="badge">${esc(q.category)}</span>${q.role?`<span class="badge">${esc(q.role)}</span>`:""}<span class="badge ${o}">${o==="up"?"개선":o==="down"?"악화":"동일"} ${delta>0?"+":""}${delta.toFixed(2)}</span></div><div class="question">${esc(q.query)}</div><div class="scoreline"><div class="score"><small>Baseline</small><br><b>${q.mean_a.toFixed(2)}</b> <span>${esc(JSON.stringify(q.scores_a))}</span></div><span class="arrow">→</span><div class="score"><small>검색 튜닝</small><br><b>${q.mean_b.toFixed(2)}</b> <span>${esc(JSON.stringify(q.scores_b))}</span></div></div><div class="flags"><span>문서 ${q.retrieval_hit_a?"✓":"✕"}→${q.retrieval_hit_b?"✓":"✕"}</span><span>순위 ${q.rank_a??"-"}→${q.rank_b??"-"}</span><span>근거 ${q.evidence_hit_a?"✓":"✕"}→${q.evidence_hit_b?"✓":"✕"}</span><span>sources ${q.sources_changed?"변경":"동일"}</span></div><details><summary>기준답안·3회 답변·출처 펼치기</summary><div class="reference"><strong>기준답안</strong><br>${esc(q.reference)}</div><div class="answers"><section class="answer-col"><h3>Baseline</h3>${runs(q,"a")}${sourceList(q.sources_a)}</section><section class="answer-col"><h3>검색 튜닝</h3>${runs(q,"b")}${sourceList(q.sources_b)}</section></div></details></article>`}
+function caseHtml(q){const o=outcome(q),delta=q.delta_b_minus_a;return `<article class="case ${o}"><div class="topline"><span class="id">${esc(q.id)}</span><span class="badge">${esc(q.category)}</span>${q.role?`<span class="badge">${esc(q.role)}</span>`:""}<span class="badge ${o}">${o==="up"?"개선":o==="down"?"악화":"동일"} ${delta>0?"+":""}${delta.toFixed(2)}</span></div><div class="question">${esc(q.query)}</div><div class="scoreline"><div class="score"><small>${esc(LABEL_A)}</small><br><b>${q.mean_a.toFixed(2)}</b> <span>${esc(JSON.stringify(q.scores_a))}</span></div><span class="arrow">→</span><div class="score"><small>${esc(LABEL_B)}</small><br><b>${q.mean_b.toFixed(2)}</b> <span>${esc(JSON.stringify(q.scores_b))}</span></div></div><div class="flags"><span>문서 ${q.retrieval_hit_a?"✓":"✕"}→${q.retrieval_hit_b?"✓":"✕"}</span><span>순위 ${q.rank_a??"-"}→${q.rank_b??"-"}</span><span>근거 ${q.evidence_hit_a?"✓":"✕"}→${q.evidence_hit_b?"✓":"✕"}</span><span>sources ${q.sources_changed?"변경":"동일"}</span></div><details><summary>기준답안·3회 답변·출처 펼치기</summary><div class="reference"><strong>기준답안</strong><br>${esc(q.reference)}</div><div class="answers"><section class="answer-col"><h3>${esc(LABEL_A)}</h3>${runs(q,"a")}${sourceList(q.sources_a)}</section><section class="answer-col"><h3>${esc(LABEL_B)}</h3>${runs(q,"b")}${sourceList(q.sources_b)}</section></div></details></article>`}
 function render(){const term=document.querySelector("#search").value.trim().toLowerCase(),out=document.querySelector("#outcome").value,cat=document.querySelector("#category").value;const rows=DATA.questions.filter(q=>(out==="all"||outcome(q)===out)&&(cat==="all"||q.category===cat)&&(!term||[q.id,q.query,q.reference].join(" ").toLowerCase().includes(term)));document.querySelector("#count").textContent=`${rows.length} / ${DATA.questions.length}문항`;document.querySelector("#cases").innerHTML=rows.map(caseHtml).join("")}
-renderMetrics();[...new Set(DATA.questions.map(q=>q.category))].sort().forEach(c=>document.querySelector("#category").insertAdjacentHTML("beforeend",`<option value="${esc(c)}">${esc(c)}</option>`));["search","outcome","category"].forEach(id=>document.querySelector("#"+id).addEventListener(id==="search"?"input":"change",render));render();
+const ci=DATA.summary.comparison.bootstrap.ci95,includesZero=ci[0]<=0&&ci[1]>=0;document.querySelector("#subtitle").textContent=`${LABEL_A}와 ${LABEL_B}의 반복 답변, Judge 점수, 검색 문서·DEV gold chunk를 문항별로 비교합니다. 평균보다 악화 문항과 근거 변화부터 검토하세요.`;document.querySelector("#warning-text").textContent=`생성 평균 차이의 family-cluster bootstrap 95% CI가 0을 ${includesZero?"포함합니다":"포함하지 않습니다"}. 이 화면은 DEV 분석이며 Judge 점수는 정답률이 아닌 0–2점 rubric 결과입니다.`;renderMetrics();[...new Set(DATA.questions.map(q=>q.category))].sort().forEach(c=>document.querySelector("#category").insertAdjacentHTML("beforeend",`<option value="${esc(c)}">${esc(c)}</option>`));["search","outcome","category"].forEach(id=>document.querySelector("#"+id).addEventListener(id==="search"?"input":"change",render));render();
 </script>
 </body></html>"""
 
@@ -129,10 +140,13 @@ def main() -> int:
     parser.add_argument("--runs-b", type=Path, nargs="+", required=True)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
+    if args.out.exists():
+        raise SystemExit(f"immutable output path already exists: {args.out}")
     payload = build_payload(args.summary, args.cases, args.runs_a, args.runs_b)
     output = HTML_TEMPLATE.replace("__PAYLOAD__", script_json(payload))
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(output, encoding="utf-8")
+    with args.out.open("x", encoding="utf-8") as handle:
+        handle.write(output)
     print(f"wrote {args.out} ({len(payload['questions'])} questions)")
     return 0
 
