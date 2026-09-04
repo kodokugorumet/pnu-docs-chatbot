@@ -1599,6 +1599,22 @@ extractive fallback으로 거부됐다.
 DEV45의 3.5 생성 결과와 직접 비교할 수 없으므로 자동 전환하지 않고 승인 대기로
 남긴다. frozen service 코드와 Shadow60 질문/gold는 수정하지 않았다.
 
+추가로 코드에 이미 제공된 transport 설정만 사용해 port 18813을
+`RAG_GENERATION_DEADLINE_SECONDS=180`, `RAG_GEMINI_TIMEOUT_SECONDS=150`으로
+시작했다. 검색·prompt·점검표·후처리·model·context/output 한도는 그대로다.
+`c1-run1c` 첫 문항은 다시 extractive fallback으로 거부됐고, 별도 진단 응답에서는
+30초 timeout 대신 약 9.9초 뒤 `gemini:http_error`가 확인됐다. 따라서 기본 30초
+timeout만이 원인은 아니며, 3.5 endpoint의 현 시점 HTTP 실패도 함께 존재한다.
+
+- `c1-run1c.answers.errors.jsonl`: 1행,
+  SHA `da23187267083c80d210040a8169453576d17008ed58e10e479197946d0383fd`
+- long-timeout 임시 진단 응답: 1,376,305 bytes,
+  SHA `c8bf8f3a175e3f0af7c1cc7b7acfb8f696dba37eb4e09fcd491e4a6427408faa`
+
+이 단계까지도 유효 answer는 0개다. 3.1 fallback 경로를 이용한 추가 진단은 3.5에
+한정된 사용자 승인 범위를 벗어나므로 실행 전 차단됐고 외부 호출은 발생하지
+않았다. 3.1 실험은 전송 model과 DEV 비교 불가를 명시한 별도 승인 뒤에만 수행한다.
+
 ## 다음 우선순위
 
 1. 현재 cases/packet SHA에 대해 사람 2인이 읽기 전용
