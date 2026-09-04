@@ -1568,6 +1568,37 @@ rank가 1→71로 밀렸다. `shadow_grad_02`는 파일명/title이 2025지만 �
 modules였고 표적 Shadow 테스트는 7개 모두 통과했다. frozen production service
 파일 3개와 금지된 holdout 파일은 읽거나 수정하지 않았다.
 
+### 2026-09-04 Shadow60 Gemini 3.5 생성 가용성 실패
+
+사용자에게 전송 대상과 내용을 명시해 “Shadow60 60개 질문과 검색된 부산대학교
+문서 context를 Google Gemini API `gemini-3.5-flash-lite`로 전송, C1 3회·최대
+180개 생성” 승인을 요청했고, 사용자가 `해줘`로 승인했다.
+
+첫 port 18811 수집은 첫 문항에서 1회 extractive fallback, 1회
+`gemini-3.1-flash-lite` fallback이 발생했다. collector가 각각 provider/model
+control mismatch로 거부했다. 모델 혼용 가능성을 없애기 위해 production 코드는
+건드리지 않고 환경 설정상 허용 모델을 3.5 하나로 고정한 port 18812 서버를 새로
+띄웠다. 같은 frozen 생성 한도(24,000 context chars, 900 output tokens, sampling
+parameter 없음)와 C1 검색 설정에서 동일 문항을 두 번 재개했으나 두 번 모두
+extractive fallback으로 거부됐다.
+
+마지막 진단 요청의 원본 응답에서 `generation.requested=frontier`,
+`used=extractive`, `fallback_reason=gemini:timeout`, 3.5 attempt elapsed 30,192ms를
+확인했다. 진단 응답도 평가 answer로 채택하지 않았다. collector service request는
+4회였고 유효 answer record는 **0개**다. 기존/신규 답변을 덮어쓰지 않았고
+3.1·extractive 결과를 3.5 평가에 섞지 않았다.
+
+- `c1-run1.answers.errors.jsonl`: 2행,
+  SHA `df00b4c885ea33da3e7b1d5ba88ed7db25fc9c2c07dcabf35d9739d279f639b7`
+- `c1-run1b.answers.errors.jsonl`: 2행,
+  SHA `4e6eca27d7011cb23baddee937a301e1f05811f82f85a7f54247c8db1767f956`
+- compact evidence `evidence/20260914/shadow60-gemini35-availability-20260904.json`:
+  SHA `2eeed566f3b38c26c32420316ef1020a78958332c346168e57dd989993a0d3db`
+
+이는 평가 대상 성능 실패가 아니라 현 시점 3.5 호출 가용성 실패다. 3.1로 바꾸면
+DEV45의 3.5 생성 결과와 직접 비교할 수 없으므로 자동 전환하지 않고 승인 대기로
+남긴다. frozen service 코드와 Shadow60 질문/gold는 수정하지 않았다.
+
 ## 다음 우선순위
 
 1. 현재 cases/packet SHA에 대해 사람 2인이 읽기 전용

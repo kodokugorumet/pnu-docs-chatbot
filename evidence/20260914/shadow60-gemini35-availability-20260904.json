@@ -1,0 +1,52 @@
+{
+  "schema_version": "pnu.shadow-generation-availability.v1",
+  "observed_at": "2026-09-04T13:54:51Z",
+  "authorization": {
+    "destination": "Google Gemini API",
+    "payload": "Shadow60 questions and retrieved PNU document context",
+    "model": "gemini-3.5-flash-lite",
+    "requested_runs": 3,
+    "maximum_accepted_answers": 180,
+    "user_response": "해줘"
+  },
+  "collection": {
+    "experiment_id": "shadow60-generation-v1",
+    "condition_id": "c1",
+    "accepted_answer_records": 0,
+    "collector_service_requests": 4,
+    "run1_error_records": 2,
+    "run1_error_artifact": "processed/eval/preflight-20260904/shadow60-generation-v1/c1-run1.answers.errors.jsonl",
+    "run1_error_sha256": "df00b4c885ea33da3e7b1d5ba88ed7db25fc9c2c07dcabf35d9739d279f639b7",
+    "run1b_error_records": 2,
+    "run1b_error_artifact": "processed/eval/preflight-20260904/shadow60-generation-v1/c1-run1b.answers.errors.jsonl",
+    "run1b_error_sha256": "4e6eca27d7011cb23baddee937a301e1f05811f82f85a7f54247c8db1767f956"
+  },
+  "control_outcomes": {
+    "frontier_to_extractive_rejected": 3,
+    "model_3_5_to_3_1_rejected": 1,
+    "mixed_model_answers_admitted": 0
+  },
+  "isolated_model_server": {
+    "port": 18812,
+    "allowed_models": [
+      "gemini-3.5-flash-lite"
+    ],
+    "retrieval_tuning": true,
+    "context_chunks_per_document": 2,
+    "generation_max_context_chars": 24000,
+    "generation_max_output_tokens": 900,
+    "sampling_parameters": []
+  },
+  "diagnostic_response": {
+    "temporary_response_sha256": "be6f7c18d6d4a0094ea1faa1de0ecf92311e66e1d65941c89297beba2f4c1356",
+    "temporary_response_size_bytes": 1376300,
+    "generation_requested": "frontier",
+    "generation_used": "extractive",
+    "fallback_reason": "gemini:timeout",
+    "gemini_attempt_status": "error",
+    "gemini_attempt_error": "timeout",
+    "gemini_attempt_elapsed_ms": 30192,
+    "accepted_as_evaluation_answer": false
+  },
+  "conclusion": "Gemini 3.5 was unavailable within the frozen service timeout; no fallback response was admitted into the evaluation set."
+}
