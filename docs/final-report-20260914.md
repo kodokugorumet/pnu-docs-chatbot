@@ -666,6 +666,21 @@ guard는 명시적 회피, 자기모순, 인용 불일치를 점수를 낮추는
 개발셋 결과다. 원천 집계는
 `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/dev45-3run-service-ab-v11.json`이다.[^dev45-v11]
 
+#### Judge v11 동일 답변 반복 안정성
+
+생성 변동과 Judge 변동을 분리하기 위해 C0/C1의 고정된 `run1` 답변을 Judge
+v11로 각각 세 번 판정했다. C0와 C1 모두 0–2점과 GFC가 문항별 **45/45
+완전 일치**했다. C0는 세 반복 모두 평균 `.8667`, GFC `12/45(.267)`였고,
+C1은 모두 평균 `1.2000`, GFC `18/45(.400)`였다. 반복 다수결 기준 차이는
+`+6문항(+.1333)`이며 질문 단위 paired bootstrap 95% CI는
+`[-.0444,+.3111]`, exact McNemar 양측 `p=.2379`였다.[^judge-v11-stability]
+
+이 결과는 현재 API·rubric·temperature 설정에서 판정의 **재현성**이 높음을
+보이지만, Judge가 사람과 같은 정답을 내린다는 **타당도**를 입증하지 않는다.
+같은 답변을 세 번 채점한 값은 독립 표본 135개가 아니며 조건별 유효 표본은
+각각 45문항이다. 또한 이 절의 C1 `18/45`는 고정 `run1`의 결과이므로, 서로
+다른 세 생성의 2/3 majority인 앞 절의 `20/45`와 목적과 추정량이 다르다.
+
 #### 동결 후 C2 quote-bound 생성 실험
 
 검색 결과가 있어도 자유 서술 답변과 사후 휴리스틱 attribution 사이에서 claim이
@@ -971,8 +986,9 @@ negative가 0건이었다. 이 결과는 규칙 기반 attribution 구성요소�
 2. **Judge 변동과 편향:** 생성기와 Judge가 모두 Gemini 계열이라 자기 선호가
    생길 수 있고, 생성 n=3은 judge 자체의 일관성 검증과 다르다. 위치·장황성·
    모델 선호뿐 아니라 한국어 신뢰도, 점수 범위, 관대함과 클래스 불균형의 영향이
-   남는다. 동일 답변 반복 판정과 독립 평가자 2인의 calibration 전에는 해소되지
-   않는다.
+   남는다. 동일 답변 3회 반복에서는 점수·GFC가 45/45 일치했지만, 이는 재현성
+   근거일 뿐 정확성 근거가 아니다. 독립 평가자 2인의 calibration 전에는
+   Judge 타당도 문제가 해소되지 않는다.
 3. **표본 크기와 검정력:** DEV는 45문항이고 최종 holdout의 headline Core는
    27문항이다. paired 설계와 family cluster bootstrap을 사용하더라도 작은 효과와
    category별 차이를 검출하는 힘이 제한된다.
@@ -1029,7 +1045,8 @@ GFC 6/9였지만, 표적 선택 n=1이라는 경계 때문에 전체 성능 수�
 하한이 0이고 exact McNemar `p=.1460`이며 verifier 개발에 DEV run1을 사용했으므로,
 이는 생성–근거 결속 개선의 유망한 후보이지 최종 성능 향상 확정이 아니다.
 
-파서 감사의 표적 기계 평가와 DEV45 생성 n=3·Judge v11은 완료했지만, 최종
+파서 감사의 표적 기계 평가와 DEV45 생성 n=3·Judge v11, 고정 답변의 Judge
+v11 3회 반복 안정성 평가는 완료했지만, 최종
 결론은 holdout 36문항, Judge-사람 calibration, 실제 사람 검증, 필요 시 파서 원문 육안검수, 경쟁 서비스 최신
 재수집·순서 교환 평가와 clean 전체 회귀를 완료한 뒤 갱신한다. 제출본은 성능이
 오른 실험뿐 아니라 기각된 대안과
@@ -1039,6 +1056,7 @@ GFC 6/9였지만, 표적 선택 n=1이라는 경계 때문에 전체 성능 수�
 [^dev45-v11]: 정본 결과는 `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/dev45-3run-service-ab-v11.json`; 결합 재검증은 `processed/eval/post-freeze-analysis-20260904/generation-failures-v2/dev45-c0-c1-n3-generation-failures.json`이다. SHA는 progress log의 해당 두 절에 기록했다.
 [^freeze-snapshot]: 동결 시점 코드 줄 수·SHA와 세 index SHA는 `evidence/20260914/tuning-freeze-snapshot-20260904.json`; 정본 기록은 progress log의 “2026-09-04 튜닝 동결” 절이다.
 [^c2-v3]: 정본은 `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/analysis/c1-vs-c2-v3-3run-majority-gfc.json`과 `c1-vs-c2-v3-3run-ab.json`이다. 입력 answer/Judge 및 분석 SHA, 호출 수, 실패 분해는 progress log의 “2026-09-04 C2 v3 동결·독립 n=3 평가” 절에 기록했다.
+[^judge-v11-stability]: 정본은 `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/stability-20260904/c0-run1-judge-v11-r1-r3.json`, `c1-run1-judge-v11-r1-r3.json`, `c0-vs-c1-run1-majority-gfc.json`이다. SHA와 호출 감사는 progress log의 “2026-09-04 C0/C1 Judge v11 안정성 반복 완료” 절에 기록했다.
 
 ## 참고문헌
 
@@ -1129,6 +1147,9 @@ dirty 작업 snapshot이므로 최종 동결 커밋의 전체 check와 데모 sm
 - `processed/eval/preflight-20260901/judge-p0g-v8/gfc-paired-analysis.json`
 - `processed/eval/preflight-20260901/judge-p0g-v8/gfc-paired-cases.csv`
 - `processed/eval/preflight-20260904/dev45-grounded-claims-c2-v3/analysis/c1-vs-c2-v3-3run-review-v2.html`
+- `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/stability-20260904/c0-run1-judge-v11-r1-r3.{json,csv}`
+- `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/stability-20260904/c1-run1-judge-v11-r1-r3.{json,csv}`
+- `processed/eval/preflight-20260903/dev45-generation-current-v1/judge/stability-20260904/c0-vs-c1-run1-majority-gfc.{json,csv}`
 - `docs/c2-grounded-claims-decision-20260904.md`
 - `docs/holdout-v2-human-review.md`
 - `evidence/holdout-v2-reviewer-a.json`

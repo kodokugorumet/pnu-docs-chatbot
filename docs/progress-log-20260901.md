@@ -1440,6 +1440,61 @@ Gemini 3.1 Flash Lite로 전송해 r2/r3 판정 180개를 만드는 작업에 �
 `--max-output-tokens 1600 --timeout 180 --retries 6 --sleep 3` 단일 스트림을
 유지한다.
 
+### 2026-09-04 C0/C1 Judge v11 안정성 반복 완료
+
+직전 응답에서 C0/C1 `run1`의 고정 답변·검색 context·rubric을 Gemini 3.1 Flash
+Lite로 전송하는 대상, 새 r2/r3 경로, 성공 판정 180회를 명시한 뒤 사용자가
+`계속 해줘`로 실행을 승인했다. `judge_service_answers.py`를 조건별·반복별 단일
+스트림으로 네 번 실행했으며 설정은 model `gemini-3.1-flash-lite`,
+`--max-output-tokens 1600 --timeout 180 --retries 6 --sleep 3`이었다. 모델
+fallback이나 3.5 혼용은 없었다. 네 파일 모두 45행·case 45개·오류 행 0으로
+완료됐다.
+
+| 새 Judge artifact | 평균 | GFC | HTTP attempts (200/503) | SHA-256 |
+|---|---:|---:|---:|---|
+| `judge/c0-run1-judge-v11-r2.jsonl` | .8667 | 12/45 | 58 (45/13) | `bd7a4b1844078bbfc5839ffe79c906c1ff958b88be2034790bec9b2e27cec47d` |
+| `judge/c0-run1-judge-v11-r3.jsonl` | .8667 | 12/45 | 53 (45/8) | `2be78f774aae60ff30db65c5531c8f67da65d2690c613e62a2fed747ab02ddce` |
+| `judge/c1-run1-judge-v11-r2.jsonl` | 1.2000 | 18/45 | 59 (45/14) | `008ab98323c033c794fee22615058d97de28ece5c2eb15e5534214031a167eb6` |
+| `judge/c1-run1-judge-v11-r3.jsonl` | 1.2000 | 18/45 | 57 (45/12) | `b3f59e6039b3d077c99123bc51879abf08005ca42e2ffd56679fbe7782bfa98a` |
+
+이번 추가 호출은 HTTP 227 attempts 중 성공 180·일시적 503 47회였다. 기존 r1까지
+합치면 352 attempts 중 성공 270·503 82회다. 재시도 뒤 terminal error는 없었다.
+모든 입력은 동일 answer SHA(C0 `bf228e5e…fc8`, C1 `1383561b…bd6`)와 Judge
+config SHA `c165059d…8fce`에 결속됐다.
+
+`summarize_judge_repeats.py`에 조건별 r1/r2/r3를 입력한 결과 C0와 C1 모두
+**점수 45/45·GFC 45/45가 세 반복에서 완전 일치**했다. 반복은 표본 수를 늘리지
+않으며 유효 n은 조건별 질문 45개다. 고정 `run1`의 다수결 GFC는 C0
+12/45(.2667), C1 18/45(.4000), 차이 +6문항(+.1333)이었다. 질문 단위 paired
+bootstrap 10,000회 95% CI는 `[-.0444,+.3111]`, exact paired sign-flip과
+McNemar 양측 p는 모두 `.2378845`; both/C0-only/C1-only/neither는
+6/6/12/21이다. 즉 Judge 재현성은 높지만 사람 기준 타당도나 C1의 통계적 우월을
+입증하지 않는다.
+
+정본 산출물과 SHA-256은 다음과 같다. 모든 경로의 공통 prefix는
+`processed/eval/preflight-20260903/dev45-generation-current-v1/judge/stability-20260904/`다.
+
+- `c0-run1-judge-v11-r1-r3.json`: `f5fc357a11c4dcc74e001f8023fdcedd2e33d40491530944e92628c594c56904`
+- `c0-run1-judge-v11-r1-r3.csv`: `a1cdd9cc1424d9c16a989a5a99031fcb69d43ccede2cdfde82cf352027aa1e44`
+- `c1-run1-judge-v11-r1-r3.json`: `37fb57a519912056d347dfeff466c65d030f23d9bf2e866e72775f5f1b432c13`
+- `c1-run1-judge-v11-r1-r3.csv`: `e2044d9af7e208741893b065c594b29c93887593b16a1a6cc418195904b336bb`
+- `c0-vs-c1-run1-majority-gfc.json`: `e649da8b3f6a4436e6c4d2b2d7a57734e11f02b904907b4f70ffc9da508c8875`
+- `c0-vs-c1-run1-majority-gfc.csv`: `efb0058ed062febd19e51a5ad46f7a4dffba09cb3ef34f888f36bb339dc659e0`
+
+실행한 분석 명령은 조건별
+`summarize_judge_repeats.py --answers ... --judgments <r1> <r2> <r3>`와
+`analyze_gfc_pairs.py --c0-summary ... --c1-summary ...`다. 분석기는 참조 answer와
+judgment의 SHA, record hash, case·condition 결속을 원본에서 다시 검증해 PASS했다.
+기존 artifact를 수정하지 않았고 holdout 파일을 읽거나 수정하지 않았다.
+
+보고서의 Judge 안정성 결과·한계·재현 산출물 목록을 갱신했다.
+`docs/final-report-20260914.md` SHA-256은
+`ce9d0c780b9c1d6c83ffdd2425a7d9558abb727fb176f33f4a9a65597877e57a`다.
+최종 gate에서 `git diff --check`, `bun run lint`, `bun run build`가 통과했고
+Vite는 1,735 modules를 build했다. 제한 샌드박스의 첫 unittest는 로컬 fixture
+socket bind가 금지돼 기존 소켓 테스트 23개가 `PermissionError`였으며, 동일 명령을
+소켓 허용 환경에서 재실행해 **786 tests OK, 6 skipped, 실패 0**을 확인했다.
+
 ## 다음 우선순위
 
 1. 현재 cases/packet SHA에 대해 사람 2인이 읽기 전용
@@ -1449,7 +1504,7 @@ Gemini 3.1 Flash Lite로 전송해 r2/r3 판정 180개를 만드는 작업에 �
 2. signoff 뒤 holdout을 최종명과 SHA로 동결하고 frozen schedule대로 final
    retrieval·generation·oracle 진단을 one-shot 실행한다.
 3. 동결 답변으로 condition-blind 패킷을 생성해 사람 2인 평가·합의 판정을 받고,
-   Judge v8의 same-model self-preference를 calibration한다.
+   Judge v11의 same-model self-preference와 사람 기준 타당도를 calibration한다.
 4. 준비된 분석기로 질문 단위 paired bootstrap CI, sign-flip과 exact McNemar를
    산출하고 최종 보고서 headline은 이 holdout 및 사람 검증 결과로만 갱신한다.
 5. 강한 파서 품질 주장이 필요하면 54개 anchor의 독립 2인 원문 화면 육안검수를
