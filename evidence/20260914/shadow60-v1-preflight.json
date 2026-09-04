@@ -1,0 +1,18 @@
+{
+  "bucket_counts": {
+    "challenge": 10,
+    "multi": 18,
+    "role_variant": 8,
+    "simple": 24
+  },
+  "case_count": 60,
+  "cases_path": "/Users/leehyunwoo/project/pnu-docs-chatbot/config/pnu-service-shadow60-v1.jsonl",
+  "cases_sha256": "0906e6c8de40040915e668e6cf61639306657e6f94f41e5bcdf62197a6d90754",
+  "challenge_counts": {
+    "prompt_injection": 3,
+    "scope_version_ambiguity": 3,
+    "unanswerable": 4
+  },
+  "dev_source_overlap_count": 0,
+  "unique_core_source_documents": 42
+}

@@ -1495,6 +1495,79 @@ Vite는 1,735 modules를 build했다. 제한 샌드박스의 첫 unittest는 로
 socket bind가 금지돼 기존 소켓 테스트 23개가 `PermissionError`였으며, 동일 명령을
 소켓 허용 환경에서 재실행해 **786 tests OK, 6 skipped, 실패 0**을 확인했다.
 
+### 2026-09-04 Shadow60 추가 질문지 동결·검색 일반화 진단
+
+사람 holdout 검수는 미루되 기존 DEV45를 다시 튜닝하지 않기 위해, source-disjoint
+합성 진단 세트 Shadow60을 만들었다. 구성은 simple 24, multi 18, role variant 8,
+challenge 10(unanswerable 4, scope/version ambiguity 3, prompt injection 3)이다.
+core 42문항은 42개의 서로 다른 source document를 사용한다. DEV source manifest와
+document id·source SHA·연도 제거 제목·canonical URL을 모두 대조했다. 최초 후보의
+숨은 DEV source-family 중복 6건을 preflight에서 발견해 **점수 확인 전에** 교체했고,
+최종 DEV source overlap은 0이다. 이후 질문과 gold는 SHA
+`0906e6c8de40040915e668e6cf61639306657e6f94f41e5bcdf62197a6d90754`로
+고정했으며 결과를 보고 수정하지 않았다.
+
+생성·검증 명령은 `build_shadow_testset.py`, `validate_shadow_testset.py --report
+evidence/20260914/shadow60-v1-preflight.json`이었고, C0/C1 local service에 대해
+`collect_service_answers.py`를 `provider=extractive`, `context-k=8`,
+`eval-trace`로 각 60문항 실행했다. C0는 port 18810의
+`--no-retrieval-tuning`, C1은 port 18811의 현재 tuning이며 외부 API 호출은 0회다.
+두 조건 모두 60/60 성공·error 0이다. `analyze_shadow_retrieval.py
+--bootstrap 10000 --seed 20260904`로 paired family-cluster bootstrap과 exact
+McNemar를 계산했다.
+
+| core 42 | C0 | C1 | 차이 |
+|---|---:|---:|---:|
+| source hit@5 | 40/42 | 38/42 | -2 |
+| source hit@8 | 41/42 | 39/42 | -2 |
+| all required evidence@5 | 21/42 | 20/42 | -1 |
+| all required evidence@8 | 22/42 | 21/42 | -1 |
+| evidence recall@8 | .6071 | .5833 | -.0238 |
+
+source hit@8 차이의 cluster bootstrap 95% CI는 `[-.1190, 0]`, McNemar
+p=`.5`; all evidence@8은 CI `[-.1190,+.0476]`, p=`1.0`이다. role variant
+8문항은 source hit@8 8/8, all evidence@8 7/8로 두 조건이 같았다. 전체 answerable
+53문항의 all evidence@8은 C0 29/53에서 C1 28/53으로, C1 1건 개선·2건
+악화·50건 동일이었다. 따라서 이 진단 세트에서는 C1의 양의 일반화 효과가
+관측되지 않았고, 차이도 통계적으로 확정되지 않았다.
+
+**동결 후 발견:** 악화 2건은 모두 연도 불일치 후보 강등의 false positive였다.
+`shadow_sch_01`은 HTML 식별자 `203839`를 연도 `2038`로 오인해 정답 chunk의
+rank가 1→71로 밀렸다. `shadow_grad_02`는 파일명/title이 2025지만 실제 표의
+일정이 2026이라 정답 chunk가 rank 2→52로 밀렸다. 개선 1건
+`shadow_sup_02`는 facet sibling completion이 일정 본문 chunk를 보충한 경우다.
+동결 원칙에 따라 production 검색 코드는 고치지 않았다.
+
+또한 source hit@8이 97.62%인데 strict all evidence@8이 52.38%인 C0 결과는
+남은 병목이 source 발견보다 문서 내부 chunk 선택·context 완성에 가깝다는 것을
+보인다. 단, atomic gold가 선택한 하나의 full chunk를 엄격히 맞추므로 같은 source의
+다른 충분한 chunk도 실패할 수 있다는 측정 한계가 있다. 점수 확인 뒤 gold를
+완화하지 않았다.
+
+정본 SHA-256은 다음과 같다.
+
+- blueprint: `9e0298f6e60fcef1fdca55e37d870cdb5cd7e9cd1a2591750dfa7879d05adbe7`
+- frozen cases: `0906e6c8de40040915e668e6cf61639306657e6f94f41e5bcdf62197a6d90754`
+- builder: `dcd9efac85b9e9b60034524664b5925bdf252d813bb2c6914537502f64d3f57c`
+- validator: `a1b18b4d62d760ca16d8dc4326c48c745594061b2f0a0b544b1a55c7e639b28b`
+- analyzer: `0415abcf3d3a0d5e0e3f6120df1dd4a8a23b4a6d94c7d2685f0c79799552d34e`
+- tests: `test_shadow_testset.py`
+  `d88b313baa31e9e9d2836e982e22571956365d6e948193bc3c566ebdfe5c1730`,
+  `test_analyze_shadow_retrieval.py`
+  `f7bb60e36e6a8041510ccd4134ee24f704ec5c865c3052cc29acca93322fdbdb`
+- preflight report: `a16116b42ab14bb93a36be0971e2f44eba378b3fe05fcdcf5a0618e96fa4f93a`
+- C0 answers: `6fd0a8d7f594ccf0f1bf0293ca1991885d13f58c13dc953f48535a9fe8cd1b97`
+- C1 answers: `164980441dbb90244517db1a6e55086c0dedc6ca1f630014a8841d387795177d`
+- analysis JSON: `dda7cbef89ba7e2f51ae01ee49810385af8a157a851db8bd69743d4eaee907b5`
+- analysis CSV: `0619a6acdf040d62a384ee9340434424b07e9b3c635175a5661004b6c82e23c4`
+- 설명 문서: `docs/shadow60-evaluation-20260904.md`,
+  `e4db98d9e585a65445a52e79bc8c0feba3a964965e1ab128c11f871fd20c129a`
+
+`git diff --check`, 전체 unittest, `bun run lint`, `bun run build`가 모두
+통과했다. unittest는 **793 tests OK, 6 skipped, 실패 0**, Vite build는 1,735
+modules였고 표적 Shadow 테스트는 7개 모두 통과했다. frozen production service
+파일 3개와 금지된 holdout 파일은 읽거나 수정하지 않았다.
+
 ## 다음 우선순위
 
 1. 현재 cases/packet SHA에 대해 사람 2인이 읽기 전용
