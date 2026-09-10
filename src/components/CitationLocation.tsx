@@ -35,6 +35,7 @@ export default function CitationLocation({
   return (
     <div
       aria-label="원문 위치"
+      role="group"
       className={`citation-location ${compact ? 'is-compact' : ''}`}
     >
       {page && <span>{page}</span>}

@@ -20,6 +20,9 @@
 - claim 단위 근거 검증 및 출처 번호 표시
 - 역할 기반 응답: 프리셋·자유입력 역할을 매핑해 검색 소프트 우선순위와 답변 관점에 반영
 - React + Vite + TypeScript 프론트엔드
+- 질문 중심의 반응형 채팅 화면, 접을 수 있는 사이드바와 모바일 대화 목록
+- 최근 30개 대화의 브라우저 저장·검색·복원, 삭제와 되돌리기
+- Markdown 표·목록·강조, 답변 복사·재생성, 인용 번호로 해당 출처 이동
 - 답변 생성 단계 표시
   - 문서 검색
   - 답변 생성
@@ -353,6 +356,36 @@ bun run dev -- --host localhost
 http://localhost:5173
 ```
 
+첫 화면의 추천 질문을 누르면 기관과 질문이 입력되며, 내용을 수정한 뒤
+전송할 수 있습니다. Enter로 전송하고 Shift + Enter로 줄을 바꿉니다.
+한글을 조합하는 중에는 Enter가 질문을 전송하지 않습니다.
+모델·역할·검색 방식은 **답변 설정**, 문서·문장 검증·원문 위치는
+**근거 문서**에서 확인합니다.
+
+대화 기록은 이 브라우저의 `localStorage`에만 저장됩니다. 최근 30개를
+유지하며, 브라우저 데이터를 지우면 기록도 사라집니다. 기록 저장 기능과
+별개로 `/chat` API는 기존과 같이 각 질문을 독립적으로 처리합니다.
+서버 연결 전에도 질문을 작성할 수 있으며, 전송은 검색 서비스 연결 후
+활성화됩니다.
+
+프론트엔드 테스트와 V8 커버리지는 Node.js 24 LTS에서 실행합니다.
+
+```bash
+npm run test:frontend
+npm run test:coverage
+```
+
+변경한 `App`·채팅 컴포넌트·대화 상태·표시 및 입력 설정 로직의 문장,
+분기, 함수, 라인 커버리지를 모두 100%로 검사합니다. HTML 보고서는
+`coverage/frontend/index.html`에 생성됩니다. 서버 API는 테스트 대역으로
+검증하며, Python 백엔드와 실제 AI 호출의 커버리지는 이 수치에 포함하지 않습니다.
+테스트에는 저장 데이터 손상, 무작위 대화 조작, 취소·재시도, 한글 입력,
+키보드 탐색 및 axe 접근성 검사가 포함됩니다.
+
+실제 브라우저의 색 대비 검사는 개발 서버에서
+`/tests/frontend/browser-audit.html`을 열어 실행할 수 있습니다.
+이 검증 화면은 production build에 포함되지 않습니다.
+
 ## 데이터 파이프라인
 
 ### 3개 프로필 파서 파이프라인
@@ -557,7 +590,7 @@ BM25/Dense/RRF/reranker 실행 trace가 포함됩니다.
 bun run check
 ```
 
-`bun run check`는 Python 단위 테스트, ESLint, TypeScript/Vite production build를 한 번에 실행합니다.
+`bun run check`는 Python 단위 테스트, ESLint, 프론트엔드 타입 검사와 100% 커버리지 검사, TypeScript/Vite production build를 한 번에 실행합니다. V8 커버리지를 위해 Node.js 24 LTS가 PATH에 있어야 합니다.
 
 ## 개발 방식
 
