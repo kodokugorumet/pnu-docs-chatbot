@@ -56,7 +56,7 @@ import ChatComposer from './components/ChatComposer'
 import ChatSidebar from './components/ChatSidebar'
 import Dialog from './components/Dialog'
 import useConversations from './hooks/useConversations'
-import type { Message } from './types/chat'
+import type { Conversation, Message } from './types/chat'
 import {
   cleanPreview,
   resultScoreLabel,
@@ -194,7 +194,9 @@ function App() {
   const [highlightedSource, setHighlightedSource] = useState<number | null>(
     null,
   )
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(
+    null,
+  )
   const [toast, setToast] = useState('')
   const [showScrollButton, setShowScrollButton] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -211,7 +213,8 @@ function App() {
   const [roleChoice, setRoleChoice] = useState(noRole)
   const [customRole, setCustomRole] = useState('')
   const [provider, setProvider] = useState<GenerationProvider>('auto')
-  const [parserProfile, setParserProfile] = useState<ParserProfile>('cascade')
+  const [parserProfile, setParserProfile] =
+    useState<ParserProfile>('cascade')
   const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>('bm25')
   const [localModelPreference, setLocalModelPreference] = useState<
     string | null
@@ -238,6 +241,7 @@ function App() {
   const [requestElapsedSeconds, setRequestElapsedSeconds] = useState(0)
   const messageStreamRef = useRef<HTMLDivElement | null>(null)
   const activeRequestRef = useRef<AbortController | null>(null)
+  const requestConversationIdRef = useRef<string | null>(null)
   const localModelUnloadRequestRef = useRef(false)
   const healthRefreshSequenceRef = useRef(0)
   const defaultProviderAppliedRef = useRef(false)
@@ -275,7 +279,8 @@ function App() {
     [parserProfile, parserProfileCapabilities],
   )
   const selectedParserProfileReady =
-    health?.ready === true && selectedParserProfileCapability?.ready === true
+    health?.ready === true &&
+    selectedParserProfileCapability?.ready === true
   const retrievalModeCapabilities = useMemo(
     () => getRetrievalModeCapabilities(health, parserProfile),
     [health, parserProfile],
@@ -290,12 +295,15 @@ function App() {
   const selectedRetrievalModeReady =
     selectedRetrievalModeCapability?.ready === true
   const localProviderCapability = useMemo(
-    () => providerCapabilities.find((capability) => capability.id === 'local'),
+    () =>
+      providerCapabilities.find((capability) => capability.id === 'local'),
     [providerCapabilities],
   )
   const frontierProviderCapability = useMemo(
     () =>
-      providerCapabilities.find((capability) => capability.id === 'frontier'),
+      providerCapabilities.find(
+        (capability) => capability.id === 'frontier',
+      ),
     [providerCapabilities],
   )
   const selectedLocalModel = useMemo(() => {
@@ -310,7 +318,8 @@ function App() {
     }
 
     const configured =
-      localProviderCapability?.defaultModel ?? localProviderCapability?.model
+      localProviderCapability?.defaultModel ??
+      localProviderCapability?.model
     const configuredModel = configured
       ? models.find((model) => model.id === configured)
       : undefined
@@ -323,7 +332,8 @@ function App() {
     const models = frontierProviderCapability?.models ?? []
     const preferred = frontierModelPreference
       ? models.find(
-          (model) => model.id === frontierModelPreference && model.available,
+          (model) =>
+            model.id === frontierModelPreference && model.available,
         )
       : undefined
     if (preferred) {
@@ -350,7 +360,9 @@ function App() {
   )
   const selectedAnswer = useMemo(
     () =>
-      assistantMessages.find((message) => message.id === selectedMessageId) ??
+      assistantMessages.find(
+        (message) => message.id === selectedMessageId,
+      ) ??
       assistantMessages.at(-1) ??
       null,
     [assistantMessages, selectedMessageId],
@@ -365,7 +377,10 @@ function App() {
         getHealth(signal),
         getInstitutions(parserProfile, signal),
       ])
-      if (signal?.aborted || sequence !== healthRefreshSequenceRef.current) {
+      if (
+        signal?.aborted ||
+        sequence !== healthRefreshSequenceRef.current
+      ) {
         return
       }
 
@@ -394,7 +409,8 @@ function App() {
           setProvider((current) =>
             current === 'auto' ||
             nextCapabilities.some(
-              (capability) => capability.id === current && capability.available,
+              (capability) =>
+                capability.id === current && capability.available,
             )
               ? current
               : 'auto',
@@ -410,7 +426,8 @@ function App() {
           )
           setParserProfile(
             preferredCapability?.id ??
-              nextParserProfiles.find((capability) => capability.ready)?.id ??
+              nextParserProfiles.find((capability) => capability.ready)
+                ?.id ??
               preferredParserProfile,
           )
           defaultParserProfileAppliedRef.current = true
@@ -445,7 +462,9 @@ function App() {
         ]
         setInstitutions(availableInstitutions)
         setInstitution((current) =>
-          availableInstitutions.includes(current) ? current : allInstitutions,
+          availableInstitutions.includes(current)
+            ? current
+            : allInstitutions,
         )
       }
       setIsHealthRefreshing(false)
@@ -525,6 +544,18 @@ function App() {
   }, [isLoading])
 
   useEffect(() => {
+    if (
+      activeRequestRef.current &&
+      requestConversationIdRef.current !== activeId
+    ) {
+      activeRequestRef.current.abort()
+      activeRequestRef.current = null
+      setIsLoading(false)
+      setPendingProvider(null)
+    }
+  }, [activeId])
+
+  useEffect(() => {
     const stream = messageStreamRef.current
     if (!stream) {
       return
@@ -560,7 +591,9 @@ function App() {
     ? institution
     : allInstitutions
   const activeInstitution =
-    selectedInstitution === allInstitutions ? undefined : selectedInstitution
+    selectedInstitution === allInstitutions
+      ? undefined
+      : selectedInstitution
 
   async function submitQuestion(
     question: string,
@@ -573,13 +606,19 @@ function App() {
       ? options.institution
       : activeInstitution
     const providerOverride = options.provider ?? provider
-    const roleOverride = Object.prototype.hasOwnProperty.call(options, 'role')
+    const roleOverride = Object.prototype.hasOwnProperty.call(
+      options,
+      'role',
+    )
       ? options.role
       : activeRole
     const topKOverride = options.topK ?? topK
     const parserProfileOverride = options.parserProfile ?? parserProfile
     const retrievalModeOverride = options.retrievalMode ?? retrievalMode
-    const modelOverride = Object.prototype.hasOwnProperty.call(options, 'model')
+    const modelOverride = Object.prototype.hasOwnProperty.call(
+      options,
+      'model',
+    )
       ? options.model
       : providerOverride === 'local'
         ? selectedLocalModel
@@ -629,19 +668,21 @@ function App() {
       top_k: topKOverride,
       parser_profile: parserProfileOverride,
       retrieval_mode: retrievalModeOverride,
-      ...((providerOverride === 'local' || providerOverride === 'frontier') &&
+      ...((providerOverride === 'local' ||
+        providerOverride === 'frontier') &&
       normalizedModel
         ? { model: normalizedModel }
         : {}),
     }
 
+    let conversationId = activeId
     if (appendUser) {
       const userMessage: Message = {
         id: makeId(),
         role: 'user',
         content: trimmed,
       }
-      setMessages((current) => [...current, userMessage])
+      conversationId = setMessages((current) => [...current, userMessage])
     }
     const requestStartedAt = window.performance.now()
     setInput('')
@@ -656,6 +697,7 @@ function App() {
 
     const controller = new AbortController()
     activeRequestRef.current = controller
+    requestConversationIdRef.current = conversationId
 
     try {
       const data = await requestChat(request, controller.signal)
@@ -675,7 +717,7 @@ function App() {
         request,
         durationMs: window.performance.now() - requestStartedAt,
       }
-      setMessages((current) => [...current, answer])
+      setMessages((current) => [...current, answer], conversationId)
       setSelectedMessageId(answer.id)
       setSourceTab(answer.claims?.length ? 'claims' : 'sources')
     } catch (error) {
@@ -683,10 +725,13 @@ function App() {
       const apiError =
         error instanceof RagApiError
           ? error
-          : new RagApiError('요청을 처리하지 못했습니다. 다시 시도해 주세요.', {
-              code: 'unknown_error',
-              retryable: true,
-            })
+          : new RagApiError(
+              '요청을 처리하지 못했습니다. 다시 시도해 주세요.',
+              {
+                code: 'unknown_error',
+                retryable: true,
+              },
+            )
       const answer: Message = {
         id: makeId(),
         role: 'assistant',
@@ -702,7 +747,7 @@ function App() {
         parserProfile: parserProfileOverride,
         durationMs: window.performance.now() - requestStartedAt,
       }
-      setMessages((current) => [...current, answer])
+      setMessages((current) => [...current, answer], conversationId)
       setSelectedMessageId(answer.id)
       setSourceTab('sources')
     } finally {
@@ -757,10 +802,17 @@ function App() {
 
   function changeConversation(id: string | null) {
     if (activeRequestRef.current) return
-    if (id) {
-      const lastRequest = conversations
-        .find((conversation) => conversation.id === id)
-        ?.messages.findLast((message) => message.request)?.request
+    selectConversation(id)
+    resetConversationView(
+      conversations.find((conversation) => conversation.id === id),
+    )
+  }
+
+  function resetConversationView(conversation: Conversation | undefined) {
+    if (conversation) {
+      const lastRequest = conversation.messages.findLast(
+        (message) => message.request,
+      )?.request
       const savedInstitution = lastRequest?.institution ?? allInstitutions
       setInstitution(
         institutions.includes(savedInstitution)
@@ -768,7 +820,6 @@ function App() {
           : allInstitutions,
       )
     }
-    selectConversation(id)
     setInput('')
     setSelectedMessageId(null)
     setMobilePanel(null)
@@ -900,7 +951,9 @@ function App() {
               aria-label="근거 문서 열기"
               className="sources-trigger"
               disabled={!selectedAnswer}
-              onClick={() => selectedAnswer && openSources(selectedAnswer.id)}
+              onClick={() =>
+                selectedAnswer && openSources(selectedAnswer.id)
+              }
               type="button"
             >
               <PanelRightOpen size={17} />
@@ -951,7 +1004,9 @@ function App() {
               onScroll={(event) => {
                 const stream = event.currentTarget
                 const nearBottom =
-                  stream.scrollHeight - stream.scrollTop - stream.clientHeight <
+                  stream.scrollHeight -
+                    stream.scrollTop -
+                    stream.clientHeight <
                   100
                 stickToBottomRef.current = nearBottom
                 setShowScrollButton(!nearBottom)
@@ -960,7 +1015,8 @@ function App() {
             >
               <div className="message-list">
                 {messages.map((message) => {
-                  const supportedClaimCount = getSupportedClaimCount(message)
+                  const supportedClaimCount =
+                    getSupportedClaimCount(message)
                   const claimCount = message.claims?.length ?? 0
                   const sourceCount = message.results?.length ?? 0
                   const documentCount = uniqueDocumentCount(message.results)
@@ -981,7 +1037,11 @@ function App() {
                       key={message.id}
                     >
                       {message.role === 'assistant' && (
-                        <img className="avatar" src={sanjiniSrc} alt="산지니" />
+                        <img
+                          className="avatar"
+                          src={sanjiniSrc}
+                          alt="산지니"
+                        />
                       )}
                       <div className="message-bubble">
                         {message.role === 'assistant' && (
@@ -1076,13 +1136,18 @@ function App() {
                                 )}
                                 {typeof message.durationMs === 'number' && (
                                   <span>
-                                    총 {(message.durationMs / 1000).toFixed(1)}
+                                    총{' '}
+                                    {(message.durationMs / 1000).toFixed(1)}
                                     초
                                   </span>
                                 )}
                                 {retrieval && <span>{retrieval}</span>}
-                                {deduplication && <span>{deduplication}</span>}
-                                {requestTrace && <span>{requestTrace}</span>}
+                                {deduplication && (
+                                  <span>{deduplication}</span>
+                                )}
+                                {requestTrace && (
+                                  <span>{requestTrace}</span>
+                                )}
                               </div>
                             </details>
                           )}
@@ -1154,7 +1219,8 @@ function App() {
                                         topK:
                                           originalRequest.top_k ??
                                           defaultEvidenceTopK,
-                                        model: originalRequest.model ?? null,
+                                        model:
+                                          originalRequest.model ?? null,
                                         parserProfile:
                                           originalRequest.parser_profile,
                                         retrievalMode:
@@ -1203,8 +1269,8 @@ function App() {
                       </div>
                       {requestElapsedSeconds >= 20 && (
                         <p className="loading-explanation">
-                          잠시 기다리거나, 아래 중지 버튼을 눌러 다시 질문할 수
-                          있어요.
+                          잠시 기다리거나, 아래 중지 버튼을 눌러 다시 질문할
+                          수 있어요.
                         </p>
                       )}
                     </div>
@@ -1295,8 +1361,8 @@ function App() {
         )}
         {storageError && (
           <div className="storage-warning" role="status">
-            이 브라우저에 대화를 저장할 수 없어요. 필요한 답변은 복사해 보관해
-            주세요.
+            이 브라우저에 대화를 저장할 수 없어요. 필요한 답변은 복사해
+            보관해 주세요.
           </div>
         )}
       </section>
@@ -1322,8 +1388,8 @@ function App() {
         </div>
         <div className="settings-body">
           <p className="settings-intro">
-            기본 설정으로 바로 질문할 수 있어요. 필요할 때 원하는 방식으로 바꿔
-            보세요.
+            기본 설정으로 바로 질문할 수 있어요. 필요할 때 원하는 방식으로
+            바꿔 보세요.
           </p>
           <div className="institution-control role-control">
             <label htmlFor="role-choice">
@@ -1531,7 +1597,11 @@ function App() {
                 role="tablist"
                 aria-label="근거 보기 방식"
                 onKeyDown={(event) => {
-                  const tabs: SourceTab[] = ['claims', 'sources', 'locations']
+                  const tabs: SourceTab[] = [
+                    'claims',
+                    'sources',
+                    'locations',
+                  ]
                   const current = tabs.indexOf(sourceTab)
                   const next =
                     event.key === 'ArrowRight'
@@ -1628,17 +1698,20 @@ function App() {
                                 ),
                               )}
                             </div>
-                            {claim.citations && claim.citations.length > 0 && (
-                              <div className="claim-locations">
-                                {claim.citations.map((citation, index) => (
-                                  <CitationLocation
-                                    compact
-                                    key={`${citation.source_number ?? 'source'}-${citation.block_id ?? index}`}
-                                    location={citation}
-                                  />
-                                ))}
-                              </div>
-                            )}
+                            {claim.citations &&
+                              claim.citations.length > 0 && (
+                                <div className="claim-locations">
+                                  {claim.citations.map(
+                                    (citation, index) => (
+                                      <CitationLocation
+                                        compact
+                                        key={`${citation.source_number ?? 'source'}-${citation.block_id ?? index}`}
+                                        location={citation}
+                                      />
+                                    ),
+                                  )}
+                                </div>
+                              )}
                           </article>
                         ))}
                       </div>
@@ -1647,7 +1720,8 @@ function App() {
                         <ListChecks size={26} />
                         <strong>검증 문장이 없습니다.</strong>
                         <p>
-                          답변 문장을 분리하지 못했거나 검색 근거가 부족합니다.
+                          답변 문장을 분리하지 못했거나 검색 근거가
+                          부족합니다.
                         </p>
                       </div>
                     )}
@@ -1676,10 +1750,14 @@ function App() {
                               className={`citation-card ${highlightedSource === (result.source_number ?? index + 1) ? 'is-highlighted' : ''}`}
                               id={`source-${result.source_number ?? index + 1}`}
                               tabIndex={-1}
-                              key={result.chunk_id || `${fileName}-${index}`}
+                              key={
+                                result.chunk_id || `${fileName}-${index}`
+                              }
                             >
                               <div className="citation-topline">
-                                <span>{result.institution ?? '기관 미상'}</span>
+                                <span>
+                                  {result.institution ?? '기관 미상'}
+                                </span>
                                 <strong>
                                   출처 {result.source_number ?? index + 1}
                                 </strong>
@@ -1736,7 +1814,8 @@ function App() {
                                 </a>
                               )}
                               {result.download_url &&
-                                result.download_url !== result.source_url && (
+                                result.download_url !==
+                                  result.source_url && (
                                   <a
                                     className="source-link"
                                     href={result.download_url}
@@ -1785,7 +1864,9 @@ function App() {
                           </strong>
                           <span>{result.institution ?? '기관 미상'}</span>
                           {(result.relative_path || result.source_path) && (
-                            <p>{result.relative_path ?? result.source_path}</p>
+                            <p>
+                              {result.relative_path ?? result.source_path}
+                            </p>
                           )}
                           {locationSummary.locations.length > 0 ? (
                             <div className="location-details">
@@ -1839,7 +1920,8 @@ function App() {
               <Clock3 size={26} />
               <strong>아직 선택된 답변이 없습니다.</strong>
               <p>
-                질문을 보내면 답변에 참고한 문서와 원문 위치를 확인할 수 있어요.
+                질문을 보내면 답변에 참고한 문서와 원문 위치를 확인할 수
+                있어요.
               </p>
             </div>
           )}
@@ -1854,8 +1936,7 @@ function App() {
               disabled={isLoading}
               onClick={() => {
                 restoreConversation()
-                setSelectedMessageId(null)
-                stickToBottomRef.current = true
+                resetConversationView(deleted)
               }}
               type="button"
             >

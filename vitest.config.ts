@@ -19,6 +19,7 @@ export default defineConfig({
         'src/components/Dialog.tsx',
         'src/hooks/useConversations.ts',
         'src/state/conversations.ts',
+        'src/state/conversationStorage.ts',
         'src/chat/presentation.ts',
         'src/chat/settings.ts',
         'src/state/messageValidation.ts',

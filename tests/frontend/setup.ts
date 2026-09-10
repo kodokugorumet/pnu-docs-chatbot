@@ -36,12 +36,25 @@ Object.defineProperty(navigator, 'clipboard', {
 Object.defineProperty(HTMLFormElement.prototype, 'requestSubmit', {
   configurable: true,
   value() {
-    this.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    this.dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    )
   },
 })
 
 beforeEach(() => {
   localStorage.clear()
+  let queue = Promise.resolve<unknown>(undefined)
+  Object.defineProperty(navigator, 'locks', {
+    configurable: true,
+    value: {
+      request: vi.fn((_name: string, run: () => unknown) => {
+        const next = queue.then(run)
+        queue = next.catch(() => {})
+        return next
+      }),
+    },
+  })
 })
 afterEach(() => {
   cleanup()

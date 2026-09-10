@@ -8,7 +8,9 @@ import type { Message } from '../types/chat'
 type Check = (value: unknown) => boolean
 type Fields = Record<string, Check>
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
+  return (
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+  )
 }
 const text: Check = (value) => typeof value === 'string'
 const number: Check = (value) =>
@@ -61,18 +63,13 @@ const result = shape(
   { chunk_id: text },
   {
     ...locationFields,
+    ...fields(text, 'doc_id', 'document_id', 'preview'),
     ...fields(
-      text,
-      'doc_id',
-      'document_id',
+      nullable(text),
       'institution',
       'file_name',
       'source_path',
       'relative_path',
-      'preview',
-    ),
-    ...fields(
-      nullable(text),
       'source_title',
       'source_url',
       'download_url',
@@ -81,14 +78,8 @@ const result = shape(
       'published_at',
       'category',
     ),
-    ...fields(
-      number,
-      'source_number',
-      'chunk_index',
-      'char_count',
-      'score',
-      'location_count',
-    ),
+    ...fields(number, 'source_number', 'char_count', 'location_count'),
+    ...fields(nullable(number), 'chunk_index', 'score'),
     ...fields(array(text), 'table_ids', 'block_ids'),
     page_start: nullable(number),
     section_path: nullable((value) => text(value) || array(text)(value)),

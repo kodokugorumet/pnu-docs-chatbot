@@ -67,7 +67,9 @@ async function ask(value = '휴학 질문') {
     screen.getByRole('textbox', { name: '질문 입력' }).closest('form')!,
   )
   await waitFor(() =>
-    expect(screen.queryByRole('button', { name: '답변 생성 중지' })).toBeNull(),
+    expect(
+      screen.queryByRole('button', { name: '답변 생성 중지' }),
+    ).toBeNull(),
   )
 }
 function settings() {
@@ -80,14 +82,19 @@ function closeSettings() {
 
 it('starts from recommendations, sends the selected institution and opens the exact citation', async () => {
   await boot()
-  fireEvent.click(screen.getByRole('link', { name: '질문 입력으로 건너뛰기' }))
+  fireEvent.click(
+    screen.getByRole('link', { name: '질문 입력으로 건너뛰기' }),
+  )
   expect(document.activeElement).toBe(
     screen.getByRole('textbox', { name: '질문 입력' }),
   )
   fireEvent.click(screen.getByRole('button', { name: /학교 생활휴학은/ }))
   expect(
-    (screen.getByRole('textbox', { name: '질문 입력' }) as HTMLTextAreaElement)
-      .value,
+    (
+      screen.getByRole('textbox', {
+        name: '질문 입력',
+      }) as HTMLTextAreaElement
+    ).value,
   ).toContain('부산대학교')
   fireEvent.click(screen.getByRole('button', { name: '질문 보내기' }))
   await screen.findByRole('button', { name: '출처 2개' })
@@ -128,7 +135,9 @@ it('starts from recommendations, sends the selected institution and opens the ex
   )
   fireEvent.click(screen.getByRole('button', { name: '복사' }))
   await screen.findByRole('button', { name: '복사 완료' })
-  expect(navigator.clipboard.writeText).toHaveBeenCalledWith(response().answer)
+  expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+    response().answer,
+  )
   fireEvent.click(screen.getByRole('button', { name: '다시 답변' }))
   await waitFor(() => expect(chat).toHaveBeenCalledTimes(2))
   expect(
@@ -143,14 +152,21 @@ it('persists real history, changes conversations and restores deleted transcript
   await ask('다른 질문')
   fireEvent.click(screen.getByRole('button', { name: '휴학 질문' }))
   expect(
-    (screen.getByRole('combobox', { name: '검색 기관' }) as HTMLSelectElement)
-      .value,
+    (
+      screen.getByRole('combobox', {
+        name: '검색 기관',
+      }) as HTMLSelectElement
+    ).value,
   ).toBe('전체 기관')
-  fireEvent.click(screen.getByRole('button', { name: '휴학 질문 대화 삭제' }))
+  fireEvent.click(
+    screen.getByRole('button', { name: '휴학 질문 대화 삭제' }),
+  )
   expect(screen.queryByRole('heading', { name: '신청 안내' })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: '되돌리기' }))
   expect(screen.getByRole('heading', { name: '신청 안내' })).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: '다른 질문 대화 삭제' }))
+  fireEvent.click(
+    screen.getByRole('button', { name: '다른 질문 대화 삭제' }),
+  )
   fireEvent.click(screen.getByRole('button', { name: '알림 닫기' }))
   expect(screen.queryByText('대화를 삭제했어요.')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: '사이드바 접기' }))
@@ -169,24 +185,100 @@ it('persists real history, changes conversations and restores deleted transcript
   )
 })
 
+it('restores the deleted conversation institution and clears the previous conversation draft', async () => {
+  await boot()
+  fireEvent.change(screen.getByRole('combobox', { name: '검색 기관' }), {
+    target: { value: '부산대학교' },
+  })
+  await ask('학교 질문')
+  fireEvent.click(screen.getByRole('button', { name: '새 대화' }))
+  fireEvent.change(screen.getByRole('combobox', { name: '검색 기관' }), {
+    target: { value: '한국거래소' },
+  })
+  await ask('거래소 질문')
+  fireEvent.click(
+    screen.getByRole('button', { name: '학교 질문 대화 삭제' }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: '거래소 질문' }))
+  input('거래소의 미완성 질문')
+  fireEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+  expect(
+    (
+      screen.getByRole('combobox', {
+        name: '검색 기관',
+      }) as HTMLSelectElement
+    ).value,
+  ).toBe('부산대학교')
+  expect(
+    (
+      screen.getByRole('textbox', {
+        name: '질문 입력',
+      }) as HTMLTextAreaElement
+    ).value,
+  ).toBe('')
+  await ask('복원한 학교 질문')
+  expect(chat.mock.calls.at(-1)![0].institution).toBe('부산대학교')
+})
+
+it('keeps an answer readable after reload when server document metadata is null', async () => {
+  chat.mockResolvedValue(
+    response({
+      results: [
+        {
+          chunk_id: 'nullable-source',
+          document_id: 'nullable-document',
+          source_number: 1,
+          institution: null,
+          file_name: null,
+          source_path: null,
+          relative_path: null,
+          chunk_index: null,
+          score: null,
+          preview: '본문은 있지만 메타데이터는 없는 문서',
+        },
+      ],
+    }),
+  )
+  const view = await boot()
+  await ask('메타데이터 없는 문서 질문')
+  view.unmount()
+  await boot()
+  expect(screen.getByRole('heading', { name: '신청 안내' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '출처 1개' }))
+  const dialog = within(screen.getByRole('dialog', { name: '근거 문서' }))
+  expect(dialog.getByText('기관 미상')).toBeTruthy()
+  expect(
+    dialog.getByText('본문은 있지만 메타데이터는 없는 문서'),
+  ).toBeTruthy()
+})
+
 it('uses chosen model, role, parser, retrieval and evidence options in the request', async () => {
   await boot()
   const dialog = settings()
   fireEvent.change(dialog.getByRole('combobox', { name: '내 역할 선택' }), {
     target: { value: 'custom' },
   })
-  fireEvent.change(dialog.getByRole('textbox', { name: '역할 직접 입력' }), {
-    target: { value: ' 대학원생 ' },
-  })
-  fireEvent.change(dialog.getByRole('combobox', { name: '답변 생성 제공자' }), {
-    target: { value: 'local' },
-  })
+  fireEvent.change(
+    dialog.getByRole('textbox', { name: '역할 직접 입력' }),
+    {
+      target: { value: ' 대학원생 ' },
+    },
+  )
+  fireEvent.change(
+    dialog.getByRole('combobox', { name: '답변 생성 제공자' }),
+    {
+      target: { value: 'local' },
+    },
+  )
   fireEvent.change(dialog.getByRole('combobox', { name: '로컬 모델' }), {
     target: { value: 'local-b' },
   })
-  fireEvent.change(dialog.getByRole('combobox', { name: '검색 파싱 버전' }), {
-    target: { value: 'baseline' },
-  })
+  fireEvent.change(
+    dialog.getByRole('combobox', { name: '검색 파싱 버전' }),
+    {
+      target: { value: 'baseline' },
+    },
+  )
   await waitFor(() =>
     expect(getInstitutions).toHaveBeenLastCalledWith(
       'baseline',
@@ -208,9 +300,12 @@ it('uses chosen model, role, parser, retrieval and evidence options in the reque
     top_k: 12,
   })
   const other = settings()
-  fireEvent.change(other.getByRole('combobox', { name: '답변 생성 제공자' }), {
-    target: { value: 'frontier' },
-  })
+  fireEvent.change(
+    other.getByRole('combobox', { name: '답변 생성 제공자' }),
+    {
+      target: { value: 'frontier' },
+    },
+  )
   fireEvent.change(other.getByRole('combobox', { name: 'Gemini 모델' }), {
     target: { value: 'frontier-b' },
   })
@@ -256,7 +351,9 @@ it('does not transmit blank or over-limit questions', async () => {
   expect(chat).not.toHaveBeenCalled()
   await ask('가'.repeat(1001))
   expect(chat).not.toHaveBeenCalled()
-  expect(screen.getByText('질문은 1,000자 이내로 입력해 주세요.')).toBeTruthy()
+  expect(
+    screen.getByText('질문은 1,000자 이내로 입력해 주세요.'),
+  ).toBeTruthy()
 })
 
 it('allows drafting offline, reconnects, and preserves malformed-status error detail', async () => {
@@ -271,13 +368,19 @@ it('allows drafting offline, reconnects, and preserves malformed-status error de
   fireEvent.click(screen.getByRole('button', { name: '다시 연결' }))
   await waitFor(() =>
     expect(
-      (screen.getByRole('button', { name: '질문 보내기' }) as HTMLButtonElement)
-        .disabled,
+      (
+        screen.getByRole('button', {
+          name: '질문 보내기',
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false),
   )
   expect(
-    (screen.getByRole('textbox', { name: '질문 입력' }) as HTMLTextAreaElement)
-      .value,
+    (
+      screen.getByRole('textbox', {
+        name: '질문 입력',
+      }) as HTMLTextAreaElement
+    ).value,
   ).toBe('초안')
   const dialog = settings()
   fireEvent.click(dialog.getByText('검색 서비스 연결 상태'))
@@ -314,14 +417,19 @@ it('shows long-running progress, aborts the request and lets the user keep a nex
   await act(async () => {
     await vi.advanceTimersByTimeAsync(21000)
   })
-  expect(screen.getByText('답변에 시간이 조금 더 걸리고 있어요.')).toBeTruthy()
+  expect(
+    screen.getByText('답변에 시간이 조금 더 걸리고 있어요.'),
+  ).toBeTruthy()
   input('다음 초안')
   fireEvent.click(screen.getByRole('button', { name: '답변 생성 중지' }))
   await act(async () => {})
   expect(screen.getByText('요청 취소됨')).toBeTruthy()
   expect(
-    (screen.getByRole('textbox', { name: '질문 입력' }) as HTMLTextAreaElement)
-      .value,
+    (
+      screen.getByRole('textbox', {
+        name: '질문 입력',
+      }) as HTMLTextAreaElement
+    ).value,
   ).toBe('다음 초안')
 })
 
@@ -368,7 +476,9 @@ it('reports clipboard denial and dismisses transient copy messages', async () =>
     new Error('denied'),
   )
   fireEvent.click(screen.getByRole('button', { name: '복사' }))
-  await screen.findByText('복사하지 못했어요. 답변을 선택해서 복사해 주세요.')
+  await screen.findByText(
+    '복사하지 못했어요. 답변을 선택해서 복사해 주세요.',
+  )
   vi.useFakeTimers()
   fireEvent.click(screen.getByRole('button', { name: '알림 닫기' }))
   fireEvent.click(screen.getByRole('button', { name: '복사' }))
@@ -396,14 +506,18 @@ it('keeps reading position and scrolls to latest with the reduced-motion prefere
     matches: true,
   } as MediaQueryList)
   const scroll = vi.spyOn(stream, 'scrollTo')
-  fireEvent.click(screen.getByRole('button', { name: '최신 답변으로 이동' }))
+  fireEvent.click(
+    screen.getByRole('button', { name: '최신 답변으로 이동' }),
+  )
   expect(scroll).toHaveBeenCalledWith({ top: 2000, behavior: 'instant' })
   stream.scrollTop = 100
   fireEvent.scroll(stream)
   vi.mocked(window.matchMedia).mockReturnValue({
     matches: false,
   } as MediaQueryList)
-  fireEvent.click(screen.getByRole('button', { name: '최신 답변으로 이동' }))
+  fireEvent.click(
+    screen.getByRole('button', { name: '최신 답변으로 이동' }),
+  )
   expect(scroll).toHaveBeenLastCalledWith({ top: 2000, behavior: 'smooth' })
   stream.scrollTop = 1500
   fireEvent.scroll(stream)
@@ -461,16 +575,26 @@ describe('stored answers with varied evidence', () => {
         requested: 'pnu-student',
       },
     },
-  ])('shows usable empty states and optional metadata %#', async (variant) => {
-    seed([{ id: 'u', role: 'user', content: '저장' }, storedAnswer(variant)])
-    await boot()
-    fireEvent.click(screen.getByRole('button', { name: '근거 문서 열기' }))
-    const dialog = within(screen.getByRole('dialog', { name: '근거 문서' }))
-    fireEvent.click(dialog.getByRole('tab', { name: '검증' }))
-    fireEvent.click(dialog.getByRole('tab', { name: '위치' }))
-    fireEvent.click(dialog.getByRole('tab', { name: '문서' }))
-    expect(screen.getByRole('dialog', { name: '근거 문서' })).toBeTruthy()
-  })
+  ])(
+    'shows usable empty states and optional metadata %#',
+    async (variant) => {
+      seed([
+        { id: 'u', role: 'user', content: '저장' },
+        storedAnswer(variant),
+      ])
+      await boot()
+      fireEvent.click(
+        screen.getByRole('button', { name: '근거 문서 열기' }),
+      )
+      const dialog = within(
+        screen.getByRole('dialog', { name: '근거 문서' }),
+      )
+      fireEvent.click(dialog.getByRole('tab', { name: '검증' }))
+      fireEvent.click(dialog.getByRole('tab', { name: '위치' }))
+      fireEvent.click(dialog.getByRole('tab', { name: '문서' }))
+      expect(screen.getByRole('dialog', { name: '근거 문서' })).toBeTruthy()
+    },
+  )
   it('handles missing request info and deleted or unavailable institutions', async () => {
     seed(
       [
@@ -499,8 +623,12 @@ it('passes automated accessibility rules on the welcome, settings and answer vie
   expect((await axe.run(view.container, options)).violations).toEqual([])
   settings()
   expect(
-    (await axe.run(screen.getByRole('dialog', { name: '답변 설정' }), options))
-      .violations,
+    (
+      await axe.run(
+        screen.getByRole('dialog', { name: '답변 설정' }),
+        options,
+      )
+    ).violations,
   ).toEqual([])
   closeSettings()
   await ask()
@@ -513,7 +641,9 @@ it('warns on storage quota failures while keeping the current answer usable', as
   })
   await boot()
   await ask()
-  expect(screen.getByText(/이 브라우저에 대화를 저장할 수 없어요/)).toBeTruthy()
+  expect(
+    screen.getByText(/이 브라우저에 대화를 저장할 수 없어요/),
+  ).toBeTruthy()
   expect(screen.getByRole('button', { name: '복사' })).toBeTruthy()
 })
 
@@ -536,8 +666,11 @@ it('keeps archived requests with no sources usable and falls back from retired i
   await boot()
   fireEvent.click(screen.getByRole('button', { name: '저장된 대화' }))
   expect(
-    (screen.getByRole('combobox', { name: '검색 기관' }) as HTMLSelectElement)
-      .value,
+    (
+      screen.getByRole('combobox', {
+        name: '검색 기관',
+      }) as HTMLSelectElement
+    ).value,
   ).toBe('전체 기관')
   chat.mockResolvedValueOnce(
     response({
@@ -558,6 +691,11 @@ it('ignores rejected requests after unmount without modifying the saved transcri
   chat.mockReturnValueOnce(pending.promise)
   input('진행')
   fireEvent.click(screen.getByRole('button', { name: '질문 보내기' }))
+  await waitFor(() =>
+    expect(localStorage.getItem('pnu-docs.conversations.v1')).toContain(
+      '진행',
+    ),
+  )
   const saved = localStorage.getItem('pnu-docs.conversations.v1')
   view.unmount()
   await act(async () => pending.reject(new Error('late failure')))
@@ -565,11 +703,46 @@ it('ignores rejected requests after unmount without modifying the saved transcri
   expect(getHealth).toHaveBeenCalledOnce()
 })
 
+it('aborts an answer when its conversation is deleted in another tab and discards the late result', async () => {
+  await boot()
+  const pending = deferred<ChatResponse>()
+  chat.mockReturnValueOnce(pending.promise)
+  input('다른 탭에서 삭제할 질문')
+  fireEvent.click(screen.getByRole('button', { name: '질문 보내기' }))
+  const key = 'pnu-docs.conversations.v1'
+  await waitFor(() =>
+    expect(localStorage.getItem(key)).toContain('다른 탭에서 삭제할 질문'),
+  )
+  const { activeId } = JSON.parse(localStorage.getItem(key)!)
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      conversations: [],
+      activeId: null,
+      deletions: { [activeId]: 'remote-delete' },
+    }),
+  )
+  act(() =>
+    window.dispatchEvent(
+      new StorageEvent('storage', { key, storageArea: localStorage }),
+    ),
+  )
+  expect(chat.mock.calls[0][1]?.aborted).toBe(true)
+  expect(
+    screen.queryByRole('button', { name: '답변 생성 중지' }),
+  ).toBeNull()
+  await act(async () => pending.resolve(response()))
+  expect(screen.queryByRole('heading', { name: '신청 안내' })).toBeNull()
+  expect(JSON.parse(localStorage.getItem(key)!).conversations).toEqual([])
+})
+
 it('prevents same-frame double sends, navigation, deletion and model unloads during a request', async () => {
   await boot()
   await ask()
   const dialog = settings()
-  const unloadButton = dialog.getByRole('button', { name: /메모리에서 내리기/ })
+  const unloadButton = dialog.getByRole('button', {
+    name: /메모리에서 내리기/,
+  })
   closeSettings()
   const send = screen.getByRole('button', { name: '질문 보내기' }),
     newChat = screen.getByRole('button', { name: '새 대화' }),
@@ -617,7 +790,9 @@ it('does not force scrolling when a pending answer arrives while older text is b
   expect(stream.scrollTop).toBe(100)
 })
 
-const retrievalModes = (id: string) => [{ id, ready: true, model_loaded: true }]
+const retrievalModes = (id: string) => [
+  { id, ready: true, model_loaded: true },
+]
 it.each([
   {
     name: 'unavailable defaults',
@@ -668,29 +843,35 @@ it.each([
     parser: 'cascade',
     mode: 'bm25',
   },
-])('handles capability fallback: $name', async ({ status, parser, mode }) => {
-  getHealth.mockResolvedValue(status)
-  await boot()
-  const dialog = settings()
-  expect(
-    (
-      dialog.getByRole('combobox', {
-        name: '검색 파싱 버전',
-      }) as HTMLSelectElement
-    ).value,
-  ).toBe(parser)
-  expect(
-    (dialog.getByRole('combobox', { name: '검색 방식' }) as HTMLSelectElement)
-      .value,
-  ).toBe(mode)
-  expect(
-    (
-      dialog.getByRole('combobox', {
-        name: '답변 생성 제공자',
-      }) as HTMLSelectElement
-    ).value,
-  ).toBe('auto')
-})
+])(
+  'handles capability fallback: $name',
+  async ({ status, parser, mode }) => {
+    getHealth.mockResolvedValue(status)
+    await boot()
+    const dialog = settings()
+    expect(
+      (
+        dialog.getByRole('combobox', {
+          name: '검색 파싱 버전',
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe(parser)
+    expect(
+      (
+        dialog.getByRole('combobox', {
+          name: '검색 방식',
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe(mode)
+    expect(
+      (
+        dialog.getByRole('combobox', {
+          name: '답변 생성 제공자',
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe('auto')
+  },
+)
 
 it('periodically refreshes status and moves away from unavailable providers, profiles and retrieval modes', async () => {
   getHealth.mockResolvedValue(health({ default_provider: 'local' }))
@@ -734,8 +915,11 @@ it('periodically refreshes status and moves away from unavailable providers, pro
     ).value,
   ).toBe('baseline')
   expect(
-    (dialog.getByRole('combobox', { name: '검색 방식' }) as HTMLSelectElement)
-      .value,
+    (
+      dialog.getByRole('combobox', {
+        name: '검색 방식',
+      }) as HTMLSelectElement
+    ).value,
   ).toBe('snowflake_hybrid')
   closeSettings()
   await refresh(
@@ -751,17 +935,24 @@ it('periodically refreshes status and moves away from unavailable providers, pro
   )
   dialog = settings()
   expect(
-    (dialog.getByRole('combobox', { name: '검색 방식' }) as HTMLSelectElement)
-      .value,
+    (
+      dialog.getByRole('combobox', {
+        name: '검색 방식',
+      }) as HTMLSelectElement
+    ).value,
   ).toBe('bm25')
   closeSettings()
   await refresh(
     health({
-      parser_profiles: [{ id: 'baseline', ready: true, retrieval_modes: [] }],
+      parser_profiles: [
+        { id: 'baseline', ready: true, retrieval_modes: [] },
+      ],
       retrieval_modes: [],
     }),
   )
-  await refresh(health({ parser_profiles: [{ id: 'cascade', ready: false }] }))
+  await refresh(
+    health({ parser_profiles: [{ id: 'cascade', ready: false }] }),
+  )
   dialog = settings()
   expect(
     (
@@ -788,19 +979,31 @@ it('selects available models when configured defaults or previous choices disapp
   )
   await boot()
   const dialog = settings()
-  fireEvent.change(dialog.getByRole('combobox', { name: '답변 생성 제공자' }), {
-    target: { value: 'local' },
-  })
+  fireEvent.change(
+    dialog.getByRole('combobox', { name: '답변 생성 제공자' }),
+    {
+      target: { value: 'local' },
+    },
+  )
   expect(
-    (dialog.getByRole('combobox', { name: '로컬 모델' }) as HTMLSelectElement)
-      .value,
+    (
+      dialog.getByRole('combobox', {
+        name: '로컬 모델',
+      }) as HTMLSelectElement
+    ).value,
   ).toBe('available')
-  fireEvent.change(dialog.getByRole('combobox', { name: '답변 생성 제공자' }), {
-    target: { value: 'frontier' },
-  })
+  fireEvent.change(
+    dialog.getByRole('combobox', { name: '답변 생성 제공자' }),
+    {
+      target: { value: 'frontier' },
+    },
+  )
   expect(
-    (dialog.getByRole('combobox', { name: 'Gemini 모델' }) as HTMLSelectElement)
-      .value,
+    (
+      dialog.getByRole('combobox', {
+        name: 'Gemini 모델',
+      }) as HTMLSelectElement
+    ).value,
   ).toBe('available')
   fireEvent.change(dialog.getByRole('combobox', { name: 'Gemini 모델' }), {
     target: { value: 'available' },
@@ -834,8 +1037,11 @@ it('keeps restored institution labels and outgoing filters consistent after an i
   ])
   await boot()
   expect(
-    (screen.getByRole('combobox', { name: '검색 기관' }) as HTMLSelectElement)
-      .value,
+    (
+      screen.getByRole('combobox', {
+        name: '검색 기관',
+      }) as HTMLSelectElement
+    ).value,
   ).toBe('전체 기관')
   await ask('새 질문')
   expect(chat.mock.calls[0][0].institution).toBeUndefined()

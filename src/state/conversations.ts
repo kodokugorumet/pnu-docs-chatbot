@@ -18,12 +18,13 @@ export const emptyConversationState: ConversationState = {
   storageError: false,
 }
 
-type Action =
+export type ConversationAction =
   | {
       type: 'messages'
       update: Message[] | ((messages: Message[]) => Message[])
       id: string
       now: number
+      targetId?: string | null
     }
   | { type: 'select'; id: string | null }
   | { type: 'delete'; id: string }
@@ -74,12 +75,17 @@ export function parseConversations(raw: string | null): ConversationState {
 
 export function conversationReducer(
   state: ConversationState,
-  action: Action,
+  action: ConversationAction,
 ): ConversationState {
   switch (action.type) {
     case 'messages': {
+      if (
+        action.targetId !== undefined &&
+        !state.conversations.some((item) => item.id === action.targetId)
+      )
+        return state
       const current = state.conversations.find(
-        (item) => item.id === state.activeId,
+        (item) => item.id === (action.targetId ?? state.activeId),
       )
       const messages =
         typeof action.update === 'function'
@@ -101,7 +107,9 @@ export function conversationReducer(
         activeId: conversation.id,
         conversations: [
           conversation,
-          ...state.conversations.filter((item) => item.id !== conversation.id),
+          ...state.conversations.filter(
+            (item) => item.id !== conversation.id,
+          ),
         ].slice(0, MAX_CONVERSATIONS),
       }
     }

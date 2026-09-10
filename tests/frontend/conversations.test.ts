@@ -65,13 +65,70 @@ test('a pending question and its reply stay in one conversation, including after
   )
 })
 
+test('retains server results with missing optional metadata after storage roundtrip', () => {
+  // SearchHit.to_dict() uses null for absent metadata; public_results keeps it.
+  const messages = [
+    question,
+    {
+      ...answer,
+      results: [
+        {
+          chunk_id: 'chunk-1',
+          document_id: 'doc-1',
+          doc_id: 'doc-1',
+          source_number: 1,
+          chunk_index: null,
+          institution: null,
+          file_name: null,
+          source_path: null,
+          relative_path: null,
+          source_title: null,
+          source_url: null,
+          download_url: null,
+          source_host: null,
+          fetched_at: null,
+          published_at: null,
+          category: null,
+          preview: '메타데이터가 없는 문서 본문',
+          char_count: 17,
+          score: null,
+          scores: { bm25: null },
+          locations: [],
+          location: null,
+          metadata: {},
+        },
+      ],
+    },
+  ]
+  const conversation = {
+    id: 'chat-1',
+    title: '학교 질문',
+    updatedAt: 1,
+    messages,
+  }
+  const restored = parseConversations(
+    JSON.stringify({
+      activeId: conversation.id,
+      conversations: [conversation],
+    }),
+  )
+  assert.equal(restored.activeId, 'chat-1')
+  assert.deepEqual(restored.conversations, [conversation])
+})
+
 test('starting a new conversation and switching back preserves both transcripts', () => {
   let state = append(emptyConversationState, [question, answer], 'chat-1')
   state = conversationReducer(state, { type: 'select', id: null })
   assert.equal(state.conversations.length, 1)
   state = append(
     state,
-    [{ ...question, id: 'question-2', content: '다른 기관의 문서를 찾아줘' }],
+    [
+      {
+        ...question,
+        id: 'question-2',
+        content: '다른 기관의 문서를 찾아줘',
+      },
+    ],
     'chat-2',
   )
   state = conversationReducer(state, { type: 'select', id: 'chat-1' })
@@ -89,8 +146,15 @@ test('starting a new conversation and switching back preserves both transcripts'
 })
 
 test('deleting the active conversation and undoing restores its sources and selection', () => {
-  const initial = append(emptyConversationState, [question, answer], 'chat-1')
-  const deleted = conversationReducer(initial, { type: 'delete', id: 'chat-1' })
+  const initial = append(
+    emptyConversationState,
+    [question, answer],
+    'chat-1',
+  )
+  const deleted = conversationReducer(initial, {
+    type: 'delete',
+    id: 'chat-1',
+  })
   assert.equal(deleted.activeId, null)
   assert.equal(deleted.conversations.length, 0)
   const restored = conversationReducer(deleted, { type: 'restore' })
@@ -120,11 +184,20 @@ test('a failed request and retry do not duplicate the user question', () => {
       .length,
     1,
   )
-  assert.equal(state.conversations[0].messages.at(-1)?.content, answer.content)
+  assert.equal(
+    state.conversations[0].messages.at(-1)?.content,
+    answer.content,
+  )
 })
 
 test('malformed browser storage is ignored without breaking the app', () => {
-  for (const raw of [null, '{broken', 'null', '[]', '{"conversations":null}']) {
+  for (const raw of [
+    null,
+    '{broken',
+    'null',
+    '[]',
+    '{"conversations":null}',
+  ]) {
     assert.deepEqual(parseConversations(raw), emptyConversationState)
   }
   const valid = append(emptyConversationState, [question, answer], 'chat-1')

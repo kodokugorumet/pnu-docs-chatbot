@@ -4,6 +4,7 @@ import {
   render,
   renderHook,
   screen,
+  waitFor,
 } from '@testing-library/react'
 import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -69,7 +70,12 @@ describe('chat composer', () => {
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
     expect(props.onSubmit).not.toHaveBeenCalled()
     view.rerender(
-      <ChatComposer {...props} loading hasMessages value={'가'.repeat(950)} />,
+      <ChatComposer
+        {...props}
+        loading
+        hasMessages
+        value={'가'.repeat(950)}
+      />,
     )
     expect(screen.getByText('950 / 1,000')).toBeTruthy()
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
@@ -90,7 +96,9 @@ describe('conversation navigation', () => {
           id: '1',
           title: '휴학',
           updatedAt: 1,
-          messages: [{ id: 'u', role: 'user' as const, content: '휴학 절차' }],
+          messages: [
+            { id: 'u', role: 'user' as const, content: '휴학 절차' },
+          ],
         },
         {
           id: '2',
@@ -124,7 +132,9 @@ describe('conversation navigation', () => {
       target: { value: '없는 검색어' },
     })
     expect(screen.getByText('일치하는 대화가 없어요')).toBeTruthy()
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: '' },
+    })
     view.rerender(
       <ChatSidebar
         {...props}
@@ -146,7 +156,9 @@ describe('conversation navigation', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: '새 대화' }))
-    fireEvent.click(screen.getByRole('button', { name: /설정 및 연결 상태/ }))
+    fireEvent.click(
+      screen.getByRole('button', { name: /설정 및 연결 상태/ }),
+    )
     expect(props.onNew).toHaveBeenCalledOnce()
     expect(props.onSettings).toHaveBeenCalledOnce()
   })
@@ -222,17 +234,23 @@ it('citation buttons are real controls and remain focused through rerenders', ()
   expect(document.activeElement).toBe(citation)
 })
 
-it('storage errors keep the active transcript usable and recover after space is freed', () => {
-  const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-    throw new Error('storage blocked')
-  })
-  const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-    throw new Error('quota')
-  })
+it('storage errors keep the active transcript usable and recover after space is freed', async () => {
+  const get = vi
+    .spyOn(Storage.prototype, 'getItem')
+    .mockImplementation(() => {
+      throw new Error('storage blocked')
+    })
+  const set = vi
+    .spyOn(Storage.prototype, 'setItem')
+    .mockImplementation(() => {
+      throw new Error('quota')
+    })
   const { result } = renderHook(() => useConversations())
   expect(result.current.storageError).toBe(true)
   act(() =>
-    result.current.setMessages([{ id: 'u', role: 'user', content: '질문' }]),
+    result.current.setMessages([
+      { id: 'u', role: 'user', content: '질문' },
+    ]),
   )
   expect(result.current.messages[0].content).toBe('질문')
   get.mockRestore()
@@ -243,10 +261,10 @@ it('storage errors keep the active transcript usable and recover after space is 
       { id: 'a', role: 'assistant', content: '답변' },
     ]),
   )
-  expect(result.current.storageError).toBe(false)
+  await waitFor(() => expect(result.current.storageError).toBe(false))
   expect(
-    JSON.parse(localStorage.getItem(CONVERSATION_STORAGE_KEY)!).conversations[0]
-      .messages,
+    JSON.parse(localStorage.getItem(CONVERSATION_STORAGE_KEY)!)
+      .conversations[0].messages,
   ).toHaveLength(2)
   const id = result.current.activeId!
   act(() => result.current.selectConversation(null))
@@ -261,8 +279,9 @@ it('storage errors keep the active transcript usable and recover after space is 
 })
 
 it('names source location groups and renders page ranges, sections and zero-based table coordinates', async () => {
-  const { default: CitationLocation } =
-    await import('../../src/components/CitationLocation')
+  const { default: CitationLocation } = await import(
+    '../../src/components/CitationLocation'
+  )
   const view = render(
     <CitationLocation
       location={{
@@ -281,7 +300,9 @@ it('names source location groups and renders page ranges, sections and zero-base
     <CitationLocation compact location={{ page: 2, page_end: 2 }} />,
   )
   expect(screen.getByText('2쪽')).toBeTruthy()
-  view.rerender(<CitationLocation location={{ section_path: [], row: 0 }} />)
+  view.rerender(
+    <CitationLocation location={{ section_path: [], row: 0 }} />,
+  )
   expect(screen.getByText('행 1')).toBeTruthy()
   view.rerender(<CitationLocation location={{ column: 0 }} />)
   expect(screen.getByText('열 1')).toBeTruthy()
