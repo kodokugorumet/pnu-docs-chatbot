@@ -64,11 +64,11 @@ export type SearchResult = {
   chunk_id: string
   doc_id?: string
   document_id?: string
-  chunk_index?: number
-  institution?: string
-  file_name?: string
-  source_path?: string
-  relative_path?: string
+  chunk_index?: number | null
+  institution?: string | null
+  file_name?: string | null
+  source_path?: string | null
+  relative_path?: string | null
   source_title?: string | null
   source_url?: string | null
   download_url?: string | null
@@ -77,7 +77,7 @@ export type SearchResult = {
   published_at?: string | null
   category?: string | null
   char_count?: number
-  score?: number
+  score?: number | null
   preview?: string
   location?: CitationLocation | null
   locations?: CitationLocation[]
