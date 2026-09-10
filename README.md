@@ -391,6 +391,9 @@ npm run test:coverage
 `/tests/frontend/browser-audit.html`을 열어 실행할 수 있습니다.
 이 검증 화면은 production build에 포함되지 않습니다.
 
+검사별 결과, 브라우저 검증 범위와 재실행 방법은
+[프론트엔드 UX/UI 개편 및 검증](docs/frontend-ux-verification.md)에 정리되어 있습니다.
+
 ## 데이터 파이프라인
 
 ### 3개 프로필 파서 파이프라인
@@ -581,7 +584,7 @@ BM25/Dense/RRF/reranker 실행 trace가 포함됩니다.
 - 기관별 검색 범위 선택
 - 질문 입력 및 답변 생성
 - 답변 생성 중 경과시간·지연·대체 모델 전환 상태 표시
-- 동일 브라우저의 동시 질문 전송 차단과 진행 중 요청 취소
+- 같은 탭의 동시 질문 전송 차단과 진행 중 요청 취소
 - 답변 내 출처 번호 배지 표시
 - claim별 근거 확인 여부 표시
 - 검색된 문서 chunk 미리보기
