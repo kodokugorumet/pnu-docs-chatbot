@@ -1099,7 +1099,11 @@ def _render_context(index: int, context: Context) -> str:
     section_path = context.get("section_path") or metadata.get("section_path")
     page_start = context.get("page_start") or metadata.get("page_start")
     page_end = context.get("page_end") or metadata.get("page_end")
-    lines = [f"Source {index}", f"ID: {source_id}"]
+    lines = [
+        f'<UNTRUSTED_CONTEXT source_number="{index}" id="{source_id}">',
+        f"Source {index}",
+        f"ID: {source_id}",
+    ]
     if institution:
         lines.append(f"Institution: {institution}")
     if file_name:
@@ -1116,6 +1120,7 @@ def _render_context(index: int, context: Context) -> str:
             page_text = f"{page_start}-{page_end}"
         lines.append(f"Page: {page_text}")
     lines.append(f"Text: {text}")
+    lines.append("</UNTRUSTED_CONTEXT>")
     return "\n".join(lines)
 
 

@@ -65,6 +65,7 @@ try:
     from .rag.retrieval import DenseIndex, HybridRetriever
     from .rag.learned_dense import LearnedDenseIndex
     from .rag import role_router
+    from .rag.security import enforce_output, evaluate_contexts
 except ImportError:  # Direct CLI execution: python scripts/search_api.py
     from bm25_search import (
         DEFAULT_INDEX,
@@ -94,6 +95,7 @@ except ImportError:  # Direct CLI execution: python scripts/search_api.py
     from rag.retrieval import DenseIndex, HybridRetriever
     from rag.learned_dense import LearnedDenseIndex
     from rag import role_router
+    from rag.security import enforce_output, evaluate_contexts
 
 
 DEFAULT_HOST = "127.0.0.1"
@@ -7979,17 +7981,23 @@ class SearchHandler(BaseHTTPRequestHandler):
             retrieval["role"] = role_router.public_role(
                 role_profile, requested_role
             )
+            context_security = evaluate_contexts(results)
+            results = list(context_security.original_contexts)
+            generation_results = list(context_security.generation_contexts)
+            retrieval["result_count"] = len(results)
+            retrieval["security_gate"] = context_security.summary()
             retrieval_elapsed_ms = (
                 time.perf_counter() - retrieval_started
             ) * 1000
             numbered_results = number_sources(results)
+            numbered_generation_results = number_sources(generation_results)
             generation_input = (
                 generation_input_trace(
                     question,
-                    numbered_results,
+                    numbered_generation_results,
                     role_perspective=role_perspective,
                 )
-                if include_evaluation_trace and numbered_results
+                if include_evaluation_trace and numbered_generation_results
                 else None
             )
             draft_answer = None
@@ -8045,7 +8053,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     try:
                         generated = generate(
                             question,
-                            numbered_results,
+                            numbered_generation_results,
                             requested=generation_provider,
                             extractive_fallback=extractive_fallback_answer,
                             requested_model=requested_model,
@@ -8087,7 +8095,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                         # A deadline can expire before the normal extractive route.
                         # Keep the service useful with an in-process safe fallback.
                         draft_answer = extractive_fallback_answer(
-                            question, numbered_results
+                            question, numbered_generation_results
                         )
                         raw_draft_answer = draft_answer
                         generation = public_generation_metadata(
@@ -8124,6 +8132,8 @@ class SearchHandler(BaseHTTPRequestHandler):
 
             postprocess_started = time.perf_counter()
             rag = build_rag_response(question, numbered_results, draft_answer, generator)
+            output_security = enforce_output(rag, numbered_results)
+            rag = output_security.response
             postprocess_elapsed_ms = (
                 time.perf_counter() - postprocess_started
             ) * 1000
@@ -8141,6 +8151,10 @@ class SearchHandler(BaseHTTPRequestHandler):
                 "generator": rag["generator"],
                 "generation": generation,
                 "retrieval": retrieval,
+                "security": {
+                    "context_gate": context_security.summary(),
+                    "output_gate": output_security.summary(),
+                },
                 "results": public_results(numbered_results),
             }
             if include_evaluation_trace:
